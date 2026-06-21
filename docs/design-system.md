@@ -1,5 +1,7 @@
 # Wild Pairs — Design System
 
+> *Canonical sources: this document is authoritative for visual tokens, colour names, animation durations, and typography. For data models, `technical-architecture.md` §Model Reference is canonical. For game rules, `game-rules.md`. Where any other document disagrees with this document on visual tokens, this document wins.*
+
 **Version:** 1.0  
 **Status:** Draft  
 **Audience:** iOS engineers, designers  

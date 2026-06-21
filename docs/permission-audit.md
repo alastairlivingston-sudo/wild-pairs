@@ -1,5 +1,7 @@
 # Wild Pairs — Permission Audit
 
+> *Canonical sources: for data models, `technical-architecture.md` §Model Reference is canonical. For game rules, `game-rules.md`. For visual tokens, `design-system.md`. Where this document disagrees with its canonical source, the canonical source wins.*
+
 > Last updated: 2026-06-21  
 > Status: Living document — update whenever new features are added that might require permissions.
 

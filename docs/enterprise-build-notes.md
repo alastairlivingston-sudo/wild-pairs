@@ -1,5 +1,7 @@
 # Wild Pairs — Enterprise Build Notes
 
+> *Canonical sources: for data models, `technical-architecture.md` §Model Reference is canonical. For game rules, `game-rules.md`. For visual tokens, `design-system.md`. Where this document disagrees with its canonical source, the canonical source wins.*
+
 > Last updated: 2026-06-21  
 > Audience: Developers building this project in an enterprise-managed macOS environment.
 

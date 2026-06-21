@@ -1,5 +1,7 @@
 # Wild Pairs — Accessibility Plan
 
+> *Canonical sources: for data models (CardType, CardColour, Card), `technical-architecture.md` §Model Reference is canonical. For game rules, `game-rules.md`. For visual tokens, `design-system.md`. Where this document disagrees with its canonical source, the canonical source wins.*
+
 **Version:** 1.0  
 **Status:** Draft  
 **Audience:** iOS engineers, QA  
@@ -76,8 +78,10 @@ Example: "Amber Reverse, action card. Reverses the direction of play. Not playab
 Examples:
 "Change Colour, wild card. Lets you choose a new colour for all players. Plays on any colour. Playable. Double tap to select."
 "Draw Four, wild card. The next player draws four cards and loses their turn. Plays on any colour. Playable. Double tap to select."
-"Forced Swap, wild card. Lets you swap your hand with another player. Plays on any colour. Playable. Double tap to select."
 ```
+
+> **Note:** Forced Swap is a **coloured action card**, not a wild card. It uses the action card label pattern (see above), e.g. "Crimson Forced Swap, action card. Swap your hand with any other player. Playable. Double tap to select."
+> Discard All is a wild card (no colour): "Discard All, wild card. Discard all cards of a chosen colour from your hand. Plays on any colour. Playable. Double tap to select."
 
 #### Opponent and partner card backs (non-interactive)
 
@@ -715,34 +719,44 @@ extension Card {
 }
 
 // MARK: - Card type descriptions
+// Canonical CardType has 11 cases (see technical-architecture.md §Model Reference).
+// Every switch here must be exhaustive across all 11.
 
 extension CardType {
     
     /// Short type description for VoiceOver.
+    /// forcedSwap is a coloured action card, not a wild card.
+    /// discardAll is a wild card (no colour).
     var voiceOverDescription: String {
         switch self {
-        case .number: return "number card"
-        case .skip: return "action card"
-        case .reverse: return "action card"
-        case .drawTwo: return "action card"
-        case .changeColour: return "wild card"
-        case .drawFour: return "wild card"
-        case .forcedSwap: return "wild card"
-        case .targetedDraw: return "action card"
+        case .number:        return "number card"
+        case .skip:          return "action card"
+        case .reverse:       return "action card"
+        case .drawTwo:       return "action card"
+        case .drawFour:      return "wild card"
+        case .changeColour:  return "wild card"
+        case .discardAll:    return "wild card"
+        case .targetedDraw:  return "action card"
+        case .forcedSwap:    return "action card"   // coloured action card, not wild
+        case .skipTwo:       return "action card"
+        case .teamPlay:      return "action card"
         }
     }
     
     /// One-sentence rules description for VoiceOver label (nil for number cards).
     var rulesDescription: String? {
         switch self {
-        case .number: return nil
-        case .skip: return "Skips the next player's turn."
-        case .reverse: return "Reverses the direction of play."
-        case .drawTwo: return "The next player draws two cards and loses their turn."
-        case .changeColour: return "Lets you choose a new colour for all players."
-        case .drawFour: return "The next player draws four cards and loses their turn."
-        case .forcedSwap: return "Lets you swap your hand with another player."
-        case .targetedDraw: return "Forces a chosen player to draw cards."
+        case .number:        return nil
+        case .skip:          return "Skips the next player's turn."
+        case .reverse:       return "Reverses the direction of play."
+        case .drawTwo:       return "The next player draws two cards and loses their turn."
+        case .drawFour:      return "The next player draws four cards and loses their turn."
+        case .changeColour:  return "Lets you choose a new colour for all players."
+        case .discardAll:    return "Discard all cards of a chosen colour from your hand."
+        case .targetedDraw:  return "Force a chosen opponent to draw two cards."
+        case .forcedSwap:    return "Swap your entire hand with another player."
+        case .skipTwo:       return "The next two players each lose their turn."
+        case .teamPlay:      return "You and your partner each draw one bonus card."
         }
     }
 }
@@ -781,7 +795,7 @@ func drawPileAccessibilityLabel(count: Int, canDraw: Bool) -> String {
 
 // MARK: - Discard pile accessibility label
 
-func discardPileAccessibilityLabel(topCard: Card, currentColour: GameColour) -> String {
+func discardPileAccessibilityLabel(topCard: Card, currentColour: CardColour) -> String {
     return "Discard pile. Top card: \(topCard.accessibilityLabel(isPlayable: false)). Current colour: \(currentColour.displayName)."
 }
 
@@ -790,7 +804,7 @@ func discardPileAccessibilityLabel(topCard: Card, currentColour: GameColour) -> 
 func gameStatusAccessibilityDescription(
     roundNumber: Int,
     activePlayer: Player,
-    currentColour: GameColour,
+    currentColour: CardColour,
     humanCardCount: Int,
     partnerCardCount: Int,
     leftOpponentCardCount: Int,

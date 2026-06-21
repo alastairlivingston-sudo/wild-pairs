@@ -1,5 +1,7 @@
 # Wild Pairs — Product Specification
 
+> *Canonical sources: for data models, `technical-architecture.md` §Model Reference is canonical. For game rules and house-rule defaults, `game-rules.md` is canonical. For visual tokens, `design-system.md`. Where this document disagrees with its canonical source, the canonical source wins.*
+
 ## TL;DR
 
 Wild Pairs is an offline Universal iOS/iPadOS card game for one human player and three AI opponents, structured as a 2v2 team match. It is an original colour-and-number shedding card game — legally and visually distinct from any existing game — featuring three game modes, four AI difficulty levels, three card sets, configurable house rules, and automatic save/resume. It requires no internet connection, no account, no special device permissions, and no third-party SDKs. The goal of the MVP is a polished, fully playable game that runs on iPhone and iPad from Xcode simulators, ready for eventual App Store submission.

@@ -1,5 +1,7 @@
 # Wild Pairs — Game Engine State Machine Specification
 
+> *Canonical sources: for data models (including GameSnapshot schema), `technical-architecture.md` §Model Reference is canonical. For game rules and house-rule defaults, `game-rules.md` is canonical. Where this document disagrees with its canonical source, the canonical source wins.*
+
 ## Architecture Notes
 
 The Wild Pairs engine is a **pure synchronous reducer**:

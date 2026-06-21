@@ -1,5 +1,7 @@
 # Wild Pairs — Privacy and Offline Plan
 
+> *Canonical sources: persistence paths and filenames in this document are authoritative. For data models, `technical-architecture.md` §Model Reference is canonical. For game rules, `game-rules.md`. Where this document disagrees with its canonical source, the canonical source wins.*
+
 > Last updated: 2026-06-21  
 > Status: Living document — update whenever data model or API usage changes.
 

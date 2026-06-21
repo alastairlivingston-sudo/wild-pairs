@@ -1,5 +1,7 @@
 # Wild Pairs — Technical Architecture
 
+> *Canonical sources: this document is authoritative for data models (§Model Reference) and technical design. For game rules and rule defaults, `game-rules.md` is canonical. For visual tokens, `design-system.md`. Where any other document disagrees with §Model Reference, this document wins.*
+
 ## TL;DR
 
 Wild Pairs is a Universal iOS/iPadOS card game built on a strict separation between pure game logic (the `WildPairsCore` Swift Package) and the SwiftUI presentation layer (`WildPairsApp`). The game engine is a single pure reducer function — `(GameState, GameAction) -> (GameState, [GameEffect])` — that contains no UI dependencies, no network calls, and no side effects. All randomness flows through a seeded RNG so that every game can be replayed deterministically and every test produces identical results. ViewModels bridge the two worlds: they dispatch actions into the engine, publish new state to SwiftUI views, and process returned effects (animations, haptics, audio) without any of that logic leaking back into the engine.
@@ -310,7 +312,17 @@ struct RuleProfile: Codable, Equatable, Sendable {
     var soloCallEnabled: Bool
     var soloCallPenaltyCards: Int          // cards drawn if call missed
 
-    // Factory methods
+    // Solo call
+    var soloCallTimeoutSeconds: Double      // 5.0 in all factory defaults
+
+    // Scoring
+    var scoringEnabled: Bool
+    var maxTurnsPerRound: Int              // 300 — stuck-game safety cap
+
+    // Team Play house-rule variant
+    var partnerPlaysImmediately: Bool      // false in all factory defaults
+
+    // Factory methods — see game-rules.md §RuleProfile Factory Defaults for exact field values
     static func standardTeams() -> RuleProfile
     static func allWild() -> RuleProfile
     static func sideToSide() -> RuleProfile
@@ -326,16 +338,34 @@ struct RuleProfile: Codable, Equatable, Sendable {
 ```swift
 struct SeededRNG: RandomNumberGenerator {
     private var state: UInt64
-    init(seed: UInt64)
-    mutating func next() -> UInt64
+    init(seed: UInt64) {
+        // splitmix64 initialisation: mix the seed so that seed 0 produces
+        // a non-degenerate sequence (unlike xorshift64, which returns 0 forever at state 0).
+        self.state = seed &+ 0x9e3779b97f4a7c15
+        _ = next()  // advance once to spread the mixed seed
+    }
+    mutating func next() -> UInt64 {
+        // splitmix64
+        state = state &+ 0x9e3779b97f4a7c15
+        var z = state
+        z = (z ^ (z >> 30)) &* 0xbf58476d1ce4e5b9
+        z = (z ^ (z >> 27)) &* 0x94d049bb133111eb
+        return z ^ (z >> 31)
+    }
 }
 ```
 
-Uses a splitmix64 algorithm — single 64-bit state, extremely fast, good statistical properties, and easy to serialise. The seed is stored in `GameState.rngSeed` and saved in `GameSnapshot`, allowing any saved game to be resumed with identical random draws.
+**Algorithm: splitmix64.** This is the canonical RNG for Wild Pairs. Both `technical-architecture.md` (here) and `testing-strategy.md` §4 must show byte-identical implementations.
+
+- Single 64-bit state, extremely fast, good statistical properties, easy to serialise.
+- Produces a well-distributed sequence from **any** seed, including 0.
+- Seed is stored in `GameState.rngSeed` and saved in `GameSnapshot`, allowing any saved game to resume with identical random draws.
+
+**Why not xorshift64:** xorshift64 has state = 0 as a fixed point (returns 0 forever), which silently corrupts seed-0 simulations. splitmix64 has no such fixed point.
 
 **Production:** The seed is generated from `SystemRandomNumberGenerator` at game start.
 
-**Tests:** Tests construct `SeededRNG(seed: 42)` (or any fixed value) so every test run produces the same deck shuffle, the same draws, and the same AI choices.
+**Tests:** Tests construct `SeededRNG(seed: 42)` (or any fixed value). `SeededRNGTests` must include: (a) two generators with the same seed produce identical sequences; (b) `SeededRNG(seed: 0).next()` produces a non-zero, non-constant sequence.
 
 **RNG threading through engine:** The engine takes `var rng` as an `inout` parameter on internal methods. Because `GameState` contains the seed but not the live RNG, the ViewModel reconstructs the RNG at the correct point using `actionCount` to fast-forward from the seed. For simplicity in Phase 2, the RNG is advanced by replaying the required number of `next()` calls.
 
@@ -376,17 +406,29 @@ Uses a splitmix64 algorithm — single 64-bit state, extremely fast, good statis
 
 ### File Paths
 
+Files live in the app's **Documents** directory — the canonical location used by `privacy-offline-plan.md`, `permission-audit.md`, and the `DataResetService`. Not `Application Support`.
+
 ```
-<Application Support>/WildPairs/saves/current.json   ← autosave slot
-<Application Support>/WildPairs/saves/manual_1.json  ← future manual slots
-<Application Support>/WildPairs/settings.json        ← user preferences
+<Documents>/wildpairs-game.json       ← autosave slot (current game)
+<Documents>/wildpairs-settings.json  ← user preferences
+<Documents>/wildpairs-stats.json     ← local statistics
 ```
+
+Swift:
+```swift
+let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+let gameURL      = dir.appendingPathComponent("wildpairs-game.json")
+let settingsURL  = dir.appendingPathComponent("wildpairs-settings.json")
+let statsURL     = dir.appendingPathComponent("wildpairs-stats.json")
+```
+
+`DataResetService` deletes exactly these three files and no others. Tests for reset must assert deletion of these exact paths.
 
 ### GameSnapshot Envelope
 
 ```swift
 struct GameSnapshot: Codable {
-    let schemaVersion: Int          // must match GameState.schemaVersion
+    let schemaVersion: Int          // must match GameState.schemaVersion; current = 1
     let savedAt: Date
     let buildVersion: String        // CFBundleShortVersionString at save time
     let state: GameState
@@ -600,3 +642,113 @@ Tests never mock `GameEngine`. They call `GameEngine.reduce(state:action:)` dire
 - **App Review:** No risk of rejection due to SDK policy violations in a dependency.
 - **Offline-first:** No package resolution needed after initial clone.
 - **Simplicity:** The game logic is straightforward enough that no external libraries provide meaningful value over Foundation + SwiftUI.
+
+---
+
+## 18. Model Reference
+
+**This section is the single canonical source of truth for all data model types.** Every other document that describes a model type defers to this section. Where any other document disagrees with this section, this section wins.
+
+### CardColour
+
+```swift
+enum CardColour: String, Codable, Equatable, Sendable, CaseIterable {
+    case crimson
+    case cobalt
+    case jade
+    case amber
+}
+```
+
+- Exactly **four cases**. There is no `.wild` case.
+- Wild cards (Change Colour, Draw Four, Discard All) have `colour: CardColour? = nil` on the `Card` struct.
+- `GameState.currentColour: CardColour` is never nil — there is always an active colour constraint.
+- `CardColour.allCases` (from `CaseIterable`) provides all four colours; use this wherever the code previously referenced `CardColour.nonWild`.
+
+### CardType
+
+```swift
+enum CardType: Codable, Equatable, Sendable {
+    case number(Int)        // associated value: 0–9
+    case skip
+    case reverse
+    case drawTwo
+    case drawFour
+    case changeColour
+    case discardAll
+    case targetedDraw
+    case forcedSwap
+    case skipTwo
+    case teamPlay
+}
+```
+
+Exactly **11 cases**. Every `switch` on `CardType` must be exhaustive across all 11.
+
+- `number(Int)` carries the face value (0–9). `Card(.number(5), .cobalt)` is a cobalt 5.
+- `forcedSwap` is a **coloured action card** (not wild): it has a `CardColour` and matches by colour or type. Its `Card.colour` is non-nil.
+- `discardAll` is a **wild-type card**: `Card.colour == nil`.
+
+### Card
+
+```swift
+struct Card: Codable, Equatable, Sendable, Identifiable {
+    let id: UUID
+    let type: CardType
+    let colour: CardColour?   // nil for wild-type cards (changeColour, drawFour, discardAll)
+    
+    var isWild: Bool { colour == nil }
+}
+```
+
+### GameState — Seat and Team Model
+
+```
+Seat 0: Human player      → Team A
+Seat 1: Left Opponent     → Team B
+Seat 2: AI Partner        → Team A
+Seat 3: Right Opponent    → Team B
+```
+
+- `GameState.players: [Player]` is always 4 elements, indexed 0–3 in seat order.
+- `GameState.teams: [[Int]]` = `[[0, 2], [1, 3]]` for all three game modes.
+- The seating is **identical in all modes**. "Side-to-Side" refers to the card-passing mechanic, not a different seat geometry.
+- `GameStateBuilder` test fixtures must use `.withTeams([[0, 2], [1, 3]])`.
+
+### GameSnapshot — Schema
+
+```swift
+struct GameSnapshot: Codable {
+    let schemaVersion: Int      // current = 1
+    let savedAt: Date
+    let buildVersion: String    // CFBundleShortVersionString
+    let state: GameState
+}
+```
+
+### Persistence Paths
+
+```
+<Documents>/wildpairs-game.json       ← autosave
+<Documents>/wildpairs-settings.json  ← user preferences
+<Documents>/wildpairs-stats.json     ← local statistics
+```
+
+`DataResetService` deletes exactly these three files.
+
+### RuleProfile Factory Defaults
+
+See `game-rules.md` §RuleProfile Factory Defaults for the complete field-by-field table. Key values:
+
+| Field | Default (all factories) |
+|---|---|
+| `initialHandSize` | 7 |
+| `soloCallEnabled` | `true` |
+| `soloCallPenaltyCards` | 2 |
+| `soloCallTimeoutSeconds` | 5.0 |
+| `maxTurnsPerRound` | 300 |
+| `teamPassEnabled` | `false` (except `sideToSide()` → `true`) |
+
+### Stuck-Game Turn Limit
+
+**300 turns per round.** This constant (`RuleProfile.maxTurnsPerRound`) is referenced by `game-rules.md`, `testing-strategy.md`, `premortem.md`, and this document. The value in `ai-strategy.md` §12 was 1000 and has been corrected to 300.

@@ -1,5 +1,7 @@
 # Wild Pairs — UX Specification
 
+> *Canonical sources: for data models, `technical-architecture.md` §Model Reference is canonical. For game rules (including house rules, team structure, and Solo! behaviour), `game-rules.md` is canonical. For visual tokens, `design-system.md`. Where this document disagrees with its canonical source, the canonical source wins.*
+
 **Version:** 1.0  
 **Status:** Draft  
 **Audience:** iOS engineers, AI logic engineers, QA  
@@ -85,7 +87,7 @@ Wild Pairs
 │   ├── New Game
 │   │   ├── Mode selection (Standard Teams / All-Wild Teams / Side-to-Side Teams)
 │   │   ├── Difficulty selection (Easy / Medium / Hard / Expert)
-│   │   ├── Card set selection (Standard 108-card / variations if added)
+│   │   ├── Card set selection (Beginner / Standard / Advanced)
 │   │   └── House rules (optional toggles before starting)
 │   ├── Quick Play (jumps into Standard Teams with last-used difficulty)
 │   ├── Rules
@@ -148,7 +150,7 @@ Wild Pairs
 5. Player selects Standard Teams, taps "Next".
 6. Difficulty selection: four options (Easy / Medium / Hard / Expert) with brief descriptors. Medium is default.
 7. Player selects difficulty, taps "Next".
-8. Card set screen: Standard 108-card deck shown as default. House rules toggles below (all off). Player taps "Start Game".
+8. Card set screen: Standard card set shown as default (Beginner / Standard / Advanced selector). House rules toggles below (all off by default). Player taps "Start Game".
 9. **Optional tutorial overlay (first game only):** Five sequential overlay tooltips appear over the game table:
    - Step 1: Arrow points to player's hand — "Here's your hand. These are your cards."
    - Step 2: Arrow points to discard pile — "Match the top card by colour, number, or action."
@@ -191,10 +193,10 @@ Wild Pairs
 ### Journey 5: User starts Side-to-Side Teams game
 
 1. From Home → New Game → Mode selection.
-2. Player taps "Side-to-Side Teams." Description: "Partners sit side by side (you and the right opponent form one team; the left opponent and your AI partner form the other). You can pass one card to your partner per round."
+2. Player taps "Side-to-Side Teams." Description: "Same teams as Standard Teams — you and your AI partner opposite each other. The Side-to-Side twist: before each round you may privately pass one card to your partner. Adds a layer of coordination."
 3. Player proceeds to difficulty, start.
-4. Mode summary at game start: "Side-to-Side Teams — you and the player to your right are partners. You may pass one card to your partner per round."
-5. Player zones are re-labelled. Human's partner is to their right (previously labelled "opponent"). The pass mechanic is available once per round: a "Pass to partner" button appears when enabled.
+4. Mode summary at game start: "Side-to-Side Teams — partner is opposite you, as usual. At the start of each round you may pass one card to your partner before play begins."
+5. Player zones use the same seating as Standard Teams (partner opposite, opponents left and right). The pass mechanic is available at round start: a "Pass to partner" card-selection prompt appears when Team Pass is enabled. After both players select a card, the exchange happens simultaneously and play begins normally.
 
 ### Journey 6: User changes difficulty mid-session
 
@@ -243,7 +245,9 @@ Wild Pairs
 2. Partner's turn. AI plays a Skip targeting the leading opponent. Event log: "Partner skipped [Left Opponent]'s turn."
 3. Partner then (on their next turn) plays a Change Colour card and sets the colour to match the human's strongest suit. Event log: "Partner changed colour to Jade. Sets you up!"
 4. Human's turn: 2 of their 3 remaining cards are now playable. Player plays down to 1.
-5. Solo! call fires automatically: "Solo!" badge pops on the human's zone. VoiceOver: "You have one card remaining. Solo called automatically."
+5. A "Solo!" button appears prominently in the human's zone. The action prompt reads: "You have one card left — tap Solo! to call it." A 5-second countdown begins. VoiceOver announces: "You have one card remaining. Tap Solo! to call it."
+   - If the human taps Solo! within 5 seconds: "Solo!" badge pops. VoiceOver: "[Human name] called Solo!"
+   - If the timeout expires without a tap: the 2-card penalty is applied automatically. VoiceOver: "Solo! not called in time — drawing 2 cards."
 6. Partner plays their last card on their next turn. Partner zone shows "Out!" badge.
 7. Human plays their final card on their next turn. Round win celebration triggers.
 
@@ -412,25 +416,29 @@ Wild Pairs
 
 ### Card set + house rules selection
 
-**Purpose:** Confirm the card set (future-proofing for expansions) and enable any optional house rules before starting.
+**Purpose:** Choose the card set and enable any optional house rules before starting.
 
 **Primary action:** "Start Game"
 
 **Secondary actions:** Back to difficulty.
 
 **Layout hierarchy:**
-1. Screen title: "House rules"
-2. Card set picker (standard only at v1.0; row shows "Standard 108-card deck — locked")
+1. Screen title: "Card set & house rules"
+2. Card set picker — three options: **Beginner**, **Standard** (default), **Advanced**. Each option shows a one-line description of the cards included. Selecting a set also adjusts which house rules are relevant (e.g., Draw Stacking only meaningful if Draw cards are in the set).
 3. Divider: "Optional house rules"
-4. Toggle list: each house rule has a name, one-line description, and on/off toggle (all off by default)
-   - No draws back-to-back (prevents chaining multiple draw cards)
-   - Strict Solo! (penalty for forgetting; default: off)
-   - Jump-in (allow out-of-turn play of exact match; default: off)
+4. Toggle list: the seven canonical house rules from `game-rules.md`, each with a name, one-line description, and on/off toggle. All default to OFF unless noted:
+   - **Draw Four Anytime** — "Draw Four can be played even if you have another legal card." (OFF)
+   - **Single-Out Win** — "Round ends when either teammate empties their hand, not both." (OFF)
+   - **Draw Stacking** — "Stack Draw Two / Draw Four penalties. Target must stack or draw the full amount." (OFF)
+   - **Solo! Penalty Disabled** — "No penalty for forgetting to call Solo!." (OFF)
+   - **Team Pass** — "At round start, each team may secretly swap one card with their partner." (ON in Side-to-Side mode, OFF otherwise; greyed out for Standard/All-Wild modes)
+   - **Partner Plays Immediately** — "When Team Play is used, partner plays one card instead of drawing." (OFF; only shown in Advanced card set)
+   - **Scoring** — "Track points across rounds. Win at a score target." (OFF)
 5. "Start Game" primary button at bottom
 
 **Motion:** None required.
 
-**Accessibility:** Toggle labels include description: "Strict Solo! — penalty applied if you forget to call before the next player acts. Currently off."
+**Accessibility:** Toggle labels include description: "Draw Four Anytime — Draw Four can be played at any time, even if you have other legal cards. Currently off."
 
 ---
 
@@ -781,27 +789,41 @@ All wireframes use a notional 390×844pt iPhone (iPhone 14 baseline). Safe areas
 ```
 ┌─────────────────────────────┐
 │  ←                          │
-│        House rules          │
+│   Card set & house rules    │
 ├─────────────────────────────┤
 │  Card set                   │
-│ ┌─────────────────────────┐ │
-│ │  Standard 108-card deck │ │
-│ │  (locked)            🔒 │ │
-│ └─────────────────────────┘ │
+│  ○ Beginner   ● Standard    │
+│  ○ Advanced                 │
+│  Standard: numbers, skip,   │
+│  reverse, wild, draw cards  │
 │                             │
 │  Optional house rules       │
 │ ─────────────────────────── │
-│  No draws back-to-back  [ ] │
-│  Prevents chaining draw     │
-│  cards.                     │
+│  Draw Four Anytime      [ ] │
+│  Play Draw Four at any      │
+│  time.                      │
 │ ─────────────────────────── │
-│  Strict Solo!           [ ] │
-│  Penalty for forgetting     │
-│  to call Solo!              │
+│  Single-Out Win         [ ] │
+│  Win when one teammate      │
+│  empties their hand.        │
 │ ─────────────────────────── │
-│  Jump-in                [ ] │
-│  Play out of turn on an     │
-│  exact card match.          │
+│  Draw Stacking          [ ] │
+│  Stack draw-card penalties. │
+│ ─────────────────────────── │
+│  Solo! Penalty Disabled [ ] │
+│  No penalty for forgetting. │
+│ ─────────────────────────── │
+│  Team Pass              [ ] │  ← ON by default in Side-to-Side
+│  Swap one card at round     │
+│  start.                     │
+│ ─────────────────────────── │
+│  Partner Plays Immed.   [ ] │  ← Only shown for Advanced set
+│  Partner plays instead      │
+│  of drawing on Team Play.   │
+│ ─────────────────────────── │
+│  Scoring                [ ] │
+│  Track points; play to a    │
+│  target score.              │
 │ ─────────────────────────── │
 │                             │
 │ ┌─────────────────────────┐ │

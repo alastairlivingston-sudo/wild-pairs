@@ -1,5 +1,7 @@
 # Wild Pairs — AI Strategy
 
+> *Canonical sources: for data models, `technical-architecture.md` §Model Reference is canonical. For game rules and RuleProfile defaults (including `maxTurnsPerRound`), `game-rules.md` is canonical. Where this document disagrees with its canonical source, the canonical source wins.*
+
 ## TL;DR
 
 Wild Pairs ships four AI difficulty levels (Easy, Medium, Hard, Expert) implemented as pure functions that receive an `AIObservation` — a filtered view of `GameState` — and return a `GameAction`. The AI never reads opponent or partner hand contents directly; it may only see hand *sizes*. Each difficulty level uses progressively more sophisticated move scoring, colour selection, and target selection. Expert uses 2–3 turn simulation. All AI logic is deterministic given a fixed seed, enabling automated simulation testing that verifies zero illegal moves and zero stuck games across thousands of random games.
@@ -465,7 +467,7 @@ Each simulated game uses `seed = baseSeed + gameIndex`. This means any individua
 | Metric | Pass threshold |
 |---|---|
 | Illegal moves | 0 across all simulated games |
-| Stuck games | 0 (no game exceeds 1000 turns) |
+| Stuck games | 0 (no game exceeds `maxTurnsPerRound` = 300 turns) |
 | Easy vs Easy win rate | 45–55% per team (balanced) |
 | Easy vs Expert win rate | Expert wins 65–80% |
 | Expert vs Expert win rate | 45–55% per team (balanced) |
@@ -488,7 +490,7 @@ Each simulated game uses `seed = baseSeed + gameIndex`. This means any individua
 
 ### AI Must Never Cause a Stuck Game
 
-**Enforcement:** The engine enforces a maximum turn limit (1000 turns per round) and ends the round as a draw if exceeded. `GameSimulator` checks `stuckGames == 0`.
+**Enforcement:** The engine enforces a maximum turn limit of **300 turns per round** (`RuleProfile.maxTurnsPerRound`) and ends the round as a draw if exceeded. `GameSimulator` checks `stuckGames == 0`. The canonical constant is 300 — any reference to 1000 in this or any document is an error.
 
 **Test:** `GameSimulatorTests.testZeroStuckGamesAcross1000Games()`.
 

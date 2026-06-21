@@ -1,5 +1,7 @@
 # Wild Pairs — Testing Strategy
 
+> *Canonical sources: for data models, `technical-architecture.md` §Model Reference is canonical. For game rules, `game-rules.md`. Where this document disagrees with its canonical source, the canonical source wins.*
+
 > Last updated: 2026-06-21  
 > Status: Living document — update as test suites are implemented.
 
@@ -87,18 +89,29 @@ Coverage is measured via Xcode's code coverage report (`xcodebuild test -enableC
 
 ```swift
 // WildPairsCore/Sources/WildPairsCore/Testing/SeededRNG.swift
+// Algorithm: splitmix64 — canonical RNG for Wild Pairs.
+// Must match the implementation in technical-architecture.md §8 byte-for-byte.
 struct SeededRNG: RandomNumberGenerator {
     private var state: UInt64
-    init(seed: UInt64) { self.state = seed }
+    init(seed: UInt64) {
+        // Mix the seed so seed 0 produces a non-degenerate sequence.
+        self.state = seed &+ 0x9e3779b97f4a7c15
+        _ = next()
+    }
     mutating func next() -> UInt64 {
-        // xorshift64
-        state ^= state << 13
-        state ^= state >> 7
-        state ^= state << 17
-        return state
+        // splitmix64
+        state = state &+ 0x9e3779b97f4a7c15
+        var z = state
+        z = (z ^ (z >> 30)) &* 0xbf58476d1ce4e5b9
+        z = (z ^ (z >> 27)) &* 0x94d049bb133111eb
+        return z ^ (z >> 31)
     }
 }
 ```
+
+`SeededRNGTests` must include:
+- Two generators with the same seed produce identical sequences.
+- `SeededRNG(seed: 0).next()` is non-zero (proving no fixed-point degeneracy).
 
 Usage in tests:
 
@@ -110,10 +123,12 @@ let deck = Deck.standard().shuffled(using: &rng)
 ### GameStateBuilder
 
 ```swift
-// Usage pattern
+// Usage pattern — canonical seat/team model per technical-architecture.md §Model Reference:
+//   Seat 0 = Human (Team A), Seat 1 = Left Opponent (Team B),
+//   Seat 2 = AI Partner (Team A), Seat 3 = Right Opponent (Team B)
 let state = GameStateBuilder()
-    .withPlayers([.human("Alice"), .ai(.easy, "Bot1"), .ai(.easy, "Bot2"), .human("Bob")])
-    .withTeams([[0, 3], [1, 2]])
+    .withPlayers([.human("Alice"), .ai(.easy, "Bot1"), .ai(.easy, "Bot2"), .ai(.easy, "Bot3")])
+    .withTeams([[0, 2], [1, 3]])   // canonical; must match game-rules.md §Players and Teams
     .withHand(forPlayer: 0, cards: [Card(.skip, .crimson)])
     .withTopDiscard(Card(.number(5), .cobalt))
     .build()
@@ -146,7 +161,7 @@ Each scenario is one `@Test` function in `WildPairsCoreTests/ScenarioTests.swift
 | `testHumanDrawsPlayableCard` | Human draws a card that matches top discard. Engine immediately presents the option to play the drawn card. Human plays it. Discard pile updates correctly. |
 | `testHumanDrawsUnplayableCardTurnPasses` | Human draws a card that does not match. Engine advances to the next player's turn without playing. Draw pile decreases by 1, hand increases by 1. |
 | `testHumanChoosesColourAfterWild` | Human plays a Wild card. Engine enters `pendingColourChoice` state. Human picks Jade. Engine resumes with active colour set to Jade. |
-| `testHumanChoosesTargetAfterTargetedDraw` | Human plays a Targeted Draw card. Engine enters `pendingTargetChoice` state listing eligible targets. Human picks target index 2. Target player receives +2 cards and loses a turn. |
+| `testHumanChoosesTargetAfterTargetedDraw` | Human plays a Targeted Draw card. Engine enters `pendingTargetChoice` state listing eligible targets. Human picks target index 2. Target player receives +2 cards. Target player's turn is **not** skipped — they take their turn normally after drawing. |
 | `testSkipSkipsCorrectPlayer` | Skip card played by player 0 in a 4-player game (direction: clockwise). Player 1 is skipped; turn passes to player 2. |
 | `testSkipTwoSkipsTwoPlayers` | Skip Two card played by player 0 in a 4-player game. Players 1 and 2 are skipped; turn passes to player 3. |
 | `testReverseChangesDirectionWith4Players` | Reverse card played in a 4-player game (direction: clockwise). Direction becomes counterclockwise. Turn passes from player 2 to player 1. |
@@ -154,21 +169,21 @@ Each scenario is one `@Test` function in `WildPairsCoreTests/ScenarioTests.swift
 | `testDrawFourAppliesPenaltyChangesColourAndSkips` | Draw Four Wild played. Player chooses colour. Next player receives +4 cards. Next player is skipped. Active colour set to chosen colour. |
 | `testDiscardAllRemovesMatchingColourFromHand` | Discard All card played (colour: Cobalt). Player's entire hand is searched; all Cobalt cards are discarded. Non-Cobalt cards remain. |
 | `testForcedSwapExchangesCompleteHands` | Forced Swap card played. Player 0 chooses player 2 as swap target. Player 0's full hand is transferred to player 2 and vice versa. Hand sizes swap correctly. |
-| `testTargetedDrawAppliesTwoCardPenaltyToTarget` | Targeted Draw played. Player 1 is chosen as target. Player 1 draws 2 cards. Player 1's turn is skipped. Other players unaffected. |
+| `testTargetedDrawAppliesTwoCardPenaltyToTarget` | Targeted Draw played. Player 1 is chosen as target. Player 1 draws 2 cards. Player 1's turn is **not** skipped — they take their turn normally. Other players unaffected. Canonical rule: `game-rules.md` §Targeted Draw. |
 | `testTeamPlayBonusDrawForBothPartners` | Team Play card played. Both partners of the playing team draw 1 bonus card each. Opponents do not draw. |
 | `testResuffleWhenDrawPileEmpty` | Draw pile has 0 cards. Player action requires a draw. Engine reshuffles discard pile (except top card) to form new draw pile. Draw proceeds without error. |
 | `testSoloCallResetsPenaltyFlag` | Player reaches 1 card in hand. Player calls Solo!. `soloCallState.calledSolo` flag is set to true. No penalty is applied. |
 | `testSoloPenaltyAppliedWhenCaughtByOpponent` | Player reaches 1 card in hand but does not call Solo!. Opponent calls the catch. Penalised player draws 2 cards. `soloCallState.caughtWithoutCall` flag is set. |
-| `testTeamWinsOnlyWhenBothPlayersEmpty` | Standard Teams: Player 0 plays last card. Win condition check: player 0's partner (player 3) still has cards. No win declared. Turn continues. |
-| `testPlayerGoesOutButPartnerStillHasCards` | Extension of above. Player 0 plays last card. Partner has 3 cards remaining. Engine continues. Partner eventually plays last card. Win declared for team. |
+| `testTeamWinsOnlyWhenBothPlayersEmpty` | Standard Teams (teams [[0,2],[1,3]]): Player 0 plays last card. Win condition check: player 0's partner (player 2, seat 2) still has cards. No win declared. Turn continues. |
+| `testPlayerGoesOutButPartnerStillHasCards` | Extension of above. Player 0 plays last card. Partner (player 2, seat 2) has 3 cards remaining. Engine continues. Partner eventually plays last card. Win declared for Team A. |
 | `testAllWildModeEveryCardPlayable` | All-Wild Teams mode: deck contains only Wild cards (mode rule). Every card in hand is playable on every turn. No "no valid card" state occurs. |
-| `testSideToSideTeamPassSwapsSingleCard` | Side-to-Side Teams mode: Team Pass action. Player 0 passes one card (chosen) to their partner player 3. Player 3's hand increases by 1. Player 0's hand decreases by 1. |
+| `testSideToSideTeamPassSwapsSingleCard` | Side-to-Side Teams mode: Team Pass action. Player 0 passes one card (chosen) to their partner player 2 (seat 2, canonical). Player 2's hand increases by 1. Player 0's hand decreases by 1. |
 | `testSaveAndResumeAfterColourChoicePending` | Game state serialised while in `pendingColourChoice` state. State deserialised. Engine correctly presents colour picker. Player chooses colour. Game continues normally. |
 | `testSaveAndResumeAfterTargetChoicePending` | Game state serialised while in `pendingTargetChoice` state. State deserialised. Engine correctly presents target picker. Player chooses target. Game continues normally. |
 | `testCorruptedSaveHandledGracefully` | `PersistenceService.loadGame()` is given a malformed JSON string. No crash occurs. Service returns `.failure(.decodingError(...))`. App presents new game option. |
 | `testAINeverMakesIllegalMove` | `GameSimulator` runs 1,000 Easy games (seeded 0–999). For each game, every AI move is validated against `GameRules.validMoves(for:state:)`. Assert `illegalMoveAttempts == 0` across all games. |
 | `testAIObservationNeverExposesForbiddenFields` | For every AI turn in 100 games: extract the `AIObservation` passed to the AI. Assert `observation.opponentHands == nil` (or equivalent masked representation). Assert `observation.drawPileContents == nil`. |
-| `testNoStuckGamesIn100Games` | `GameSimulator` runs 100 games per difficulty (400 total). Each game must complete within 300 turns. Assert `result.stuck == false` and `result.turns <= 300` for all runs. |
+| `testNoStuckGamesIn100Games` | `GameSimulator` runs 100 games per difficulty (400 total). Each game must complete within `RuleProfile.maxTurnsPerRound` (300) turns. Assert `result.stuck == false` and `result.turns <= 300` for all runs. |
 
 ---
 

@@ -1,5 +1,7 @@
 # Wild Pairs — Complete Game Rules
 
+> *Canonical sources: this document is authoritative for all game rules and rule defaults. For data models, `technical-architecture.md` §Model Reference is canonical. For visual tokens, `design-system.md`. Where any other document disagrees with this document on rules, this document wins.*
+
 ## TL;DR
 
 Wild Pairs is an offline 2v2 team card game for four players (one human and three AI) where teammates must both empty their hands to win a round. Players match cards by colour, number, or action type, use special action cards to disrupt opponents or support their partner, and must call "Solo!" when reduced to one card or face a penalty draw. Three game modes, four difficulty levels, and a suite of house rules keep every session fresh.
@@ -22,12 +24,23 @@ The game is inspired by the classic genre of shedding card games but uses origin
 
 Wild Pairs is always played with exactly four players:
 
-- **You** (human) — seated at the bottom of the table
-- **Your AI partner** — seated opposite you (top of the table)
-- **AI Opponent 1** — seated to your left
-- **AI Opponent 2** — seated to your right
+- **You** (human) — seated at the bottom of the table — **seat index 0**
+- **AI Opponent 1** — seated to your left — **seat index 1**
+- **Your AI partner** — seated opposite you (top of the table) — **seat index 2**
+- **AI Opponent 2** — seated to your right — **seat index 3**
 
-Teams alternate seats: Human (bottom) + Partner (top) form one team; Left-opponent + Right-opponent form the other team.
+**Seat → Team mapping (all three modes):**
+
+| Seat | Player | Team |
+|---|---|---|
+| 0 | Human | Team A |
+| 1 | Left Opponent | Team B |
+| 2 | AI Partner | Team A |
+| 3 | Right Opponent | Team B |
+
+Teams always alternate seats: seat 0 + seat 2 form Team A (Human + Partner); seat 1 + seat 3 form Team B (opponents). **This mapping is identical in all three game modes.** The name "Side-to-Side Teams" refers to the card-passing mechanic (passing a card to your partner), not to any change in the seating or team geometry.
+
+> **Canonical:** This seat → team mapping is the single source of truth. `GameState` uses seat indices 0–3. `GameStateBuilder` fixtures and scenario tests must use `teams: [[0, 2], [1, 3]]`.
 
 ### Card Set Selection
 
@@ -38,6 +51,47 @@ Choose the card set before the game begins:
 | Beginner | Number cards (0–9), Skip, Reverse, Change Colour |
 | Standard | All Beginner cards, plus Draw Two and Draw Four |
 | Advanced | All Standard cards, plus Discard All, Targeted Draw, Forced Swap, Skip Two, and Team Play |
+
+### Deck Composition
+
+The following table gives the **canonical card count** for each set. `CardFactory` and `DeckTests` must use these exact numbers.
+
+#### Beginner Deck — 60 cards
+
+| Card type | Count per colour | Colours | Total |
+|---|---|---|---|
+| Number 0 | 1 | 4 | 4 |
+| Number 1–9 | 1 each | 4 | 36 |
+| Skip | 2 | 4 | 8 |
+| Reverse | 2 | 4 | 8 |
+| Change Colour | — (wild, no colour) | — | 4 |
+| **Beginner total** | | | **60** |
+
+#### Standard Deck — 72 cards (Beginner + 12)
+
+| Card type | Count per colour | Colours | Total added |
+|---|---|---|---|
+| Draw Two | 2 | 4 | 8 |
+| Draw Four | — (wild, no colour) | — | 4 |
+| **Standard total** | | | **72** |
+
+#### Advanced Deck — 96 cards (Standard + 24)
+
+| Card type | Count per colour | Colours | Total added |
+|---|---|---|---|
+| Discard All | — (wild, no colour) | — | 4 |
+| Targeted Draw | 2 | 4 | 8 |
+| Forced Swap | 1 | 4 | 4 |
+| Skip Two | 1 | 4 | 4 |
+| Team Play | 1 | 4 | 4 |
+| **Advanced total** | | | **96** |
+
+**Draw pile after dealing** (4 players × 7 cards = 28 dealt):
+- Beginner: 60 − 28 = 32 cards in draw pile
+- Standard: 72 − 28 = 44 cards in draw pile
+- Advanced: 96 − 28 = 68 cards in draw pile
+
+> **Gate:** `DeckTests` must assert these exact counts per set and confirm that Advanced-only card types are absent from Beginner and Standard decks.
 
 ### Game Mode Selection
 
@@ -227,7 +281,7 @@ Note: The player chooses the colour to discard after playing the card, not befor
 | VoiceOver label | "Jade Targeted Draw — choose an opponent" |
 | In-app rules text | "Choose any opponent. That player draws 2 cards. (Does not skip their turn.)" |
 
-Unlike Draw Two, Targeted Draw does not skip the targeted player's turn. It only forces a draw.
+Unlike Draw Two, Targeted Draw does **not** skip the targeted player's turn. The targeted player draws 2 cards and then takes their turn normally. This is the canonical rule; any test or document asserting a skip for Targeted Draw is incorrect and must be corrected.
 
 ### Forced Swap
 
@@ -377,9 +431,11 @@ The window for catching a Solo! failure closes when:
 
 The app tracks Solo! status automatically:
 - When a player's hand count drops to 1, the engine flags that player as needing a Solo! declaration.
-- For human players: a "Solo!" button appears (and VoiceOver announces the prompt). The human must tap it within a configurable timeout window.
+- For human players: a "Solo!" button appears (and VoiceOver announces the prompt). The human must tap it within the timeout window. **The call is manual — it is never fired automatically for the human player.**
 - For AI players: the AI automatically calls Solo! with a short simulated delay (to feel natural).
 - If the human fails to tap Solo! within the timeout, the penalty is applied automatically.
+
+**Solo! timeout default: 5 seconds.** This is the value returned by all `RuleProfile` factory methods. It is configurable via `RuleProfile.soloCallTimeoutSeconds`; future house-rule UI may expose it. A timeout of 0 means no time limit (but the penalty still applies if an opponent calls the catch before the next turn).
 
 ### Solo! Disabled (House Rule)
 
@@ -435,6 +491,36 @@ All house rules default to OFF unless otherwise noted.
 | Team Pass (Side-to-Side) | ON (when mode is Side-to-Side) | At round start, each team may privately swap one card between partners before play begins. Setting to OFF disables this phase entirely. |
 | Partner Plays Immediately (Team Play variant) | OFF | When a Team Play card is played, the partner immediately plays one card from their hand instead of drawing a card. Both players draw if this rule is OFF. |
 | Scoring Enabled | OFF | Enable round-by-round scoring and track cumulative score across rounds. |
+
+### RuleProfile Factory Defaults
+
+The following table gives the **exact field values** returned by each `RuleProfile` factory method. Phase 2 must implement these without deviation; the `RuleProfileTests` suite asserts each field value.
+
+| Field | `standardTeams()` | `allWild()` | `sideToSide()` | Notes |
+|---|---|---|---|---|
+| `initialHandSize` | 7 | 7 | 7 | Cards dealt per player |
+| `winCondition` | `.bothTeammatesOut` | `.bothTeammatesOut` | `.bothTeammatesOut` | Default; Single-Out is a house rule |
+| `targetScore` | 0 | 0 | 0 | 0 = single-round, no cumulative score |
+| `mustPlayAfterDraw` | `true` | `true` | `true` | Player must play drawn card if legal |
+| `drawUntilPlayable` | `false` | `false` | `false` | Draw stacking off by default |
+| `stackDrawCards` | `false` | `false` | `false` | House rule; default OFF |
+| `drawFourRestrictedToNone` | `true` | `true` | `true` | Draw Four requires no other legal play |
+| `discardAllEnabled` | `false` | `false` | `false` | Advanced card; controlled by `cardSet` |
+| `targetedDrawEnabled` | `false` | `false` | `false` | Advanced card; controlled by `cardSet` |
+| `forcedSwapEnabled` | `false` | `false` | `false` | Advanced card; controlled by `cardSet` |
+| `skipTwoEnabled` | `false` | `false` | `false` | Advanced card; controlled by `cardSet` |
+| `teamPlayEnabled` | `false` | `false` | `false` | Advanced card; controlled by `cardSet` |
+| `cardSet` | `.standard` | `.standard` | `.standard` | UI selection overrides this |
+| `teamPassEnabled` | `false` | `false` | `true` | ON by default in Side-to-Side |
+| `teamPassCooldown` | 0 | 0 | 0 | 0 = available every round |
+| `soloCallEnabled` | `true` | `true` | `true` | Solo! penalty on by default |
+| `soloCallPenaltyCards` | 2 | 2 | 2 | Cards drawn if caught without calling |
+| `soloCallTimeoutSeconds` | 5 | 5 | 5 | Seconds before auto-penalty |
+| `partnerPlaysImmediately` | `false` | `false` | `false` | Team Play house-rule variant; default OFF |
+| `scoringEnabled` | `false` | `false` | `false` | Multi-round scoring; default OFF |
+| `maxTurnsPerRound` | 300 | 300 | 300 | Stuck-game safety cap |
+
+> **Note on advanced card fields:** `discardAllEnabled`, `targetedDrawEnabled`, etc. are set to `false` in all factory defaults because advanced card enablement is driven by the `cardSet` field. When `cardSet == .advanced`, the engine enables all advanced card types regardless of these flags. The flags allow individual advanced cards to be disabled independently (post-MVP customisation).
 
 ---
 
