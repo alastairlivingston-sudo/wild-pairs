@@ -1,0 +1,18 @@
+# Normalise line endings on commit; check out as LF everywhere (macOS build target)
+* text=auto eol=lf
+
+# Shell scripts must always be LF
+*.sh text eol=lf
+
+# Swift source must always be LF
+*.swift text eol=lf
+
+# Markdown and JSON — LF
+*.md text eol=lf
+*.json text eol=lf
+
+# Binary assets — no line-ending conversion
+*.png binary
+*.jpg binary
+*.pdf binary
+*.xcassets binary
