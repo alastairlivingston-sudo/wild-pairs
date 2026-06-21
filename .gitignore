@@ -1,0 +1,23 @@
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Xcode derived data and user state
+DerivedData/
+xcuserdata/
+*.xcuserstate
+
+# macOS metadata
+.DS_Store
+
+# Logs and credentials
+*.log
+.env
+*.pem
+*.p12
+*.mobileprovision
+
+# OneDrive conflict copies
+*conflicted copy*
+*Conflict*
+*.moved-aside

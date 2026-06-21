@@ -89,21 +89,23 @@ Follow these steps in order on a Mac.
 
 ### Step 1 — Get the source
 
-Clone or sync the repository to the Mac:
+GitHub is the source-sync mechanism between the Windows editing machine and this Mac. **Do not use OneDrive to copy source files** — OneDrive conflict copies and casing differences have caused sync issues; see `docs/git-workflow.md`.
 
 ```bash
-# If using git
-git clone <repository-url> WildPairs
+git clone https://github.com/alastairlivingston-sudo/wild-pairs.git WildPairs
 cd WildPairs
 ```
 
-Or copy the working directory from the Windows machine to the Mac (e.g. via shared OneDrive, USB, or AirDrop). The working directory on Windows is:
+If a copy already exists from a previous OneDrive sync, wire it to GitHub instead of re-cloning:
 
-```
-C:\Users\alastair.livingston\OneDrive\Alastair's Documents\Claude\WildPairs\
+```bash
+cd ~/Developer/WildPairs
+git remote add origin https://github.com/alastairlivingston-sudo/wild-pairs.git
+git fetch origin
+git checkout -B main origin/main
 ```
 
-On macOS, place it at a convenient path such as `~/Developer/WildPairs`.
+Always run `git pull --ff-only` before starting work on this machine. See `docs/git-workflow.md` for the full branch strategy and daily workflow.
 
 ### Step 2 — Verify the Swift Package builds
 

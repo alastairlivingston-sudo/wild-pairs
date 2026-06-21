@@ -34,6 +34,7 @@ _No code bugs yet — no code written. Phase 2 implementation issues will be log
 | KI-012 | medium | Phase 1 | resolved | ISSUE-12: Turn limit 1000 in ai-strategy vs 300 elsewhere | Standardised on 300 (`maxTurnsPerRound`) in all documents (2026-06-21) |
 | KI-013 | medium | Phase 1 | resolved | ISSUE-11: GameStateBuilder fixture used 2 humans and wrong team indices [[0,3],[1,2]] | Fixed `testing-strategy.md` §4 to one human + canonical teams [[0,2],[1,3]] (2026-06-21) |
 | KI-014 | high | Phase 1 | resolved | ISSUE-09: ux-spec Journey 10 showed Solo! auto-calling for human; canonical is manual+timeout | Fixed Journey 10 to show manual 5s countdown tap mechanic (2026-06-21) |
+| KI-029 | high | Phase 1 | resolved | OneDrive used as source-sync mechanism; conflict copies and casing differences risked lost edits | GitHub established as single source of truth; OneDrive sync retired. `.gitignore`, `docs/git-workflow.md`, and `enterprise-build-notes.md` §Step 1 updated (2026-06-21) |
 
 ---
 
@@ -51,7 +52,7 @@ These items are acknowledged, non-blocking for Phase 2, and deferred to the phas
 | KI-020 | high | Phase 3 | deferred | B8: Draw Stacking cross-type rule (Draw Two onto Draw Four) ambiguous | Phase 3 — rules engine |
 | KI-021 | high | Phase 3 | deferred | B8: Discard All edge cases (no cards of chosen colour; 1-card-remaining ordering) not fully specified | Phase 3 — rules engine |
 | KI-022 | medium | Phase 5 | deferred | ISSUE-14 (C1): PrivacyInfo reason code DDA9.1 may be wrong category — verify at Phase 5 when Xcode project created | Phase 5 — Xcode project |
-| KI-023 | low | Phase 2 gate | deferred | ISSUE-18 (C2): Quality-gate scripts not yet created; .gitignore and Xcode version not pinned | Phase 2 gate — scripts must exist before Phase 2 gate |
+| KI-023 | low | Phase 2 gate | in-progress | ISSUE-18 (C2): Quality-gate scripts not yet created; Xcode version not pinned. `.gitignore` created (2026-06-21). Scripts remain for Phase 2 gate. | Phase 2 gate — scripts must exist before Phase 2 gate |
 | KI-024 | low | — | deferred | ISSUE-15 (C3): App name "Wild Pairs" is working title; final App Store name not decided | Phase 8 — release |
 | KI-025 | low | — | deferred | ISSUE-19 (C4): Animation speed enum values differ between privacy-offline-plan (slow/normal/fast) and ux-spec (Normal/Fast/Off) | Phase 5 — UI build |
 | KI-026 | low | Phase 4 | deferred | ISSUE-17 (C5): Expert AI helper functions (`partnerHandSize`, `teamProgressScore`, `estimateOpponentResponse`) are placeholders in ai-strategy.md pseudocode — marked Phase 4 to-be-specified | Phase 4 — AI implementation |

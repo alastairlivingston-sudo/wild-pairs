@@ -7,9 +7,11 @@
 # Swift source must always be LF
 *.swift text eol=lf
 
-# Markdown and JSON — LF
+# Markdown, JSON, and CI config — LF
 *.md text eol=lf
 *.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
 
 # Binary assets — no line-ending conversion
 *.png binary
