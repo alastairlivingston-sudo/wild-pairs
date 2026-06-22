@@ -23,12 +23,13 @@ targets:
     deploymentTarget: "17.0"
     sources:
       - path: WildPairsApp
-    info:
-      path: WildPairsApp/Info.plist
+        excludes:
+          - Info.plist   # referenced via INFOPLIST_FILE below, not copied as a resource
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.wildpairs.app
         GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: WildPairsApp/Info.plist   # use our own file; do not let xcodegen manage/overwrite it
         TARGETED_DEVICE_FAMILY: "1,2"   # iPhone + iPad (Universal)
         SWIFT_VERSION: "5.9"
         ENABLE_USER_SCRIPT_SANDBOXING: YES

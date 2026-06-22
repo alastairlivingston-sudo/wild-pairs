@@ -28,11 +28,19 @@ struct HomeView: View {
                         .buttonStyle(.borderedProminent)
                         .accessibilityIdentifier("home-continue")
                     }
-                    Button { showNewGame = true } label: {
-                        Label("New Game", systemImage: "plus.circle.fill").frame(maxWidth: .infinity)
+                    if settings.hasSavedGame {
+                        Button { showNewGame = true } label: {
+                            Label("New Game", systemImage: "plus.circle.fill").frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("home-new-game")
+                    } else {
+                        Button { showNewGame = true } label: {
+                            Label("New Game", systemImage: "plus.circle.fill").frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityIdentifier("home-new-game")
                     }
-                    .buttonStyle(settings.hasSavedGame ? .bordered : .borderedProminent)
-                    .accessibilityIdentifier("home-new-game")
 
                     NavigationLink { RulesView() } label: {
                         Label("Rules", systemImage: "questionmark.circle.fill").frame(maxWidth: .infinity)

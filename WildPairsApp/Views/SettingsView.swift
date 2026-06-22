@@ -29,9 +29,11 @@ struct SettingsView: View {
                 Toggle("Large cards", isOn: s.largeCards)
             }
 
-            Section("Data") {
+            Section {
                 Button("Reset statistics") { confirmResetStats = true }
                 Button("Reset all local data", role: .destructive) { confirmResetAll = true }
+            } header: {
+                Text("Data")
             } footer: {
                 Text("All data is stored only on this device. Nothing is sent anywhere.")
             }

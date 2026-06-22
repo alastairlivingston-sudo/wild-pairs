@@ -246,7 +246,7 @@ public struct GameViewState: Equatable, Sendable {
 
     /// Builds the "play a Crimson card, a 5, or a wild card" hint from the active colour
     /// and top discard.
-    static func matchHint(state: GameState) -> String {
+    public static func matchHint(state: GameState) -> String {
         var parts: [String] = ["a \(state.currentColour.displayName) card"]
         if let top = state.deck.topDiscard, case .number(let v) = top.type {
             parts.append("a \(v)")
