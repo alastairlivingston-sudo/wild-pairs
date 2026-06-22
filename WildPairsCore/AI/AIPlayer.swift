@@ -75,7 +75,7 @@ public enum AIPlayer {
     ///   - observation: Current observation for the AI player.
     ///   - difficulty: AI difficulty level.
     ///   - rng: The seeded RNG.
-    /// - Returns: The chosen `CardColour` (never `.wild`).
+    /// - Returns: The chosen colour for the active colour constraint.
     public static func selectColour(
         observation: AIObservation,
         difficulty: Difficulty,
@@ -149,7 +149,7 @@ enum EasyAI {
 
     static func selectColour(observation: AIObservation, rng: inout SeededRNG) -> CardColour {
         // TODO: Implement in Phase 4
-        return CardColour.nonWild.randomElement(using: &rng) ?? .crimson
+        return CardColour.allCases.randomElement(using: &rng) ?? .crimson
     }
 
     static func selectTarget(
@@ -175,11 +175,11 @@ enum MediumAI {
     static func selectColour(observation: AIObservation, rng: inout SeededRNG) -> CardColour {
         // TODO: Implement in Phase 4
         let counts = Dictionary(
-            grouping: observation.myHand.filter { !$0.isWild },
-            by: { $0.colour }
+            grouping: observation.myHand.compactMap(\.colour),
+            by: { $0 }
         ).mapValues { $0.count }
         return counts.max(by: { $0.value < $1.value })?.key
-            ?? CardColour.nonWild.randomElement(using: &rng)
+            ?? CardColour.allCases.randomElement(using: &rng)
             ?? .crimson
     }
 

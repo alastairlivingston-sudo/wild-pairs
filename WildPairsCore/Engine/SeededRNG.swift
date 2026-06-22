@@ -50,7 +50,10 @@ public struct SeededRNG: RandomNumberGenerator, Sendable {
     ///
     /// - Parameter seed: Any `UInt64` value. Different seeds produce independent sequences.
     public init(seed: UInt64) {
-        self.state = seed
+        // Mix the seed so that seed 0 produces a non-degenerate sequence.
+        // splitmix64 fixed point at 0 is avoided by adding the Fibonacci hash constant before first use.
+        self.state = seed &+ 0x9e3779b97f4a7c15
+        _ = next()
     }
 
     // MARK: RandomNumberGenerator
