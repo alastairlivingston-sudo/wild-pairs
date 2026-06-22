@@ -32,11 +32,17 @@ fi
 echo "Using project: $XCODEPROJ"
 echo ""
 
-SCHEME="WildPairsApp"
-UI_TEST_TARGET="WildPairsAppUITests"
+# Scheme name comes from project.yml; its default test action already targets
+# WildPairsUITests, so no -testPlan argument is needed (there is no .xctestplan in this repo).
+SCHEME="WildPairs"
 PASS=0
 FAIL=0
 FAILURES=()
+
+# Device names age out as new simulator runtimes ship — override via env vars if these are no
+# longer installed, e.g.: IPHONE_SIM="iPhone 16" bash scripts/run_ui_tests.sh
+IPHONE_SIM="${IPHONE_SIM:-iPhone 17}"
+IPAD_SIM="${IPAD_SIM:-iPad Air 13-inch (M4)}"
 
 run_ui_tests_on_destination() {
     local dest_name="$1"
@@ -46,7 +52,6 @@ run_ui_tests_on_destination() {
     if xcodebuild test \
         -project "$XCODEPROJ" \
         -scheme "$SCHEME" \
-        -testPlan "${UI_TEST_TARGET}" \
         -destination "$destination" \
         -configuration Debug \
         2>&1 | tail -30; then
@@ -61,13 +66,13 @@ run_ui_tests_on_destination() {
 
 # iPhone (compact width)
 run_ui_tests_on_destination \
-    "iPhone 15 (compact)" \
-    "platform=iOS Simulator,name=iPhone 15,OS=latest"
+    "$IPHONE_SIM (compact)" \
+    "platform=iOS Simulator,name=$IPHONE_SIM,OS=latest"
 
 # iPad (regular width)
 run_ui_tests_on_destination \
-    "iPad Air (regular)" \
-    "platform=iOS Simulator,name=iPad Air (5th generation),OS=latest"
+    "$IPAD_SIM (regular)" \
+    "platform=iOS Simulator,name=$IPAD_SIM,OS=latest"
 
 echo ""
 echo "========================================"

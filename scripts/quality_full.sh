@@ -112,12 +112,13 @@ if [ -z "$XCODEPROJ" ]; then
     echo "SKIP: Xcode App Build -- no .xcodeproj found (available after Phase 5)"
     SKIPS+=("Xcode App Build")
 else
-    SCHEME="WildPairsApp"
+    SCHEME="WildPairs"
+    IPHONE_SIM="${IPHONE_SIM:-iPhone 17}"
     echo "Building scheme '$SCHEME' from: $XCODEPROJ"
     if xcodebuild \
         -project "$XCODEPROJ" \
         -scheme "$SCHEME" \
-        -destination "platform=iOS Simulator,name=iPhone 15" \
+        -destination "platform=iOS Simulator,name=$IPHONE_SIM" \
         -configuration Debug \
         build 2>&1 | tail -20; then
         echo "PASS: Xcode App Build"

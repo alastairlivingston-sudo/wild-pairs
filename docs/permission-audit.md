@@ -353,6 +353,6 @@ Run this checklist at each phase gate:
 
 | Date | Phase | Finding | Status |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-06-22 | Phase 5 — App build (G6 quality gate) | `check_no_network_usage.sh` flagged `SettingsView.swift:80` for the keyword "tracking" in the empty-stats placeholder copy: `"Play a round to start tracking your stats."` | Pass — false positive. This refers to local `GameStats` (round/win counts persisted to `wildpairs-stats.json`), not analytics/ad tracking. No `UIUserTrackingUsageDescription`, no `AppTrackingTransparency`, no network code anywhere in the scan paths. No action needed. |
 
 > Add a row here after each formal permission audit. Columns: Date of audit, development phase (e.g. "Phase 3 — Game Engine"), finding (e.g. "No permissions required"), status (e.g. "Pass — no action").
