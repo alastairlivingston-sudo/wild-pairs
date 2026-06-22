@@ -64,6 +64,9 @@ public enum WinReason: String, Codable, Equatable, Sendable {
     case singlePlayerEmptiedHand
     case targetScoreReached
     case opponentSoloCallMissed
+    /// Nobody emptied their hand within `RuleProfile.roundTimeLimitSeconds`; the round was
+    /// decided by lowest card-point score instead.
+    case roundTimerExpired
 }
 
 /// A lightweight debug event recorded in the event log.
@@ -203,7 +206,7 @@ public struct GameState: Codable, Equatable, Sendable {
     /// A lightweight view of team membership, suitable for AI and UI.
     public var teamState: TeamState {
         let assignments = Dictionary(uniqueKeysWithValues: players.map { ($0.id, $0.teamID) })
-        return TeamState(assignments: assignments)
+        return TeamState(assignments: assignments, orderedPlayerIDs: players.map(\.id))
     }
 
     // MARK: Initialiser

@@ -40,6 +40,20 @@ public enum Difficulty: String, Codable, CaseIterable, Equatable, Sendable {
     case medium
     case hard
     case expert
+    /// Top tier: same strategy as `.expert`, highest score multiplier.
+    case master
+
+    /// Score multiplier applied to round-win points when this difficulty is the toughest
+    /// opponent faced in the match. Rewards beating harder AI.
+    public var scoreMultiplier: Int {
+        switch self {
+        case .easy:   return 1
+        case .medium: return 2
+        case .hard:   return 4
+        case .expert: return 8
+        case .master: return 24
+        }
+    }
 }
 
 // MARK: - TeamState
@@ -50,24 +64,31 @@ public struct TeamState: Codable, Equatable, Sendable {
     /// All player IDs and their team assignments.
     public let assignments: [UUID: TeamID]
 
+    /// Player IDs in seat order. Dictionary iteration order depends on each UUID's hash,
+    /// which varies between otherwise-identical games (player IDs are freshly random per
+    /// deal), so any ordering AI/UI relies on for deterministic tie-breaks must come from
+    /// this seat-ordered list rather than from iterating `assignments` directly.
+    public let orderedPlayerIDs: [UUID]
+
     /// Returns the team for a given player, or nil if player is not found.
     public func team(for playerID: UUID) -> TeamID? {
         assignments[playerID]
     }
 
-    /// Returns all player IDs on a given team.
+    /// Returns all player IDs on a given team, in seat order.
     public func players(on team: TeamID) -> [UUID] {
-        assignments.filter { $0.value == team }.map(\.key)
+        orderedPlayerIDs.filter { assignments[$0] == team }
     }
 
     /// Returns the partner's player ID for the given player, if one exists.
     public func partnerID(for playerID: UUID) -> UUID? {
         guard let myTeam = assignments[playerID] else { return nil }
-        return assignments.first(where: { $0.key != playerID && $0.value == myTeam })?.key
+        return orderedPlayerIDs.first { $0 != playerID && assignments[$0] == myTeam }
     }
 
-    public init(assignments: [UUID: TeamID]) {
+    public init(assignments: [UUID: TeamID], orderedPlayerIDs: [UUID]) {
         self.assignments = assignments
+        self.orderedPlayerIDs = orderedPlayerIDs
     }
 }
 

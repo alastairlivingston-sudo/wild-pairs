@@ -1,0 +1,62 @@
+# XcodeGen spec — generates WildPairs.xcodeproj on the Mac.
+# Run on Mac with Xcode installed:  xcodegen generate   (or: brew install xcodegen first)
+# The project depends on the local WildPairsCore Swift package at the repo root.
+#
+# This keeps the Xcode project reproducible from source instead of hand-edited pbxproj,
+# which matters because the project is authored on Windows and built on Mac.
+
+name: WildPairs
+options:
+  bundleIdPrefix: com.wildpairs
+  deploymentTarget:
+    iOS: "17.0"
+  developmentLanguage: en
+
+packages:
+  WildPairsCore:
+    path: .
+
+targets:
+  WildPairs:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: WildPairsApp
+        excludes:
+          - Info.plist   # referenced via INFOPLIST_FILE below, not copied as a resource
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.wildpairs.app
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: WildPairsApp/Info.plist   # use our own file; do not let xcodegen manage/overwrite it
+        TARGETED_DEVICE_FAMILY: "1,2"   # iPhone + iPad (Universal)
+        SWIFT_VERSION: "5.9"
+        ENABLE_USER_SCRIPT_SANDBOXING: YES
+    dependencies:
+      - package: WildPairsCore
+        product: WildPairsCore
+
+  WildPairsUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: WildPairsUITests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.wildpairs.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "5.9"
+    dependencies:
+      - target: WildPairs
+
+schemes:
+  WildPairs:
+    build:
+      targets:
+        WildPairs: all
+        WildPairsUITests: [test]
+    test:
+      targets:
+        - WildPairsUITests

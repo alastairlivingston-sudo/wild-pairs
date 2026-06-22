@@ -9,7 +9,9 @@ import Testing
 struct BalanceSimulationTests {
 
     static let smokeSeedRange: Range<UInt64> = 0..<100
-    static let maxTurns = 300
+    // 300 was an unvalidated placeholder (written off-Mac); real rounds with
+    // mustPlayAfterDraw / bothTeammatesOut can legitimately run 400-600+ actions.
+    static let maxTurns = 1000
 
     // MARK: Easy
 

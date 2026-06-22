@@ -53,6 +53,14 @@ public struct RuleProfile: Codable, Equatable, Sendable {
     // Team Play house-rule variant
     public var partnerPlaysImmediately: Bool
 
+    // Round / move timers
+    /// Wall-clock seconds before a round with no winner falls back to lowest-score scoring.
+    /// The timer is owned by the presentation layer; the engine only reacts to
+    /// `GameAction.roundTimerExpired` once it fires.
+    public var roundTimeLimitSeconds: Double
+    /// Wall-clock seconds the local human has to act before a fallback move is forced.
+    public var moveTimeLimitSeconds: Double
+
     // MARK: Validation
 
     public func validate() throws {
@@ -79,7 +87,7 @@ public struct RuleProfile: Codable, Equatable, Sendable {
 
     public static func standardTeams() -> RuleProfile {
         RuleProfile(
-            winCondition: .bothTeammatesOut, targetScore: 0,
+            winCondition: .singleOut, targetScore: 0,
             mustPlayAfterDraw: true, drawUntilPlayable: false, stackDrawCards: false,
             drawFourChallengeable: false, changeColourRequiresPlay: false,
             discardAllEnabled: false, targetedDrawEnabled: false,
@@ -87,13 +95,14 @@ public struct RuleProfile: Codable, Equatable, Sendable {
             cardSet: .standard, initialHandSize: 7,
             teamPassEnabled: false, teamPassCooldown: 0,
             soloCallEnabled: true, soloCallPenaltyCards: 2, soloCallTimeoutSeconds: 5.0,
-            scoringEnabled: false, maxTurnsPerRound: 300, partnerPlaysImmediately: false
+            scoringEnabled: false, maxTurnsPerRound: 300, partnerPlaysImmediately: false,
+            roundTimeLimitSeconds: 180, moveTimeLimitSeconds: 10
         )
     }
 
     public static func allWild() -> RuleProfile {
         RuleProfile(
-            winCondition: .bothTeammatesOut, targetScore: 0,
+            winCondition: .singleOut, targetScore: 0,
             mustPlayAfterDraw: true, drawUntilPlayable: false, stackDrawCards: false,
             drawFourChallengeable: false, changeColourRequiresPlay: false,
             discardAllEnabled: false, targetedDrawEnabled: false,
@@ -101,13 +110,14 @@ public struct RuleProfile: Codable, Equatable, Sendable {
             cardSet: .standard, initialHandSize: 7,
             teamPassEnabled: false, teamPassCooldown: 0,
             soloCallEnabled: true, soloCallPenaltyCards: 2, soloCallTimeoutSeconds: 5.0,
-            scoringEnabled: false, maxTurnsPerRound: 300, partnerPlaysImmediately: false
+            scoringEnabled: false, maxTurnsPerRound: 300, partnerPlaysImmediately: false,
+            roundTimeLimitSeconds: 180, moveTimeLimitSeconds: 10
         )
     }
 
     public static func sideToSide() -> RuleProfile {
         RuleProfile(
-            winCondition: .bothTeammatesOut, targetScore: 0,
+            winCondition: .singleOut, targetScore: 0,
             mustPlayAfterDraw: true, drawUntilPlayable: false, stackDrawCards: false,
             drawFourChallengeable: false, changeColourRequiresPlay: false,
             discardAllEnabled: false, targetedDrawEnabled: false,
@@ -115,7 +125,8 @@ public struct RuleProfile: Codable, Equatable, Sendable {
             cardSet: .standard, initialHandSize: 7,
             teamPassEnabled: true, teamPassCooldown: 0,
             soloCallEnabled: true, soloCallPenaltyCards: 2, soloCallTimeoutSeconds: 5.0,
-            scoringEnabled: false, maxTurnsPerRound: 300, partnerPlaysImmediately: false
+            scoringEnabled: false, maxTurnsPerRound: 300, partnerPlaysImmediately: false,
+            roundTimeLimitSeconds: 180, moveTimeLimitSeconds: 10
         )
     }
 
@@ -143,7 +154,9 @@ public struct RuleProfile: Codable, Equatable, Sendable {
         soloCallTimeoutSeconds: Double,
         scoringEnabled: Bool,
         maxTurnsPerRound: Int,
-        partnerPlaysImmediately: Bool
+        partnerPlaysImmediately: Bool,
+        roundTimeLimitSeconds: Double = 180,
+        moveTimeLimitSeconds: Double = 10
     ) {
         self.winCondition = winCondition
         self.targetScore = targetScore
@@ -167,6 +180,8 @@ public struct RuleProfile: Codable, Equatable, Sendable {
         self.scoringEnabled = scoringEnabled
         self.maxTurnsPerRound = maxTurnsPerRound
         self.partnerPlaysImmediately = partnerPlaysImmediately
+        self.roundTimeLimitSeconds = roundTimeLimitSeconds
+        self.moveTimeLimitSeconds = moveTimeLimitSeconds
     }
 }
 

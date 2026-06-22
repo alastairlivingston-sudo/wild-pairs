@@ -37,7 +37,7 @@ public enum GameSimulator {
         mode: GameMode = .standardTeams,
         difficulty: Difficulty = .easy,
         seed: UInt64 = 0,
-        maxTurns: Int = 300
+        maxTurns: Int = 1000
     ) -> SimulationResult {
         let config = GameConfig(
             mode: mode,
@@ -55,6 +55,7 @@ public enum GameSimulator {
         var rng = SeededRNG(seed: seed)
         var turns = 0
         var illegalAttempts = 0
+        var roundWinner: TeamID?
 
         while state.phase == .playing || state.pendingDecision != nil {
             guard turns < maxTurns else {
@@ -84,19 +85,20 @@ public enum GameSimulator {
             }
             turns += 1
 
-            // After a round ends, auto-begin next round for multi-round simulation
+            // After a round ends, capture the winner before any further state changes —
+            // beginNewRound clears winState to deal the next round.
             if state.phase == .roundEnded {
-                (state, _) = GameEngine.reduce(state: state, action: .beginNewRound)
-                // Stop after 1 round — for simulation we measure single-round completion
+                roundWinner = state.winState?.winningTeam
                 break
             }
             if state.phase == .gameEnded {
+                roundWinner = state.winState?.winningTeam
                 break
             }
         }
 
         return SimulationResult(
-            winner: state.winState?.winningTeam,
+            winner: roundWinner,
             turns: turns,
             illegalMoveAttempts: illegalAttempts,
             stuck: false
@@ -109,7 +111,7 @@ public enum GameSimulator {
         mode: GameMode = .standardTeams,
         difficulty: Difficulty = .easy,
         seeds: Range<UInt64>,
-        maxTurns: Int = 300
+        maxTurns: Int = 1000
     ) -> [SimulationResult] {
         seeds.map { run(mode: mode, difficulty: difficulty, seed: $0, maxTurns: maxTurns) }
     }

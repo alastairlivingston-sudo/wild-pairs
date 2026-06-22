@@ -123,6 +123,10 @@ public enum GameAction: Codable, Equatable, Sendable {
     /// Begin dealing cards for a new round (called by ViewModel after round-end animation).
     case beginNewRound
 
+    /// The round's wall-clock timer (`RuleProfile.roundTimeLimitSeconds`) elapsed with nobody
+    /// having emptied their hand. The engine decides the round by lowest card-point score.
+    case roundTimerExpired
+
     // MARK: Debug (Debug builds only)
 
     /// Directly overwrite the game state. Available only in debug builds.

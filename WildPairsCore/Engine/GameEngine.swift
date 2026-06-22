@@ -35,6 +35,8 @@ public struct GameEngine {
             var s = state; s.phase = .playing; return (s, [])
         case .beginNewRound:
             return handleBeginNewRound(state: state)
+        case .roundTimerExpired:
+            return handleRoundTimerExpired(state: state)
         case .restoreSnapshot(let snap):
             return (snap.state, [.triggerAutosave])
         case .aiMove(let inner, _):
@@ -624,27 +626,69 @@ public struct GameEngine {
             for team in [TeamID.teamA, TeamID.teamB] {
                 let teamPlayers = s.players.filter { $0.teamID == team }
                 if teamPlayers.allSatisfy({ $0.hasFinishedRound }) {
-                    return declareWin(team: team, state: &s)
+                    return declareWin(team: team, winningPlayerID: nil,
+                                       reason: .bothTeammatesEmptiedHands, state: &s)
                 }
             }
         case .singleOut:
             for player in s.players where player.hasFinishedRound {
-                return declareWin(team: player.teamID, state: &s)
+                return declareWin(team: player.teamID, winningPlayerID: player.id,
+                                   reason: .singlePlayerEmptiedHand, state: &s)
             }
         }
         return nil
     }
 
+    /// Fallback when nobody emptied their hand within `RuleProfile.roundTimeLimitSeconds`: the
+    /// player with the lowest card-point score wins, crediting their team. No-op if the round
+    /// already ended before this fires (e.g. a race with a hand-emptying win in the simulator).
+    private static func handleRoundTimerExpired(state: GameState) -> (GameState, [GameEffect]) {
+        guard state.phase == .playing, !state.players.isEmpty else { return (state, []) }
+        var s = state
+
+        let winner = s.players.min { lhs, rhs in
+            let lhsPoints = pointValue(for: lhs.hand)
+            let rhsPoints = pointValue(for: rhs.hand)
+            if lhsPoints != rhsPoints { return lhsPoints < rhsPoints }
+            if lhs.hand.count != rhs.hand.count { return lhs.hand.count < rhs.hand.count }
+            return lhs.seatPosition < rhs.seatPosition
+        }!
+
+        let opponents = s.players.filter { $0.id != winner.id }
+        let basePoints = opponents.reduce(0) { $0 + pointValue(for: $1.hand) }
+        let multiplier = opponents.map(\.difficulty.scoreMultiplier).max() ?? 1
+        s.teamScores[winner.teamID, default: 0] += basePoints * multiplier
+        s.winState = WinState(
+            winningTeam: winner.teamID,
+            winningPlayerID: winner.id,
+            reason: .roundTimerExpired,
+            finalScores: s.teamScores
+        )
+        if s.ruleProfile.scoringEnabled && s.ruleProfile.targetScore > 0 {
+            let winningScore = s.teamScores[winner.teamID, default: 0]
+            if winningScore >= s.ruleProfile.targetScore {
+                s.phase = .gameEnded
+                return (s, [.playGameEnd(winningTeam: winner.teamID)])
+            }
+        }
+        s.phase = .roundEnded
+        return (s, [.playRoundEnd(winningTeam: winner.teamID)])
+    }
+
     private static func declareWin(
         team: TeamID,
+        winningPlayerID: UUID?,
+        reason: WinReason,
         state: inout GameState
     ) -> (GameState, [GameEffect]) {
-        let points = calculatePoints(losingTeam: team.opponent, players: state.players)
-        state.teamScores[team, default: 0] += points
+        let losingPlayers = state.players.filter { $0.teamID == team.opponent }
+        let points = calculatePoints(players: losingPlayers)
+        let multiplier = losingPlayers.map(\.difficulty.scoreMultiplier).max() ?? 1
+        state.teamScores[team, default: 0] += points * multiplier
         state.winState = WinState(
             winningTeam: team,
-            winningPlayerID: nil,
-            reason: .bothTeammatesEmptiedHands,
+            winningPlayerID: winningPlayerID,
+            reason: reason,
             finalScores: state.teamScores
         )
         if state.ruleProfile.scoringEnabled && state.ruleProfile.targetScore > 0 {
@@ -658,19 +702,23 @@ public struct GameEngine {
         return (state, [.playRoundEnd(winningTeam: team)])
     }
 
-    private static func calculatePoints(losingTeam: TeamID, players: [Player]) -> Int {
-        players
-            .filter { $0.teamID == losingTeam }
-            .flatMap { $0.hand }
-            .reduce(0) { total, card in
-                switch card.type {
-                case .number(let v): return total + v
-                case .skip, .reverse, .drawTwo, .skipTwo, .targetedDraw,
-                     .forcedSwap, .teamPlay: return total + 20
-                case .discardAll: return total + 20
-                case .drawFour, .changeColour: return total + 50
-                }
+    private static func calculatePoints(players: [Player]) -> Int {
+        pointValue(for: players.flatMap(\.hand))
+    }
+
+    /// Uno-style point value of a hand: numbers at face value, action/wild cards at fixed
+    /// point costs. Used both for the losing-team score on a hand-emptying win and for
+    /// determining the lowest-score winner when the round timer expires.
+    private static func pointValue(for hand: [Card]) -> Int {
+        hand.reduce(0) { total, card in
+            switch card.type {
+            case .number(let v): return total + v
+            case .skip, .reverse, .drawTwo, .skipTwo, .targetedDraw,
+                 .forcedSwap, .teamPlay: return total + 20
+            case .discardAll: return total + 20
+            case .drawFour, .changeColour: return total + 50
             }
+        }
     }
 
     // MARK: - Helpers
