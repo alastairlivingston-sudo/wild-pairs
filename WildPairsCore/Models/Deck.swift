@@ -102,6 +102,12 @@ public struct Deck: Codable, Equatable, Sendable {
         discardPile.append(card)
     }
 
+    /// Returns cards to the bottom of the draw pile. Used when burying wild-type cards
+    /// drawn while flipping the starting discard card, so no card leaves the game.
+    public mutating func returnToDrawPileBottom(_ cards: [Card]) {
+        drawPile.append(contentsOf: cards)
+    }
+
     // MARK: Initialiser
 
     public init(drawPile: [Card] = [], discardPile: [Card] = []) {

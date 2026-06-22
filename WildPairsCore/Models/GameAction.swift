@@ -84,6 +84,10 @@ public enum GameAction: Codable, Equatable, Sendable {
     /// The specified player announces "Solo!" declaring they hold exactly one card.
     case callSolo(playerID: UUID)
 
+    /// `callerID` calls out `targetPlayerID` for failing to declare Solo! while holding
+    /// exactly one card. If valid, the target draws the Solo! penalty cards.
+    case callOutSolo(targetPlayerID: UUID, callerID: UUID)
+
     // MARK: Challenge
 
     /// The specified player challenges the draw-four card just played, claiming the player

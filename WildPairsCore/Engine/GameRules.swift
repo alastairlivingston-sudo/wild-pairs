@@ -48,6 +48,7 @@ public enum GameRules {
     /// True if the active player may legally play a Draw Four right now.
     /// Draw Four requires no other colour-matching card in hand (standard rule).
     public static func drawFourIsLegal(hand: [Card], state: GameState) -> Bool {
+        if state.mode == .allWild { return true }                   // every card is playable
         if state.ruleProfile.drawFourChallengeable { return true }  // house rule: always playable
         // Legal only when no other card matches the current colour
         return !hand.contains { card in

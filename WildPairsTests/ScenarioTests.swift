@@ -78,6 +78,66 @@ struct ScenarioTests {
         #expect(next.currentPlayerIndex == 1)  // turn advanced
     }
 
+    @Test("Drawing a playable card keeps the turn so the player can play it (mustPlayAfterDraw)")
+    func testDrawPlayableCardKeepsTurn() {
+        // Colour is cobalt, top is cobalt 3; hand has no match. Draw pile yields a cobalt 8 (playable).
+        let playable = CardFactory.number(8, .cobalt)
+        let state = GameStateBuilder()
+            .withPlayers()
+            .withCurrentColour(.cobalt)
+            .withTopDiscard(CardFactory.number(3, .cobalt))
+            .withCurrentPlayer(0)
+            .withHand(forPlayer: 0, cards: [CardFactory.number(7, .crimson)])  // no legal play
+            .withDrawPile([playable])
+            .build()
+        let p0id = state.players[0].id
+        let (next, _) = GameEngine.reduce(state: state, action: .drawCard(playerID: p0id))
+        #expect(next.players[0].hand.count == 2)
+        // Turn stays with player 0 so they can play the drawn cobalt 8
+        #expect(next.currentPlayerIndex == 0)
+        // And the drawn card is indeed now a legal play
+        #expect(GameEngine.legalPlays(state: next, for: p0id).contains { $0.id == playable.id })
+    }
+
+    // MARK: Deck conservation
+
+    @Test("No card leaks out of the deck when a new game is dealt (standard = 72 cards)")
+    func testNewGameConservesAllCards() {
+        let config = GameConfig(
+            mode: .standardTeams,
+            players: [
+                PlayerConfig(name: "A0", role: .human, teamID: .teamA, difficulty: .easy, seatPosition: 0),
+                PlayerConfig(name: "B1", role: .ai, teamID: .teamB, difficulty: .easy, seatPosition: 1),
+                PlayerConfig(name: "A2", role: .ai, teamID: .teamA, difficulty: .easy, seatPosition: 2),
+                PlayerConfig(name: "B3", role: .ai, teamID: .teamB, difficulty: .easy, seatPosition: 3)
+            ],
+            ruleProfile: .standardTeams(),
+            seed: 42
+        )
+        let (state, _) = GameEngine.reduce(state: GameState(players: []), action: .newGame(config: config))
+        let inHands = state.players.reduce(0) { $0 + $1.hand.count }
+        let total = inHands + state.deck.drawPile.count + state.deck.discardPile.count
+        #expect(total == 72)
+        #expect(inHands == 28)  // 4 players × 7
+        #expect(state.deck.discardPile.count == 1)  // exactly one start card
+    }
+
+    @Test("No card leaks when a new round begins")
+    func testBeginNewRoundConservesAllCards() {
+        var state = GameStateBuilder()
+            .withPlayers()
+            .withRuleProfile(.standardTeams())
+            .withCurrentColour(.crimson)
+            .withDrawPile([])
+            .build()
+        state.phase = .roundEnded
+        let (next, _) = GameEngine.reduce(state: state, action: .beginNewRound)
+        let inHands = next.players.reduce(0) { $0 + $1.hand.count }
+        let total = inHands + next.deck.drawPile.count + next.deck.discardPile.count
+        #expect(total == 72)
+        #expect(next.deck.discardPile.count == 1)
+    }
+
     // MARK: Wild card colour flow
 
     @Test("Human plays Wild — enters colourChoice, picks Jade, colour changes")

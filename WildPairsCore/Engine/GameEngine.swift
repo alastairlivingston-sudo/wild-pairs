@@ -23,6 +23,8 @@ public struct GameEngine {
             return handleSelectTarget(targetPlayerID: targetID, playerID: playerID, state: state)
         case .callSolo(let playerID):
             return handleCallSolo(playerID: playerID, state: state)
+        case .callOutSolo(let targetID, let callerID):
+            return handleCallOutSolo(targetPlayerID: targetID, callerID: callerID, state: state)
         case .teamPass(let playerID):
             return handleTeamPass(playerID: playerID, state: state)
         case .passTurn(let playerID):
@@ -98,28 +100,10 @@ public struct GameEngine {
             players[i].hand = deck.deal(count: config.ruleProfile.initialHandSize, rng: &rng)
         }
 
-        // Flip starting discard card; skip wild-type cards at start
-        var startCard: Card
-        repeat {
-            guard let drawn = deck.draw(rng: &rng) else { break }
-            startCard = drawn
-            if startCard.isWild {
-                deck.discard(startCard)
-                continue
-            }
-            break
-        } while true
-
-        if let top = deck.drawPile.first, !top.isWild {
-            startCard = deck.drawPile.removeFirst()
-        } else {
-            // Fall back: use first non-wild from pile
-            if let idx = deck.drawPile.firstIndex(where: { !$0.isWild }) {
-                startCard = deck.drawPile.remove(at: idx)
-            } else {
-                startCard = Card(type: .number(0), colour: .crimson)
-            }
-        }
+        // Flip starting discard card; wild-type cards are set aside and returned to the
+        // bottom of the draw pile (per rules: "shuffle it back and flip again"). No card
+        // ever leaves the game.
+        let startCard = flipStartCard(from: &deck, rng: &rng)
         deck.discard(startCard)
         let startColour = startCard.colour ?? .crimson
 
@@ -178,11 +162,6 @@ public struct GameEngine {
 
         effects.append(.animateCardPlay(card: card, fromPlayerID: playerID))
 
-        // Solo! check: player now has 1 card
-        if s.players[playerIndex].hand.count == 1 {
-            s.players[playerIndex].hasCalledSolo = false
-        }
-
         // Apply card effect
         var rng = SeededRNG(seed: s.rngSeed &+ UInt64(s.actionCount))
         let (withEffect, effectEffects) = applyCardEffect(
@@ -194,7 +173,8 @@ public struct GameEngine {
         s = withEffect
         effects.append(contentsOf: effectEffects)
 
-        // Win check: if hand is now empty
+        // Win / Solo! check on the FINAL hand (after the card effect, so a Team Play self-draw
+        // that pushes back above one card is correctly accounted for).
         if s.players[playerIndex].hand.isEmpty {
             s.players[playerIndex].hasFinishedRound = true
             if let (finalState, winEffects) = checkWin(state: s) {
@@ -202,6 +182,9 @@ public struct GameEngine {
                 effects.append(.triggerAutosave)
                 return (finalState, effects)
             }
+        } else if s.players[playerIndex].hand.count == 1 {
+            // AI auto-calls Solo!; the human must call manually.
+            effects.append(contentsOf: applySoloRequirement(toPlayerAt: playerIndex, in: &s))
         }
 
         effects.append(.triggerAutosave)
@@ -373,7 +356,7 @@ public struct GameEngine {
                         return (finalState, effects)
                     }
                 } else if s.players[playerIndex].hand.count == 1 {
-                    s.players[playerIndex].hasCalledSolo = false
+                    effects.append(contentsOf: applySoloRequirement(toPlayerAt: playerIndex, in: &s))
                 }
 
                 s.currentPlayerIndex = GameRules.nextIndex(
@@ -430,13 +413,11 @@ public struct GameEngine {
             s.players[playerIndex].hand = theirHand
             s.players[targetIndex].hand = myHand
 
-            // Re-evaluate Solo! status for both
-            s.players[playerIndex].hasCalledSolo =
-                s.players[playerIndex].hand.count != 1
-                    ? s.players[playerIndex].hasCalledSolo : false
-            s.players[targetIndex].hasCalledSolo =
-                s.players[targetIndex].hand.count != 1
-                    ? s.players[targetIndex].hasCalledSolo : false
+            // Re-evaluate Solo! status for both: anyone now at exactly one card
+            // re-incurs the requirement (AI auto-calls; human must call).
+            for idx in [playerIndex, targetIndex] where s.players[idx].hand.count == 1 {
+                effects.append(contentsOf: applySoloRequirement(toPlayerAt: idx, in: &s))
+            }
 
             effects.append(.animateHandSwap(
                 fromPlayerID: playerID, toPlayerID: targetPlayerID))
@@ -493,21 +474,16 @@ public struct GameEngine {
             .animateCardDraw(toPlayerID: playerID, count: 1)
         ]
 
-        // If drawn card is playable and mustPlayAfterDraw, we let the view decide
-        // (no auto-play: human/AI must explicitly play it)
-
-        // If no other legal play existed, turn ends
-        let otherLegals = GameRules.legalPlays(hand: s.players[playerIndex].hand.dropLast().map { $0 },
-                                                state: s)
-        if otherLegals.isEmpty {
-            // Advance turn: player had no card before drawing
+        // Draw-and-play (mustPlayAfterDraw): a player only draws when they had no legal
+        // play, so the just-drawn card is the only thing that could be playable. If it is,
+        // the turn stays with the player so they can play it; otherwise the turn ends.
+        let drawnIsPlayable = GameRules.isLegal(drawn, in: s)
+            && (drawn.type != .drawFour
+                || GameRules.drawFourIsLegal(hand: s.players[playerIndex].hand, state: s))
+        if !drawnIsPlayable {
             s.currentPlayerIndex = GameRules.nextIndex(
                 from: playerIndex, direction: s.turnDirection, playerCount: s.players.count)
         }
-        // If other cards were already playable, the human chose to draw — turn still advances
-        // (simplified: turn always ends after draw in Phase 2)
-        s.currentPlayerIndex = GameRules.nextIndex(
-            from: playerIndex, direction: s.turnDirection, playerCount: s.players.count)
 
         effects.append(.triggerAutosave)
         return (s, effects)
@@ -527,6 +503,55 @@ public struct GameEngine {
         s.players[playerIndex].hasCalledSolo = true
         let name = s.players[playerIndex].name
         return (s, [.announceSolo(playerName: name)])
+    }
+
+    // MARK: - Call out a missed Solo!
+
+    private static func handleCallOutSolo(
+        targetPlayerID: UUID,
+        callerID: UUID,
+        state: GameState
+    ) -> (GameState, [GameEffect]) {
+        guard state.ruleProfile.soloCallEnabled,
+              callerID != targetPlayerID,
+              let targetIndex = state.players.firstIndex(where: { $0.id == targetPlayerID }),
+              state.players.contains(where: { $0.id == callerID }),
+              state.players[targetIndex].hand.count == 1,
+              !state.players[targetIndex].hasCalledSolo else {
+            return (state, [])
+        }
+
+        var s = state
+        var rng = SeededRNG(seed: s.rngSeed &+ UInt64(s.actionCount))
+        s.actionCount += 1
+
+        let penalty = s.ruleProfile.soloCallPenaltyCards
+        let drawn = drawCards(count: penalty, into: &s, rng: &rng)
+        s.players[targetIndex].hand.append(contentsOf: drawn)
+
+        let name = s.players[targetIndex].name
+        return (s, [
+            .soloCallMissed(playerName: name, penaltyCards: penalty),
+            .accessibilityAnnounce("\(name) did not call Solo! — drawing \(penalty) cards."),
+            .animateCardDraw(toPlayerID: targetPlayerID, count: penalty),
+            .triggerAutosave
+        ])
+    }
+
+    /// Applies the Solo! requirement to a player who just dropped to one card.
+    /// AI players auto-call (matching `game-rules.md` §Solo! Engine Handling); human
+    /// players are flagged as needing to call manually. Returns any effects to emit.
+    private static func applySoloRequirement(
+        toPlayerAt index: Int,
+        in state: inout GameState
+    ) -> [GameEffect] {
+        if state.players[index].role == .ai {
+            state.players[index].hasCalledSolo = true
+            return [.announceSolo(playerName: state.players[index].name)]
+        } else {
+            state.players[index].hasCalledSolo = false
+            return [.accessibilityAnnounce("Call Solo! You have one card remaining.")]
+        }
     }
 
     // MARK: - Team pass (Side-to-Side pre-round)
@@ -577,19 +602,7 @@ public struct GameEngine {
         for i in s.players.indices {
             s.players[i].hand = s.deck.deal(count: s.ruleProfile.initialHandSize, rng: &rng)
         }
-        var startCard: Card
-        repeat {
-            guard let drawn = s.deck.draw(rng: &rng) else { break }
-            startCard = drawn
-            if !startCard.isWild { break }
-            s.deck.discard(startCard)
-        } while true
-        if let top = s.deck.drawPile.first(where: { !$0.isWild }) {
-            s.deck.drawPile.removeAll { $0.id == top.id }
-            startCard = top
-        } else {
-            startCard = Card(type: .number(0), colour: .crimson)
-        }
+        let startCard = flipStartCard(from: &s.deck, rng: &rng)
         s.deck.discard(startCard)
         s.currentColour = startCard.colour ?? .crimson
         s.currentCardType = startCard.type
@@ -661,6 +674,25 @@ public struct GameEngine {
     }
 
     // MARK: - Helpers
+
+    /// Draws cards until a non-wild start card is found. Any wild-type cards drawn along the
+    /// way are returned to the bottom of the draw pile (rules: "shuffle it back and flip
+    /// again") so no card ever leaves the game. Falls back to a Crimson 0 only if the deck
+    /// holds no non-wild card at all (effectively impossible for a real deck).
+    private static func flipStartCard(from deck: inout Deck, rng: inout SeededRNG) -> Card {
+        var buriedWilds: [Card] = []
+        var start: Card? = nil
+        while let drawn = deck.draw(rng: &rng) {
+            if drawn.isWild {
+                buriedWilds.append(drawn)
+                continue
+            }
+            start = drawn
+            break
+        }
+        deck.returnToDrawPileBottom(buriedWilds)
+        return start ?? Card(type: .number(0), colour: .crimson)
+    }
 
     private static func drawCards(count: Int, into state: inout GameState, rng: inout SeededRNG) -> [Card] {
         (0..<count).compactMap { _ in state.deck.draw(rng: &rng) }
