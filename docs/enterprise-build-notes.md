@@ -214,10 +214,30 @@ Expected: `** BUILD SUCCEEDED **`
 
 ## 6. Running Tests
 
+### Swift Testing runtime requirement (KI-028)
+
+`WildPairsTests` uses the Swift Testing framework (`import Testing`). On a machine with **only the Command Line Tools** (no `Xcode.app`), `Testing.framework` and `lib_TestingInterop.dylib` ship inside the active developer dir but are **not** on the default dyld search paths, so a bare `swift test` fails with `error: no such module 'Testing'`.
+
+Use the wrapper, which derives the framework search path and runtime rpaths from `xcode-select -p` and works on both Command-Line-Tools-only and full-Xcode machines:
+
+```bash
+# Canonical, portable test command — works with CLT only or full Xcode
+./scripts/swift_test.sh
+
+# Pass-through args are forwarded to `swift test`
+./scripts/swift_test.sh --filter EngineTests
+./scripts/swift_test.sh --verbose
+```
+
+Bare `swift test` (below) works **only once full Xcode is installed** (`sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`). The library target builds fine either way: `swift build` / `swift build --target WildPairsCore` need no wrapper.
+
 ### Swift Package unit tests (no Xcode project needed)
 
 ```bash
-# Run all tests in WildPairsCore
+# Build the pure-logic library (no wrapper needed)
+swift build --target WildPairsCore
+
+# Run all tests in WildPairsCore (requires full Xcode; otherwise use the wrapper above)
 swift test --package-path .
 
 # Run a specific test target

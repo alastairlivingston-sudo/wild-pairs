@@ -329,9 +329,17 @@ Full scripts are in `docs/manual-test-scripts.md`. The manual test suite covers:
 
 ### Running Swift Package tests
 
+> **Swift Testing runtime note (KI-028).** The test target uses `import Testing`. On a Command-Line-Tools-only Mac, `Testing.framework`/`lib_TestingInterop.dylib` are not on the default dyld search paths, so a bare `swift test` fails with `no such module 'Testing'`. The canonical, portable command is **`./scripts/swift_test.sh`** — it derives the framework search path and rpaths from `xcode-select -p` and forwards any `swift test` args. Bare `swift test` works only once full Xcode is installed. See `enterprise-build-notes.md` §6.
+
 ```bash
 # Navigate to repo root (where Package.swift is)
 cd ~/Developer/WildPairs
+
+# Canonical, portable test command (CLT only or full Xcode)
+./scripts/swift_test.sh
+./scripts/swift_test.sh --filter EngineTests
+
+# Equivalent bare commands (require full Xcode):
 
 # Run all tests (unit + scenario + simulation smoke suite)
 swift test --package-path .

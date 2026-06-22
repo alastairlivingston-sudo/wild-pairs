@@ -54,10 +54,12 @@ Commit after each logical unit of work, not at end of day. Small commits make Ma
 
 ```bash
 swift build
-swift test --package-path .
+./scripts/swift_test.sh   # portable wrapper; see note below
 ```
 
 If either fails, fix on Windows (or directly on Mac for trivial typos), commit, push, and re-pull on the other machine.
+
+> **Why the wrapper (KI-028):** `WildPairsTests` uses Swift Testing (`import Testing`). On a Command-Line-Tools-only Mac, a bare `swift test` fails with `no such module 'Testing'` because the Testing framework is not on the default dyld search paths. `scripts/swift_test.sh` fixes this by deriving the paths from `xcode-select -p`, and also works once full Xcode is installed. See `enterprise-build-notes.md` §6 and `testing-strategy.md` §9.
 
 ---
 

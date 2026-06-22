@@ -1,6 +1,6 @@
 # Known Issues
 
-> Owner: qa-lead | Updated: Phase 1 (post-Opus review, 2026-06-21)
+> Owner: qa-lead | Updated: Phase 2 gate prep — Mac round-trip validated (2026-06-22)
 
 ## Format
 Each issue: **ID** · **Severity** · **Phase found** · **Status** · Description · Workaround · Resolution
@@ -35,6 +35,7 @@ _No code bugs yet — no code written. Phase 2 implementation issues will be log
 | KI-013 | medium | Phase 1 | resolved | ISSUE-11: GameStateBuilder fixture used 2 humans and wrong team indices [[0,3],[1,2]] | Fixed `testing-strategy.md` §4 to one human + canonical teams [[0,2],[1,3]] (2026-06-21) |
 | KI-014 | high | Phase 1 | resolved | ISSUE-09: ux-spec Journey 10 showed Solo! auto-calling for human; canonical is manual+timeout | Fixed Journey 10 to show manual 5s countdown tap mechanic (2026-06-21) |
 | KI-029 | high | Phase 1 | resolved | OneDrive used as source-sync mechanism; conflict copies and casing differences risked lost edits | GitHub established as single source of truth; OneDrive sync retired. `.gitignore`, `docs/git-workflow.md`, and `enterprise-build-notes.md` §Step 1 updated (2026-06-21) |
+| KI-028 | low | Phase 2 gate | resolved | Mac round-trip not yet run: `Package.swift` + `WildPairsCore` + `WildPairsTests` must compile and `swift test` must pass on Mac before Phase 2 code is written | Ran on Mac (Swift 6.3.2, Command Line Tools only). `WildPairsCore` builds clean; `swift test` runs all 13 Phase-2/3 placeholder tests green. Root finding: `WildPairsTests` uses Swift Testing (`import Testing`); on a Command-Line-Tools-only machine `Testing.framework`/`lib_TestingInterop.dylib` are present but not on the default dyld search paths, so **bare `swift test` fails** with "no such module 'Testing'". Added `scripts/swift_test.sh` (derives framework search path + rpaths from `xcode-select -p`) as the canonical, portable test command; bare `swift test` works once full Xcode is installed. No package, manifest, or model change required (`Package.swift` unchanged at tools-version 5.9; zero deps; only `import Foundation` in core). Docs updated: `testing-strategy.md` §9, `enterprise-build-notes.md` §6, `git-workflow.md` (2026-06-22) |
 
 ---
 
@@ -57,4 +58,5 @@ These items are acknowledged, non-blocking for Phase 2, and deferred to the phas
 | KI-025 | low | — | deferred | ISSUE-19 (C4): Animation speed enum values differ between privacy-offline-plan (slow/normal/fast) and ux-spec (Normal/Fast/Off) | Phase 5 — UI build |
 | KI-026 | low | Phase 4 | deferred | ISSUE-17 (C5): Expert AI helper functions (`partnerHandSize`, `teamProgressScore`, `estimateOpponentResponse`) are placeholders in ai-strategy.md pseudocode — marked Phase 4 to-be-specified | Phase 4 — AI implementation |
 | KI-027 | medium | Phase 5 | deferred | B7: Colour-picker popover anchor in ux-spec is ambiguous ("card or fixed point") — should specify single rule | Phase 5 — UI build |
-| KI-028 | low | Phase 2 gate | deferred | Mac round-trip not yet run: empty Package.swift + WildPairsCore + WildPairsTests must compile and `swift test` must pass on Mac before Phase 2 code is written | Before Phase 2 code starts |
+
+> KI-028 (Mac round-trip gate) moved to **Resolved** on 2026-06-22 — see the Resolved Issues table above.
