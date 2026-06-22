@@ -64,6 +64,9 @@ public enum WinReason: String, Codable, Equatable, Sendable {
     case singlePlayerEmptiedHand
     case targetScoreReached
     case opponentSoloCallMissed
+    /// Nobody emptied their hand within `RuleProfile.roundTimeLimitSeconds`; the round was
+    /// decided by lowest card-point score instead.
+    case roundTimerExpired
 }
 
 /// A lightweight debug event recorded in the event log.

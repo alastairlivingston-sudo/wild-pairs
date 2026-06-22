@@ -89,20 +89,25 @@ View → GameAction intent → GameViewModel → GameEngine.reduce(state, action
 ### Game modes
 | ID | Name | Core rule |
 |---|---|---|
-| `standardTeams` | Standard Teams | Colour/number/action matching; both teammates must empty hands |
-| `allWild` | All-Wild Teams | Every card plays on every turn; pure action chaos |
-| `sideToSide` | Side-to-Side Teams | 2v2 team support; team pass option; both out to win |
+| `standardTeams` | Standard Teams | Colour/number/action matching; single-out wins immediately, crediting the team; a 3-minute round timer falls back to lowest-score-wins if nobody goes out |
+| `allWild` | All-Wild Teams | Every card plays on every turn; pure action chaos; same single-out / round-timer win condition |
+| `sideToSide` | Side-to-Side Teams | 2v2 team support; team pass option; same single-out / round-timer win condition |
+
+Both-teammates-out is a supported house rule (`RuleProfile.winCondition = .bothTeammatesOut`), not the default.
 
 ### Card types
 `number`, `skip`, `reverse`, `drawTwo`, `drawFour`, `changeColour`, `discardAll`, `targetedDraw`, `forcedSwap`, `skipTwo`, `teamPlay`
 
 ### Difficulty levels
-| ID | Strategy |
-|---|---|
-| `easy` | Random valid move |
-| `medium` | Heuristic (prefer actions, basic team awareness) |
-| `hard` | Scored heuristic (multi-factor move scoring) |
-| `expert` | Simulated lookahead + team strategy |
+| ID | Strategy | Score multiplier |
+|---|---|---|
+| `easy` | Random valid move | x1 |
+| `medium` | Heuristic (prefer actions, basic team awareness) | x2 |
+| `hard` | Scored heuristic (multi-factor move scoring) | x4 |
+| `expert` | Simulated lookahead + team strategy | x8 |
+| `master` | Same strategy as Expert | x24 |
+
+Round-win points are multiplied by the toughest AI opponent's score multiplier.
 
 ### Card sets
 | ID | Includes |

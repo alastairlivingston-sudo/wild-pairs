@@ -40,6 +40,20 @@ public enum Difficulty: String, Codable, CaseIterable, Equatable, Sendable {
     case medium
     case hard
     case expert
+    /// Top tier: same strategy as `.expert`, highest score multiplier.
+    case master
+
+    /// Score multiplier applied to round-win points when this difficulty is the toughest
+    /// opponent faced in the match. Rewards beating harder AI.
+    public var scoreMultiplier: Int {
+        switch self {
+        case .easy:   return 1
+        case .medium: return 2
+        case .hard:   return 4
+        case .expert: return 8
+        case .master: return 24
+        }
+    }
 }
 
 // MARK: - TeamState

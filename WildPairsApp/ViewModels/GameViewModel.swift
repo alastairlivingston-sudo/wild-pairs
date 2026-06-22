@@ -18,6 +18,8 @@ final class GameViewModel: ObservableObject {
     private let onRoundEnd: (_ localTeamWon: Bool, _ difficulty: Difficulty, _ turns: Int) -> Void
 
     private var aiTask: Task<Void, Never>?
+    private var roundTimerTask: Task<Void, Never>?
+    private var moveTimerTask: Task<Void, Never>?
     private var turnsThisRound = 0
     private var roundResultRecorded = false
 
@@ -32,6 +34,8 @@ final class GameViewModel: ObservableObject {
         self.onRoundEnd = onRoundEnd
         self.viewState = presenter.viewState
         scheduleAITurnsIfNeeded()
+        scheduleRoundTimerIfNeeded()
+        scheduleMoveTimerIfNeeded()
     }
 
     convenience init(
@@ -72,8 +76,16 @@ final class GameViewModel: ObservableObject {
 
     // MARK: Lifecycle
 
-    func pause() { aiTask?.cancel() }
-    func resume() { scheduleAITurnsIfNeeded() }
+    func pause() {
+        aiTask?.cancel()
+        roundTimerTask?.cancel()
+        moveTimerTask?.cancel()
+    }
+    func resume() {
+        scheduleAITurnsIfNeeded()
+        scheduleRoundTimerIfNeeded()
+        scheduleMoveTimerIfNeeded()
+    }
 
     // MARK: Internals
 
@@ -84,6 +96,8 @@ final class GameViewModel: ObservableObject {
         viewState = presenter.viewState
         checkRoundEnd()
         scheduleAITurnsIfNeeded()
+        scheduleRoundTimerIfNeeded()
+        scheduleMoveTimerIfNeeded()
     }
 
     private func scheduleAITurnsIfNeeded() {
@@ -103,6 +117,46 @@ final class GameViewModel: ObservableObject {
                 self.viewState = self.presenter.viewState
                 self.checkRoundEnd()
             }
+            self.scheduleMoveTimerIfNeeded()
+        }
+    }
+
+    /// Round-wide wall-clock fallback (`RuleProfile.roundTimeLimitSeconds`): if nobody empties
+    /// their hand before this fires, the engine decides the round by lowest score.
+    private func scheduleRoundTimerIfNeeded() {
+        roundTimerTask?.cancel()
+        guard presenter.state.phase == .playing else { return }
+        let seconds = presenter.state.ruleProfile.roundTimeLimitSeconds
+        guard seconds > 0 else { return }
+        roundTimerTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            guard let self, !Task.isCancelled else { return }
+            let effects = self.presenter.roundTimerExpired()
+            self.handle(effects)
+            self.viewState = self.presenter.viewState
+            self.checkRoundEnd()
+        }
+    }
+
+    /// Per-move wall-clock fallback (`RuleProfile.moveTimeLimitSeconds`) for the local human
+    /// only — forces a random legal move if they haven't acted in time.
+    private func scheduleMoveTimerIfNeeded() {
+        moveTimerTask?.cancel()
+        guard presenter.state.phase == .playing,
+              presenter.state.pendingDecision == nil,
+              presenter.state.currentPlayer?.id == localPlayerID else { return }
+        let seconds = presenter.state.ruleProfile.moveTimeLimitSeconds
+        guard seconds > 0 else { return }
+        moveTimerTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            guard let self, !Task.isCancelled else { return }
+            let effects = self.presenter.forceTimedOutMove(for: self.localPlayerID)
+            self.turnsThisRound += 1
+            self.handle(effects)
+            self.viewState = self.presenter.viewState
+            self.checkRoundEnd()
+            self.scheduleAITurnsIfNeeded()
+            self.scheduleMoveTimerIfNeeded()
         }
     }
 

@@ -109,6 +109,22 @@ Choose the AI difficulty for all three AI players:
 - **Medium** — AI uses a basic heuristic (prefer action cards; hold wilds)
 - **Hard** — AI uses a scored heuristic (values hand-size reduction, penalises leaving partner vulnerable)
 - **Expert** — AI performs a lookahead simulation to select the highest-expected-value move
+- **Master** — same strategy as Expert; rewards beating it with the highest score multiplier (see
+  [Score Multiplier](#score-multiplier) below)
+
+#### Score Multiplier
+
+Winning a round against tougher AI is worth more. The points a team is awarded for winning a
+round (see [Scoring Mode](#scoring-mode)) are multiplied by the difficulty of the toughest
+opponent faced:
+
+| Difficulty | Multiplier |
+|---|---|
+| Easy | x1 |
+| Medium | x2 |
+| Hard | x4 |
+| Expert | x8 |
+| Master | x24 |
 
 ### Dealing
 
@@ -347,7 +363,7 @@ Team Play is double-edged: it gives both teammates more cards (potentially valua
 
 **Action effects:** All action card effects (Skip, Reverse, Draw Two, Draw Four, etc.) still apply in full. The difference is only in what cards are legally playable — all of them, always.
 
-**Team mechanic:** Identical to Standard Teams (2v2, alternating seats, both teammates must empty hands).
+**Team mechanic:** Identical to Standard Teams (2v2, alternating seats, single-out win by default).
 
 **Strategy shift:** Without colour/number constraints, the game becomes a race to deplete hands through action cards. Action card selection becomes the primary decision. Wilds are less special since every card is effectively "wild."
 
@@ -379,18 +395,42 @@ Team pass is optional per team. A team may decline to pass. The house rule setti
 
 ## Win Conditions
 
-### Standard Win (Both Teammates Out)
+### Standard Win (Single-Out)
 
-The round ends immediately when both members of one team have zero cards in hand. This can happen:
+The round ends immediately the moment **any** player empties their hand — an individual
+achievement that credits their whole team with the round. This is the default for all three game
+modes (`standardTeams`, `allWild`, `sideToSide`).
+
+The winning team scores zero for the round. The losing team's score (if scoring is enabled)
+equals the sum of face values of all cards remaining in every other player's hand, multiplied by
+the [score multiplier](#score-multiplier) of the toughest AI opponent faced.
+
+### Round Timer Fallback (Lowest Score Wins)
+
+Every round also runs a **3-minute wall-clock timer** (`RuleProfile.roundTimeLimitSeconds`,
+default 180 seconds). Emptying your hand still wins immediately regardless of time left on the
+clock — the timer is a fallback, not a replacement, for when nobody empties their hand in time.
+
+If the timer elapses with the round still in progress, the round is decided by score instead: the
+player holding the **lowest card-point total** wins, crediting their team. Ties break by fewest
+cards remaining, then by lowest seat position. The winning team is awarded the combined card-point
+value of every other player's hand, multiplied by the toughest opponent's
+[score multiplier](#score-multiplier).
+
+Each individual move also has a **10-second limit** (`RuleProfile.moveTimeLimitSeconds`, default
+10 seconds) for the local human player — AI already moves well within this window via its
+think-delay. If the human doesn't act in time, the engine plays a random legal card on their
+behalf (or draws, if none exists) — the same fallback `EasyAI` uses.
+
+### Both-Teammates-Out House Rule
+
+When `winCondition` is set to `.bothTeammatesOut` (not the default — opt in explicitly), the round
+instead requires **both** members of a team to empty their hands before it ends:
 
 - Player A empties their hand on their turn, then Player B (their teammate) empties their hand on a subsequent turn.
 - A single action (e.g., Discard All emptying the hand) causes both players to go out simultaneously only in edge cases — the engine resolves both players' out-states and declares the win.
 
-The winning team scores zero for the round. The losing team's score (if scoring is enabled) equals the sum of face values of all cards remaining in both losing-team players' hands.
-
-### Single-Out House Rule
-
-When enabled: the round ends the moment **either** member of a team empties their hand. The other teammate's remaining cards do not matter for the win condition, but do contribute to the losing team's score calculation.
+The round timer fallback above still applies under this house rule.
 
 ### Scoring Mode
 
@@ -402,7 +442,10 @@ When scoring is enabled:
 | Action cards (Skip, Reverse, Draw Two, Skip Two, Targeted Draw, Forced Swap, Team Play, Discard All) | 20 points each |
 | Wild cards (Change Colour, Draw Four) | 50 points each |
 
-Points are tallied from the losing team's remaining cards. Play continues over multiple rounds until one team reaches a target score threshold (configurable) or a fixed number of rounds is completed.
+Points are tallied from the losing side's remaining cards and multiplied by the
+[score multiplier](#score-multiplier) of the toughest AI opponent faced. Play continues over
+multiple rounds until one team reaches a target score threshold (configurable) or a fixed number
+of rounds is completed.
 
 ### Game End
 
@@ -451,16 +494,21 @@ When the Solo! penalty is disabled, no penalty is applied for failing to call So
 
 ## Team Rules
 
-### Why Both Teammates Must Empty Hands
+### Why It's an Individual Race by Default
 
-Wild Pairs is designed as a cooperative-competitive game. The requirement that both teammates empty their hands creates strategic depth: a player who goes out first must watch their partner struggle, and the opposing team can focus efforts on the remaining player. This prevents one skilled player from winning for the whole team.
+Wild Pairs is a cooperative-competitive game: you and a partner share a win, but the win itself is
+triggered by individual play — whoever empties their hand first (or, failing that, holds the
+lowest score when the round timer expires) carries the team. For a more traditional Uno-style
+"both of us must finish" feel, with the strategic depth of one player going out first and
+watching their partner finish alone, enable the **Both-Teammates-Out house rule**.
 
 ### Partner Goes Out First
 
-When one teammate empties their hand:
+By default (single-out), the round ends the instant one player empties their hand — their
+partner doesn't need to. Under the **Both-Teammates-Out house rule**:
 - That player is out of the round.
 - Their partner continues playing alone against two opponents.
-- The round only ends when the partner also empties their hand (or the single-out house rule is enabled).
+- The round only ends when the partner also empties their hand.
 - The player who went out first cannot be targeted by Targeted Draw, Forced Swap, or similar cards once they are out.
 
 ### Team Communication Rules
@@ -485,7 +533,7 @@ All house rules default to OFF unless otherwise noted.
 | House Rule | Default | Effect |
 |---|---|---|
 | Draw Four Anytime | OFF | Draw Four can be played on any card regardless of whether the player has another legal play. Default requires no other legal play. |
-| Single-Out Win | OFF | Round ends when one teammate empties hand, not both. |
+| Both-Teammates-Out Win | OFF | Round ends only when both teammates empty their hands, not the single-out default. |
 | Draw Stacking | OFF | Players may stack Draw Two and Draw Four penalties. The target player must either play their own Draw Two/Four to pass the cumulative penalty, or draw the full stack. When stacking, colour-matching still applies (Draw Two stacks onto Draw Two/Four, etc.). |
 | Solo! Penalty Disabled | OFF | No penalty for failing to call Solo!. |
 | Team Pass (Side-to-Side) | ON (when mode is Side-to-Side) | At round start, each team may privately swap one card between partners before play begins. Setting to OFF disables this phase entirely. |
@@ -499,7 +547,7 @@ The following table gives the **exact field values** returned by each `RuleProfi
 | Field | `standardTeams()` | `allWild()` | `sideToSide()` | Notes |
 |---|---|---|---|---|
 | `initialHandSize` | 7 | 7 | 7 | Cards dealt per player |
-| `winCondition` | `.bothTeammatesOut` | `.bothTeammatesOut` | `.bothTeammatesOut` | Default; Single-Out is a house rule |
+| `winCondition` | `.singleOut` | `.singleOut` | `.singleOut` | Default; Both-Teammates-Out is a house rule |
 | `targetScore` | 0 | 0 | 0 | 0 = single-round, no cumulative score |
 | `mustPlayAfterDraw` | `true` | `true` | `true` | Player must play drawn card if legal |
 | `drawUntilPlayable` | `false` | `false` | `false` | Draw stacking off by default |
@@ -519,6 +567,8 @@ The following table gives the **exact field values** returned by each `RuleProfi
 | `partnerPlaysImmediately` | `false` | `false` | `false` | Team Play house-rule variant; default OFF |
 | `scoringEnabled` | `false` | `false` | `false` | Multi-round scoring; default OFF |
 | `maxTurnsPerRound` | 300 | 300 | 300 | Stuck-game safety cap |
+| `roundTimeLimitSeconds` | 180 | 180 | 180 | Round timer fallback (lowest score wins) |
+| `moveTimeLimitSeconds` | 10 | 10 | 10 | Per-move limit for the local human |
 
 > **Note on advanced card fields:** `discardAllEnabled`, `targetedDrawEnabled`, etc. are set to `false` in all factory defaults because advanced card enablement is driven by the `cardSet` field. When `cardSet == .advanced`, the engine enables all advanced card types regardless of these flags. The flags allow individual advanced cards to be disabled independently (post-MVP customisation).
 

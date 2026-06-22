@@ -15,7 +15,7 @@ public enum AIPlayer {
         case .easy:   return EasyAI.chooseMove(observation: observation, rng: &rng)
         case .medium: return MediumAI.chooseMove(observation: observation, rng: &rng)
         case .hard:   return HardAI.chooseMove(observation: observation, rng: &rng)
-        case .expert: return ExpertAI.chooseMove(observation: observation, rng: &rng)
+        case .expert, .master: return ExpertAI.chooseMove(observation: observation, rng: &rng)
         }
     }
 
@@ -27,7 +27,7 @@ public enum AIPlayer {
         switch difficulty {
         case .easy:
             return EasyAI.selectColour(observation: observation, rng: &rng)
-        case .medium, .hard, .expert:
+        case .medium, .hard, .expert, .master:
             return MediumAI.selectColour(observation: observation, rng: &rng)
         }
     }
@@ -41,7 +41,7 @@ public enum AIPlayer {
         switch difficulty {
         case .easy:
             return EasyAI.selectTarget(observation: observation, validTargets: validTargets, rng: &rng)
-        case .medium, .hard, .expert:
+        case .medium, .hard, .expert, .master:
             return MediumAI.selectTarget(observation: observation, validTargets: validTargets, rng: &rng)
         }
     }
@@ -52,6 +52,7 @@ public enum AIPlayer {
         case .medium: return 0.6
         case .hard:   return 0.9
         case .expert: return 1.2
+        case .master: return 1.5
         }
     }
 
@@ -135,9 +136,14 @@ enum MediumAI {
             grouping: observation.myHand.compactMap(\.colour),
             by: { $0 }
         ).mapValues { $0.count }
-        return counts.max(by: { $0.value < $1.value })?.key
-            ?? CardColour.allCases.randomElement(using: &rng)
-            ?? .crimson
+        // Dictionary.max(by:) ties break in hash-iteration order, which is randomized per
+        // process for enum keys — that made AI colour choice (and everything downstream of
+        // it) non-deterministic across runs of the same seed. Break ties via the fixed,
+        // canonical CardColour.allCases order instead.
+        guard let maxCount = counts.values.max() else {
+            return CardColour.allCases.randomElement(using: &rng) ?? .crimson
+        }
+        return CardColour.allCases.first { counts[$0] == maxCount } ?? .crimson
     }
 
     static func selectTarget(

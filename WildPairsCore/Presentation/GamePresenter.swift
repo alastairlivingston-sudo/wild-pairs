@@ -130,6 +130,23 @@ public final class GamePresenter {
         dispatch(.beginNewRound)
     }
 
+    /// Call when the round's wall-clock timer (`RuleProfile.roundTimeLimitSeconds`) elapses
+    /// with nobody having emptied their hand. No-op if the round already ended.
+    @discardableResult public func roundTimerExpired() -> [GameEffect] {
+        dispatch(.roundTimerExpired)
+    }
+
+    /// Forces a random legal move for `playerID` (same fallback `EasyAI` uses), for when their
+    /// per-move timer (`RuleProfile.moveTimeLimitSeconds`) elapses without input. Scoped to the
+    /// current turn only — a no-op if it isn't this player's turn or a decision is pending.
+    @discardableResult public func forceTimedOutMove(for playerID: UUID) -> [GameEffect] {
+        guard state.phase == .playing, state.pendingDecision == nil,
+              state.currentPlayer?.id == playerID else { return [] }
+        var rng = derivedRNG()
+        let action = EasyAI.chooseMove(observation: observation(for: playerID), rng: &rng)
+        return dispatch(action)
+    }
+
     // MARK: Private
 
     /// A fresh RNG derived from the game's seed and current action count — matches the

@@ -9,8 +9,11 @@ struct WinConditionTests {
     @Test("Round does NOT end when only one Team A player empties hand (bothTeammatesOut)")
     func testPartialFinishDoesNotTriggerWin() {
         let card = CardFactory.number(5, .crimson)
+        var profile = RuleProfile.standardTeams()
+        profile.winCondition = .bothTeammatesOut
         let state = GameStateBuilder()
             .withPlayers()
+            .withRuleProfile(profile)
             .withCurrentColour(.crimson)
             .withTopDiscard(CardFactory.number(5, .crimson))
             .withHand(forPlayer: 0, cards: [card])
@@ -27,9 +30,12 @@ struct WinConditionTests {
     @Test("Round ends when both Team A players empty hands (bothTeammatesOut)")
     func testBothTeammatesOutWinsRound() {
         let card = CardFactory.number(5, .crimson)
+        var profile = RuleProfile.standardTeams()
+        profile.winCondition = .bothTeammatesOut
         // Seat 2 (Team A partner) already finished
         let state = GameStateBuilder()
             .withPlayers()
+            .withRuleProfile(profile)
             .withCurrentColour(.crimson)
             .withTopDiscard(CardFactory.number(5, .crimson))
             .withHand(forPlayer: 0, cards: [card])
@@ -46,8 +52,11 @@ struct WinConditionTests {
     @Test("Round ends when both Team B players empty hands (bothTeammatesOut)")
     func testTeamBWinsRound() {
         let card = CardFactory.number(5, .crimson)
+        var profile = RuleProfile.standardTeams()
+        profile.winCondition = .bothTeammatesOut
         let state = GameStateBuilder()
             .withPlayers()
+            .withRuleProfile(profile)
             .withCurrentColour(.crimson)
             .withTopDiscard(CardFactory.number(5, .crimson))
             .withCurrentPlayer(1)
@@ -81,6 +90,8 @@ struct WinConditionTests {
         let (next, _) = GameEngine.reduce(state: state, action: .playCard(card, playerID: p0id))
         #expect(next.phase == .roundEnded)
         #expect(next.winState?.winningTeam == .teamA)
+        #expect(next.winState?.winningPlayerID == p0id)
+        #expect(next.winState?.reason == .singlePlayerEmptiedHand)
     }
 
     // MARK: Game-level win (scoring)
@@ -115,8 +126,11 @@ struct WinConditionTests {
     @Test("WinState records winning team correctly")
     func testWinStateFields() {
         let card = CardFactory.number(5, .crimson)
+        var profile = RuleProfile.standardTeams()
+        profile.winCondition = .bothTeammatesOut
         let state = GameStateBuilder()
             .withPlayers()
+            .withRuleProfile(profile)
             .withCurrentColour(.crimson)
             .withTopDiscard(CardFactory.number(5, .crimson))
             .withHand(forPlayer: 0, cards: [card])

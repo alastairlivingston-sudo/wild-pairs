@@ -270,8 +270,11 @@ struct ScenarioTests {
         let lastCardP2 = CardFactory.number(7, .crimson)
 
         // Build state: player 0 has 1 card, player 2 has 1 card, others have cards
+        var profile = RuleProfile.standardTeams()
+        profile.winCondition = .bothTeammatesOut
         var state = GameStateBuilder()
             .withPlayers()
+            .withRuleProfile(profile)
             .withCurrentColour(.crimson)
             .withTopDiscard(CardFactory.number(5, .crimson))
             .withHand(forPlayer: 0, cards: [lastCardP0])

@@ -82,10 +82,13 @@ enum HeadlessSession {
     }
 
     private static func humanColourChoice(_ vs: GameViewState) -> CardColour {
-        // Prefer the colour the local player holds most of.
+        // Prefer the colour the local player holds most of. Dictionary.max(by:) ties break in
+        // hash-iteration order (randomized per process for enum keys), so resolve ties via the
+        // fixed CardColour.allCases order to keep this deterministic across runs.
         let counts = Dictionary(grouping: vs.localHand.compactMap { $0.card.colour }, by: { $0 })
             .mapValues(\.count)
-        return counts.max { $0.value < $1.value }?.key ?? .crimson
+        guard let maxCount = counts.values.max() else { return .crimson }
+        return CardColour.allCases.first { counts[$0] == maxCount } ?? .crimson
     }
 
     static func config(
