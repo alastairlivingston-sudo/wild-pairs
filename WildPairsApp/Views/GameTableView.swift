@@ -23,37 +23,52 @@ struct GameTableView: View {
     private var showColourName: Bool { settings.userSettings.colourBlindMode }
 
     var body: some View {
-        ZStack {
-            tableBackground.ignoresSafeArea()
+        NavigationStack {
+            ZStack {
+                tableBackground.ignoresSafeArea()
 
-            VStack(spacing: Theme.Space.s3) {
-                topBar
-                if let partner = seat(at: 2) { PlayerZoneView(seat: partner) }
+                VStack(spacing: Theme.Space.s3) {
+                    if let partner = seat(at: 2) { PlayerZoneView(seat: partner) }
 
-                HStack(alignment: .center, spacing: Theme.Space.s3) {
-                    if let left = seat(at: 1) { opponentZone(left) }
+                    HStack(alignment: .center, spacing: Theme.Space.s3) {
+                        if let left = seat(at: 1) { opponentZone(left) }
+                        Spacer(minLength: 0)
+                        TableCenterView(
+                            topDiscard: vs.topDiscard, currentColour: vs.currentColour,
+                            drawPileCount: vs.drawPileCount, turnDirection: vs.turnDirection,
+                            canDraw: vs.isLocalPlayerTurn, showColourName: showColourName,
+                            onDraw: vm.drawCard
+                        )
+                        Spacer(minLength: 0)
+                        if let right = seat(at: 3) { opponentZone(right) }
+                    }
+
                     Spacer(minLength: 0)
-                    TableCenterView(
-                        topDiscard: vs.topDiscard, currentColour: vs.currentColour,
-                        drawPileCount: vs.drawPileCount, turnDirection: vs.turnDirection,
-                        canDraw: vs.isLocalPlayerTurn, showColourName: showColourName,
-                        onDraw: vm.drawCard
-                    )
-                    Spacer(minLength: 0)
-                    if let right = seat(at: 3) { opponentZone(right) }
+                    PromptBanner(prompt: vs.prompt).padding(.horizontal, Theme.Space.s4)
+                    bottomControls
+                    HandView(hand: vs.localHand, cardSize: cardSize,
+                             showColourName: showColourName, onPlay: vm.play)
                 }
+                .padding(.vertical, Theme.Space.s3)
 
-                Spacer(minLength: 0)
-                PromptBanner(prompt: vs.prompt).padding(.horizontal, Theme.Space.s4)
-                bottomControls
-                HandView(hand: vs.localHand, cardSize: cardSize,
-                         showColourName: showColourName, onPlay: vm.play)
+                if let hint = vm.lastInvalidHint { invalidTooltip(hint) }
+
+                if vs.phase != .playing { RoundEndView(vs: vs, onNext: vm.beginNextRound, onExit: onExit) }
             }
-            .padding(.vertical, Theme.Space.s3)
-
-            if let hint = vm.lastInvalidHint { invalidTooltip(hint) }
-
-            if vs.phase != .playing { RoundEndView(vs: vs, onNext: vm.beginNextRound, onExit: onExit) }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Text("Round \(vs.roundNumber)").font(.footnote).foregroundStyle(.secondary)
+                }
+                ToolbarItem(placement: .principal) { scoreChip }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { showPause = true; vm.pause() } label: {
+                        Image(systemName: "pause.fill").font(.title3)
+                    }
+                    .accessibilityLabel("Pause")
+                    .accessibilityIdentifier("game-pause-button")
+                }
+            }
         }
         .sheet(isPresented: colourSheetBinding) {
             ColourPickerView(onChoose: vm.chooseColour)
@@ -66,23 +81,6 @@ struct GameTableView: View {
                           onEndGame: onExit)
         }
         .onChange(of: showPause) { _, paused in if paused { vm.pause() } }
-    }
-
-    // MARK: Pieces
-
-    private var topBar: some View {
-        HStack {
-            Text("Round \(vs.roundNumber)").font(.footnote).foregroundStyle(.secondary)
-            Spacer()
-            scoreChip
-            Spacer()
-            Button { showPause = true; vm.pause() } label: {
-                Image(systemName: "pause.fill").font(.title3)
-            }
-            .accessibilityLabel("Pause")
-            .accessibilityIdentifier("game-pause-button")
-        }
-        .padding(.horizontal, Theme.Space.s4)
     }
 
     private var scoreChip: some View {

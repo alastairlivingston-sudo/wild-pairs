@@ -46,6 +46,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.wildpairs.uitests
+        GENERATE_INFOPLIST_FILE: YES
         SWIFT_VERSION: "5.9"
     dependencies:
       - target: WildPairs
