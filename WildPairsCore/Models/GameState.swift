@@ -203,7 +203,7 @@ public struct GameState: Codable, Equatable, Sendable {
     /// A lightweight view of team membership, suitable for AI and UI.
     public var teamState: TeamState {
         let assignments = Dictionary(uniqueKeysWithValues: players.map { ($0.id, $0.teamID) })
-        return TeamState(assignments: assignments)
+        return TeamState(assignments: assignments, orderedPlayerIDs: players.map(\.id))
     }
 
     // MARK: Initialiser

@@ -27,4 +27,8 @@ if [ -d "$FW/Testing.framework" ]; then
     [ -d "$LIB" ] && EXTRA+=( -Xlinker -rpath -Xlinker "$LIB" )
 fi
 
-exec swift test --package-path "$PROJECT_ROOT" "${EXTRA[@]}" "$@"
+if [ "${#EXTRA[@]}" -gt 0 ]; then
+    exec swift test --package-path "$PROJECT_ROOT" "${EXTRA[@]}" "$@"
+else
+    exec swift test --package-path "$PROJECT_ROOT" "$@"
+fi

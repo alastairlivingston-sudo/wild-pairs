@@ -57,12 +57,12 @@ public enum AIPlayer {
 
     // MARK: Internal helpers
 
-    /// Legal plays for the AI from its own hand, mirroring GameRules.isLegal.
+    /// Legal plays for the AI from its own hand, mirroring GameRules.isLegal / drawFourIsLegal.
     static func legalPlays(observation: AIObservation) -> [Card] {
         observation.myHand.filter { card in
             if observation.mode == .allWild { return true }
+            if card.type == .drawFour { return drawFourIsLegal(observation: observation) }
             if card.isWild { return true }
-            if card.type == .drawFour { return true }
             guard let colour = card.colour else { return true }
             if colour == observation.currentColour { return true }
             if let topType = observation.currentCardType {
@@ -70,6 +70,16 @@ public enum AIPlayer {
                 if case .number(let v1) = card.type, case .number(let v2) = topType, v1 == v2 { return true }
             }
             return false
+        }
+    }
+
+    /// Mirrors GameRules.drawFourIsLegal using only what an AI may observe.
+    private static func drawFourIsLegal(observation: AIObservation) -> Bool {
+        if observation.mode == .allWild { return true }
+        if observation.ruleProfile.drawFourChallengeable { return true }
+        return !observation.myHand.contains { card in
+            guard !card.isWild, card.type != .drawFour else { return false }
+            return card.colour == observation.currentColour
         }
     }
 }

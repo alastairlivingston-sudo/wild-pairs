@@ -150,14 +150,14 @@ struct GamePresenterTests {
     }
 
     @Test("advanceAutomatic drives AI turns and stops at the local player")
-    func testAdvanceStopsAtLocal() {
+    func testAdvanceStopsAtLocal() throws {
         let presenter = GamePresenter(config: standardConfig(seed: 7))
         // Force it to be an AI's turn by passing the human's turn first
         presenter.dispatch(.passTurn(playerID: presenter.localPlayerID))
         var guardCounter = 0
         while presenter.advanceAutomatic() != nil {
             guardCounter += 1
-            #expect(guardCounter < 200)  // must terminate
+            try #require(guardCounter < 200)  // must terminate
         }
         // Now it should be the local player's turn (or the round/game ended)
         let isLocalTurn = presenter.state.currentPlayer?.id == presenter.localPlayerID
@@ -188,6 +188,16 @@ struct GamePresenterTests {
             #expect((a == nil) == (b == nil))
             if a == nil { break }
         }
-        #expect(p1.state == p2.state)
+        // Player/card UUIDs are random per construction, so compare a structural
+        // fingerprint (hand contents, turn state, deck order) rather than raw identity.
+        #expect(fingerprint(p1.state) == fingerprint(p2.state))
+    }
+
+    private func fingerprint(_ state: GameState) -> String {
+        func describe(_ card: Card) -> String { "\(card.type)-\(String(describing: card.colour))" }
+        let hands = state.players.map { $0.hand.map(describe) }
+        let drawPile = state.deck.drawPile.map(describe)
+        let discardPile = state.deck.discardPile.map(describe)
+        return "\(hands)|\(drawPile)|\(discardPile)|\(state.currentPlayerIndex)|\(state.currentColour)|\(state.currentCardType.map(String.init(describing:)) ?? "nil")|\(state.actionCount)"
     }
 }
