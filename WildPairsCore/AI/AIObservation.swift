@@ -62,7 +62,10 @@ public struct AIObservation: Sendable {
     /// Direction of turn progression around the table.
     public let turnDirection: TurnDirection
 
-    // MARK: Rules (public)
+    // MARK: Mode and Rules (public)
+
+    /// The game mode for this session.
+    public let mode: GameMode
 
     /// The full rule configuration for this game.
     public let ruleProfile: RuleProfile
@@ -134,6 +137,7 @@ public struct AIObservation: Sendable {
         self.activePlayerID = state.currentPlayer?.id ?? playerID
         self.isMyTurn = state.currentPlayer?.id == playerID
         self.turnDirection = state.turnDirection
+        self.mode = state.mode
         self.ruleProfile = state.ruleProfile
         self.myHand = targetPlayer?.hand ?? []
         self.myPlayerID = playerID

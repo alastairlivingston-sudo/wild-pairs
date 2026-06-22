@@ -2,86 +2,28 @@ import Foundation
 
 // MARK: - AIPlayer
 
-/// The top-level dispatcher for AI move selection.
-///
-/// `AIPlayer` is a namespace (caseless enum) containing the public interface
-/// used by the ViewModel to request an AI move. It dispatches to the appropriate
-/// difficulty-specific implementation based on the `Difficulty` parameter.
-///
-/// ## Fairness
-///
-/// AI implementations receive only an `AIObservation`. The full `GameState`
-/// is never passed to any AI function. See `AIObservation` for what the AI
-/// may and may not see.
-///
-/// ## Determinism
-///
-/// All AI functions accept `rng: inout SeededRNG`. Given the same observation,
-/// the same seed, and the same RNG state, every AI will make the same choice.
-/// This enables reproducible AI behaviour in simulation tests.
-///
-/// ## Usage (from ViewModel)
-///
-/// ```swift
-/// let observation = AIObservation(from: currentState, for: aiPlayerID)
-/// let action = AIPlayer.chooseMove(
-///     observation: observation,
-///     difficulty: player.difficulty,
-///     rng: &gameRNG
-/// )
-/// dispatch(action)
-/// ```
 public enum AIPlayer {
 
-    // MARK: - Move Selection
+    // MARK: Public entry point
 
-    /// Returns the `GameAction` the AI chooses to take on its turn.
-    ///
-    /// This is the only public entry point for AI move selection. It dispatches
-    /// to the correct difficulty-specific implementation and must only be called
-    /// when `observation.isMyTurn` is true.
-    ///
-    /// - Parameters:
-    ///   - observation: A filtered view of game state for the AI player.
-    ///   - difficulty: The AI difficulty level to apply.
-    ///   - rng: The seeded RNG; consumed and advanced by the AI call.
-    /// - Returns: A legal `GameAction` for the AI to take.
     public static func chooseMove(
         observation: AIObservation,
         difficulty: Difficulty,
         rng: inout SeededRNG
     ) -> GameAction {
-        // TODO: Implement in Phase 4
         switch difficulty {
-        case .easy:
-            return EasyAI.chooseMove(observation: observation, rng: &rng)
-        case .medium:
-            return MediumAI.chooseMove(observation: observation, rng: &rng)
-        case .hard:
-            return HardAI.chooseMove(observation: observation, rng: &rng)
-        case .expert:
-            return ExpertAI.chooseMove(observation: observation, rng: &rng)
+        case .easy:   return EasyAI.chooseMove(observation: observation, rng: &rng)
+        case .medium: return MediumAI.chooseMove(observation: observation, rng: &rng)
+        case .hard:   return HardAI.chooseMove(observation: observation, rng: &rng)
+        case .expert: return ExpertAI.chooseMove(observation: observation, rng: &rng)
         }
     }
 
-    // MARK: - Colour Selection
-
-    /// Returns the colour the AI chooses after playing a wild card.
-    ///
-    /// Called by the ViewModel when the engine has returned a `.promptColourChoice` effect
-    /// for an AI player.
-    ///
-    /// - Parameters:
-    ///   - observation: Current observation for the AI player.
-    ///   - difficulty: AI difficulty level.
-    ///   - rng: The seeded RNG.
-    /// - Returns: The chosen colour for the active colour constraint.
     public static func selectColour(
         observation: AIObservation,
         difficulty: Difficulty,
         rng: inout SeededRNG
     ) -> CardColour {
-        // TODO: Implement in Phase 4
         switch difficulty {
         case .easy:
             return EasyAI.selectColour(observation: observation, rng: &rng)
@@ -90,26 +32,12 @@ public enum AIPlayer {
         }
     }
 
-    // MARK: - Target Selection
-
-    /// Returns the player ID the AI nominates when playing a targeted card.
-    ///
-    /// Called by the ViewModel when the engine has returned a `.promptTargetChoice` effect
-    /// for an AI player.
-    ///
-    /// - Parameters:
-    ///   - observation: Current observation for the AI player.
-    ///   - validTargets: The set of player IDs that may be legally targeted.
-    ///   - difficulty: AI difficulty level.
-    ///   - rng: The seeded RNG.
-    /// - Returns: The chosen target player ID.
     public static func selectTarget(
         observation: AIObservation,
         validTargets: [UUID],
         difficulty: Difficulty,
         rng: inout SeededRNG
     ) -> UUID {
-        // TODO: Implement in Phase 4
         switch difficulty {
         case .easy:
             return EasyAI.selectTarget(observation: observation, validTargets: validTargets, rng: &rng)
@@ -118,15 +46,6 @@ public enum AIPlayer {
         }
     }
 
-    // MARK: - Think Delay
-
-    /// The simulated thinking delay in seconds for the given difficulty.
-    ///
-    /// The ViewModel uses this value for `Task.sleep` before dispatching the AI move.
-    /// Set to 0 in fast/simulation mode.
-    ///
-    /// - Parameter difficulty: The AI difficulty level.
-    /// - Returns: Delay in seconds.
     public static func thinkDelay(for difficulty: Difficulty) -> TimeInterval {
         switch difficulty {
         case .easy:   return 0.3
@@ -135,20 +54,39 @@ public enum AIPlayer {
         case .expert: return 1.2
         }
     }
+
+    // MARK: Internal helpers
+
+    /// Legal plays for the AI from its own hand, mirroring GameRules.isLegal.
+    static func legalPlays(observation: AIObservation) -> [Card] {
+        observation.myHand.filter { card in
+            if observation.mode == .allWild { return true }
+            if card.isWild { return true }
+            if card.type == .drawFour { return true }
+            guard let colour = card.colour else { return true }
+            if colour == observation.currentColour { return true }
+            if let topType = observation.currentCardType {
+                if card.type == topType { return true }
+                if case .number(let v1) = card.type, case .number(let v2) = topType, v1 == v2 { return true }
+            }
+            return false
+        }
+    }
 }
 
 // MARK: - EasyAI
 
-/// Random move selection with no strategy. See ai-strategy.md §3.
 enum EasyAI {
 
     static func chooseMove(observation: AIObservation, rng: inout SeededRNG) -> GameAction {
-        // TODO: Implement in Phase 4
-        return .drawCard(playerID: observation.myPlayerID)
+        let valid = AIPlayer.legalPlays(observation: observation)
+        guard let chosen = valid.randomElement(using: &rng) else {
+            return .drawCard(playerID: observation.myPlayerID)
+        }
+        return .playCard(chosen, playerID: observation.myPlayerID)
     }
 
     static func selectColour(observation: AIObservation, rng: inout SeededRNG) -> CardColour {
-        // TODO: Implement in Phase 4
         return CardColour.allCases.randomElement(using: &rng) ?? .crimson
     }
 
@@ -157,23 +95,32 @@ enum EasyAI {
         validTargets: [UUID],
         rng: inout SeededRNG
     ) -> UUID {
-        // TODO: Implement in Phase 4
         return validTargets.randomElement(using: &rng) ?? observation.myPlayerID
     }
 }
 
 // MARK: - MediumAI
 
-/// Prefers action cards; chooses beneficial colour; avoids targeting partner. See ai-strategy.md §4.
 enum MediumAI {
 
     static func chooseMove(observation: AIObservation, rng: inout SeededRNG) -> GameAction {
-        // TODO: Implement in Phase 4
-        return .drawCard(playerID: observation.myPlayerID)
+        let valid = AIPlayer.legalPlays(observation: observation)
+        guard !valid.isEmpty else {
+            return .drawCard(playerID: observation.myPlayerID)
+        }
+        // Prefer action cards
+        let actions = valid.filter {
+            if case .number = $0.type { return false }
+            return true
+        }
+        let pool = actions.isEmpty ? valid : actions
+        guard let chosen = pool.randomElement(using: &rng) else {
+            return .drawCard(playerID: observation.myPlayerID)
+        }
+        return .playCard(chosen, playerID: observation.myPlayerID)
     }
 
     static func selectColour(observation: AIObservation, rng: inout SeededRNG) -> CardColour {
-        // TODO: Implement in Phase 4
         let counts = Dictionary(
             grouping: observation.myHand.compactMap(\.colour),
             by: { $0 }
@@ -188,7 +135,6 @@ enum MediumAI {
         validTargets: [UUID],
         rng: inout SeededRNG
     ) -> UUID {
-        // TODO: Implement in Phase 4
         let opponents = validTargets.filter { $0 != observation.partnerID }
         let pool = opponents.isEmpty ? validTargets : opponents
         return pool.min(by: {
@@ -199,10 +145,8 @@ enum MediumAI {
 
 // MARK: - HardAI
 
-/// Multi-factor move scoring. See ai-strategy.md §5.
 enum HardAI {
 
-    // Weight constants — adjust here for balancing (see ai-strategy.md §14).
     enum Weight {
         static let handReduction:      Float = 1.0
         static let actionBonus:        Float = 0.5
@@ -213,24 +157,76 @@ enum HardAI {
     }
 
     static func chooseMove(observation: AIObservation, rng: inout SeededRNG) -> GameAction {
-        // TODO: Implement in Phase 4
-        return .drawCard(playerID: observation.myPlayerID)
+        let valid = AIPlayer.legalPlays(observation: observation)
+        guard !valid.isEmpty else {
+            return .drawCard(playerID: observation.myPlayerID)
+        }
+        let scored = valid.map { ($0, scoreMove($0, observation: observation)) }
+        guard let best = scored.max(by: { $0.1 < $1.1 }) else {
+            return .drawCard(playerID: observation.myPlayerID)
+        }
+        return .playCard(best.0, playerID: observation.myPlayerID)
     }
 
     static func scoreMove(_ card: Card, observation: AIObservation) -> Float {
-        // TODO: Implement in Phase 4
-        return 0.0
+        let urgency = computeUrgency(observation)
+        var score: Float = 0.0
+
+        // Hand reduction reward
+        score += Weight.handReduction * (1.0 + urgency)
+
+        // Action card bonus
+        if case .number = card.type { } else { score += Weight.actionBonus }
+
+        // Opponent disruption
+        if isTargeting(card) {
+            if let nearest = observation.nearestOpponentToWin {
+                let opponentCount = Float(observation.cardCounts[nearest, default: 7])
+                score += Weight.opponentDisruption * (10.0 / (opponentCount + 1))
+            }
+        }
+
+        // Colour advantage
+        if !card.isWild, let colour = card.colour {
+            let myColourCount = Float(observation.myHand.filter { $0.colour == colour }.count)
+            score += Weight.colourAdvantage * myColourCount
+        }
+
+        // Conservation of rare powerful cards when urgency is low
+        switch card.type {
+        case .drawFour, .discardAll, .forcedSwap:
+            if urgency < 0.5 { score -= Weight.actionConservation }
+        default: break
+        }
+
+        // Penalty for targeting partner (if this is a targeted card and partner is the only valid target)
+        if isTargeting(card), let partner = observation.partnerID {
+            let opponents = observation.cardCounts.keys.filter {
+                $0 != observation.myPlayerID && $0 != partner
+            }
+            if opponents.isEmpty {
+                score -= Weight.partnerPenalty
+            }
+        }
+
+        return score
     }
 
     static func computeUrgency(_ observation: AIObservation) -> Float {
         let count = Float(observation.myHand.count)
         return max(0.0, 1.0 - count / 7.0)
     }
+
+    private static func isTargeting(_ card: Card) -> Bool {
+        switch card.type {
+        case .targetedDraw, .forcedSwap: return true
+        default: return false
+        }
+    }
 }
 
 // MARK: - ExpertAI
 
-/// Short-horizon simulation with move scoring. See ai-strategy.md §6.
 enum ExpertAI {
 
     enum Config {
@@ -239,8 +235,33 @@ enum ExpertAI {
     }
 
     static func chooseMove(observation: AIObservation, rng: inout SeededRNG) -> GameAction {
-        // TODO: Implement in Phase 4
-        return .drawCard(playerID: observation.myPlayerID)
+        let valid = AIPlayer.legalPlays(observation: observation)
+        guard !valid.isEmpty else {
+            return .drawCard(playerID: observation.myPlayerID)
+        }
+
+        // Pre-score and select top N candidates
+        let candidates = valid
+            .map { (card: $0, score: HardAI.scoreMove($0, observation: observation)) }
+            .sorted { $0.score > $1.score }
+            .prefix(Config.simulationBreadth)
+
+        // Simulate each and pick best
+        var bestCard = candidates.first!.card
+        var bestProb: Float = -1.0
+        for candidate in candidates {
+            let prob = simulateWinProbability(
+                card: candidate.card,
+                observation: observation,
+                depth: Config.simulationDepth,
+                rng: &rng
+            )
+            if prob > bestProb {
+                bestProb = prob
+                bestCard = candidate.card
+            }
+        }
+        return .playCard(bestCard, playerID: observation.myPlayerID)
     }
 
     static func simulateWinProbability(
@@ -249,7 +270,31 @@ enum ExpertAI {
         depth: Int,
         rng: inout SeededRNG
     ) -> Float {
-        // TODO: Implement in Phase 4
-        return 0.0
+        if depth == 0 {
+            return HardAI.scoreMove(card, observation: observation) / 20.0
+        }
+
+        let projectedHandSize = observation.myHand.count - 1
+
+        // If own hand would be empty and partner is also at low count, high probability
+        if projectedHandSize == 0 {
+            let partnerCount = observation.partnerID.flatMap { observation.cardCounts[$0] } ?? 7
+            if partnerCount <= 1 { return 1.0 }
+        }
+
+        // Estimate opponent's response using card count only
+        let opponentScore = estimateOpponentResponse(observation: observation)
+
+        // Team win probability: own progress vs opponent progress
+        let ownProgress: Float = projectedHandSize == 0
+            ? 1.0
+            : 1.0 / Float(projectedHandSize + 1)
+        return (1.0 - opponentScore) * ownProgress
+    }
+
+    private static func estimateOpponentResponse(observation: AIObservation) -> Float {
+        guard let nearest = observation.nearestOpponentToWin else { return 0.0 }
+        let opponentCount = Float(observation.cardCounts[nearest, default: 7])
+        return 1.0 / (opponentCount + 1)
     }
 }
