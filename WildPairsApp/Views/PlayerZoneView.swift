@@ -9,6 +9,11 @@ struct PlayerZoneView: View {
     let seat: PlayerSeatViewState
     var showColourName: Bool = false
     var cardBackSize: CGSize = Theme.CardSize.opponentBack
+    /// Size for the partner's face-up cards. CardView's corner/centre layout needs more
+    /// room than a solid CardBackView does, so this must not reuse the tiny cardBackSize —
+    /// at that size CardView's internal content overflows its frame and corrupts the
+    /// enclosing VStack's layout (the name/badge row above silently fails to render).
+    var openHandCardSize: CGSize = Theme.CardSize.compactHand
     var onCatchSolo: (() -> Void)? = nil
 
     var body: some View {
@@ -40,6 +45,7 @@ struct PlayerZoneView: View {
         )
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
+        .accessibilityIdentifier("seat-\(seat.seatPosition)")
     }
 
     private var countBadge: some View {
@@ -63,12 +69,12 @@ struct PlayerZoneView: View {
     /// Partner's hand, face-up — partner hands are open by design (game-rules.md Team
     /// Communication Rules). Not tappable: only the local player's own hand is playable.
     private func openHandFan(_ hand: [Card]) -> some View {
-        HStack(spacing: -cardBackSize.width * 0.4) {
+        HStack(spacing: -openHandCardSize.width * 0.4) {
             ForEach(hand) { card in
-                CardView(card: card, size: cardBackSize, showColourName: showColourName)
+                CardView(card: card, size: openHandCardSize, showColourName: showColourName)
             }
             if hand.isEmpty {
-                Color.clear.frame(width: cardBackSize.width, height: cardBackSize.height)
+                Color.clear.frame(width: openHandCardSize.width, height: openHandCardSize.height)
             }
         }
     }

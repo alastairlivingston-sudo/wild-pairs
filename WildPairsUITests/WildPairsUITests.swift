@@ -59,6 +59,11 @@ final class WildPairsUITests: XCTestCase {
     // Landscape layout: the table must remain fully reachable (no clipped/overflowing
     // controls) when rotated. Verifies the GameTableView GeometryReader + ScrollView fix.
     func testGameTableSurvivesLandscapeRotation() {
+        // However this test exits, the device must end up back in portrait — leaving it
+        // stuck in landscape breaks every other test in the suite (e.g. NewGameFlowView's
+        // "Start" button scrolls out of reach in a short landscape window).
+        defer { XCUIDevice.shared.orientation = .portrait }
+
         let app = launch()
         app.buttons["home-new-game"].tap()
         app.buttons["newgame-start"].tap()
@@ -75,12 +80,20 @@ final class WildPairsUITests: XCTestCase {
         XCTAssertTrue(app.buttons["game-draw-card-button"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["game-draw-card-button"].isHittable, "Draw pile not reachable in landscape")
 
+        // All four seats (left/partner/right opponents + the table itself) must be reachable —
+        // regression check for a bug where the partner seat's name/badge silently failed to
+        // render in the landscape single-row layout when its open hand used CardView at a
+        // too-small size (cardBackSize instead of a dedicated openHandCardSize).
+        for seatPosition in [1, 2, 3] {
+            let zone = app.descendants(matching: .any)["seat-\(seatPosition)"]
+            XCTAssertTrue(zone.waitForExistence(timeout: 3), "seat-\(seatPosition) not found in landscape")
+            XCTAssertTrue(zone.isHittable, "seat-\(seatPosition) not reachable in landscape")
+        }
+
         let screenshot = app.screenshot()
         let attachment = XCTAttachment(screenshot: screenshot)
         attachment.name = "game-table-landscape"
         attachment.lifetime = .keepAlways
         add(attachment)
-
-        XCUIDevice.shared.orientation = .portrait
     }
 }

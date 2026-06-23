@@ -37,22 +37,10 @@ struct GameTableView: View {
 
                     ScrollView(.vertical, showsIndicators: false) {
                         VStack(spacing: spacing) {
-                            if let partner = seat(at: 2) {
-                                PlayerZoneView(seat: partner, showColourName: showColourName,
-                                               cardBackSize: seatBackSize)
-                            }
-
-                            HStack(alignment: .center, spacing: spacing) {
-                                if let left = seat(at: 1) { opponentZone(left, backSize: seatBackSize) }
-                                Spacer(minLength: 0)
-                                TableCenterView(
-                                    topDiscard: vs.topDiscard, currentColour: vs.currentColour,
-                                    drawPileCount: vs.drawPileCount, turnDirection: vs.turnDirection,
-                                    canDraw: vs.isLocalPlayerTurn, showColourName: showColourName,
-                                    cardSize: centerSize, onDraw: vm.drawCard
-                                )
-                                Spacer(minLength: 0)
-                                if let right = seat(at: 3) { opponentZone(right, backSize: seatBackSize) }
+                            if isLandscape {
+                                landscapeSeatsRow(spacing: spacing, seatBackSize: seatBackSize, centerSize: centerSize)
+                            } else {
+                                portraitSeatsStack(spacing: spacing, seatBackSize: seatBackSize, centerSize: centerSize)
                             }
 
                             Spacer(minLength: 0)
@@ -118,6 +106,49 @@ struct GameTableView: View {
             .accessibilityIdentifier("game-solo-button")
             .accessibilityHint("You have one card remaining. Call Solo to avoid a penalty.")
         }
+    }
+
+    /// Portrait: partner stacked above a row of (left opponent, table centre, right opponent).
+    private func portraitSeatsStack(spacing: CGFloat, seatBackSize: CGSize, centerSize: CGSize) -> some View {
+        VStack(spacing: spacing) {
+            if let partner = seat(at: 2) {
+                PlayerZoneView(seat: partner, showColourName: showColourName, cardBackSize: seatBackSize,
+                               openHandCardSize: Theme.CardSize.compactHand)
+            }
+            HStack(alignment: .center, spacing: spacing) {
+                if let left = seat(at: 1) { opponentZone(left, backSize: seatBackSize) }
+                Spacer(minLength: 0)
+                tableCenter(size: centerSize)
+                Spacer(minLength: 0)
+                if let right = seat(at: 3) { opponentZone(right, backSize: seatBackSize) }
+            }
+        }
+    }
+
+    /// Landscape: all four seats and the table centre share a single row, halving the
+    /// vertical footprint so nothing requires scrolling to reach on short landscape heights.
+    private func landscapeSeatsRow(spacing: CGFloat, seatBackSize: CGSize, centerSize: CGSize) -> some View {
+        HStack(alignment: .center, spacing: spacing) {
+            if let left = seat(at: 1) { opponentZone(left, backSize: seatBackSize) }
+            Spacer(minLength: 0)
+            if let partner = seat(at: 2) {
+                PlayerZoneView(seat: partner, showColourName: showColourName, cardBackSize: seatBackSize,
+                               openHandCardSize: Theme.CardSize.landscapeHand)
+            }
+            Spacer(minLength: 0)
+            tableCenter(size: centerSize)
+            Spacer(minLength: 0)
+            if let right = seat(at: 3) { opponentZone(right, backSize: seatBackSize) }
+        }
+    }
+
+    private func tableCenter(size: CGSize) -> some View {
+        TableCenterView(
+            topDiscard: vs.topDiscard, currentColour: vs.currentColour,
+            drawPileCount: vs.drawPileCount, turnDirection: vs.turnDirection,
+            canDraw: vs.isLocalPlayerTurn, showColourName: showColourName,
+            cardSize: size, onDraw: vm.drawCard
+        )
     }
 
     private func opponentZone(_ seat: PlayerSeatViewState, backSize: CGSize) -> some View {
