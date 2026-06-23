@@ -114,6 +114,30 @@ struct GameViewStateTests {
         #expect(vs.seats.map(\.seatPosition) == [0, 1, 2, 3])
         #expect(vs.seats.first { $0.isLocalPlayer }?.seatPosition == 0)
     }
+
+    @Test("Only the partner's seat exposes visible hand contents; opponents stay count-only")
+    func testVisiblePartnerHand() {
+        let partnerHand = [CardFactory.number(4, .jade), CardFactory.skip(.cobalt)]
+        let s = GameStateBuilder()
+            .withPlayers()
+            .withCurrentColour(.crimson)
+            .withHand(forPlayer: 1, cards: [CardFactory.number(2, .amber)])
+            .withHand(forPlayer: 2, cards: partnerHand)
+            .withHand(forPlayer: 3, cards: [CardFactory.number(3, .crimson)])
+            .build()
+        let vs = GameViewState(from: s, localPlayerID: s.players[0].id)
+
+        let partnerSeat = vs.seats.first { $0.seatPosition == 2 }
+        #expect(partnerSeat?.visiblePartnerHand == partnerHand)
+
+        let leftOpponentSeat = vs.seats.first { $0.seatPosition == 1 }
+        let rightOpponentSeat = vs.seats.first { $0.seatPosition == 3 }
+        #expect(leftOpponentSeat?.visiblePartnerHand == nil)
+        #expect(rightOpponentSeat?.visiblePartnerHand == nil)
+
+        let localSeat = vs.seats.first { $0.seatPosition == 0 }
+        #expect(localSeat?.visiblePartnerHand == nil)
+    }
 }
 
 @Suite("GamePresenter orchestration")

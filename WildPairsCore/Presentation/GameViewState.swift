@@ -35,16 +35,22 @@ public struct PlayerSeatViewState: Equatable, Sendable, Identifiable {
     public let isLocalPlayer: Bool
     /// Holds exactly one card and has not satisfied the Solo! requirement — catchable.
     public let needsSoloCall: Bool
+    /// The seat's hand contents, populated only for the local player's partner — partner
+    /// hands are open by design (see `docs/game-rules.md` Team Communication Rules).
+    /// Nil for the local player's own seat (use `GameViewState.localHand` instead) and for
+    /// opponent seats, which remain count-only.
+    public let visiblePartnerHand: [Card]?
 
     public init(
         id: UUID, name: String, teamID: TeamID, seatPosition: Int,
         handCount: Int, isCurrentPlayer: Bool, hasFinishedRound: Bool,
-        isLocalPlayer: Bool, needsSoloCall: Bool
+        isLocalPlayer: Bool, needsSoloCall: Bool, visiblePartnerHand: [Card]? = nil
     ) {
         self.id = id; self.name = name; self.teamID = teamID
         self.seatPosition = seatPosition; self.handCount = handCount
         self.isCurrentPlayer = isCurrentPlayer; self.hasFinishedRound = hasFinishedRound
         self.isLocalPlayer = isLocalPlayer; self.needsSoloCall = needsSoloCall
+        self.visiblePartnerHand = visiblePartnerHand
     }
 }
 
@@ -107,6 +113,7 @@ public struct GameViewState: Equatable, Sendable {
     public init(from state: GameState, localPlayerID: UUID) {
         let local = state.players.first { $0.id == localPlayerID }
         let localTeam = local?.teamID
+        let partnerID = state.teamState.partnerID(for: localPlayerID)
 
         self.seats = state.players
             .sorted { $0.seatPosition < $1.seatPosition }
@@ -117,7 +124,8 @@ public struct GameViewState: Equatable, Sendable {
                     isCurrentPlayer: state.currentPlayer?.id == p.id,
                     hasFinishedRound: p.hasFinishedRound,
                     isLocalPlayer: p.id == localPlayerID,
-                    needsSoloCall: p.hand.count == 1 && !p.hasCalledSolo
+                    needsSoloCall: p.hand.count == 1 && !p.hasCalledSolo,
+                    visiblePartnerHand: p.id == partnerID ? p.hand : nil
                 )
             }
 

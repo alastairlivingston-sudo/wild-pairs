@@ -6,14 +6,15 @@ struct AIConstraintTests {
 
     // MARK: AIObservation masking
 
-    @Test("AIObservation does not expose other players' hand contents")
-    func testObservationMasksOpponentHands() {
+    @Test("AIObservation exposes the partner's hand but masks opponent hand contents")
+    func testObservationMasksOpponentHandsButExposesPartner() {
+        let partnerHand = [CardFactory.number(1, .amber)]
         let state = GameStateBuilder()
             .withPlayers()
             .withCurrentColour(.crimson)
             .withHand(forPlayer: 0, cards: [CardFactory.number(5, .crimson)])
             .withHand(forPlayer: 1, cards: [CardFactory.number(7, .jade), CardFactory.number(8, .cobalt)])
-            .withHand(forPlayer: 2, cards: [CardFactory.number(1, .amber)])
+            .withHand(forPlayer: 2, cards: partnerHand)
             .withHand(forPlayer: 3, cards: [])
             .withDrawPile([])
             .build()
@@ -23,14 +24,17 @@ struct AIConstraintTests {
         // Own hand: 1 card
         #expect(observation.myHand.count == 1)
 
-        // Card counts are correct but card contents are not available
+        // Card counts are correct for every seat, including the partner's
         #expect(observation.cardCounts[state.players[1].id] == 2)
         #expect(observation.cardCounts[state.players[2].id] == 1)
         #expect(observation.cardCounts[state.players[3].id] == 0)
 
-        // There is no property on AIObservation that exposes other players' hands.
-        // (This test compiles only if AIObservation has no such property.)
-        // Checking via myHand == own hand only
+        // Partner (seat 2) hand contents are open by design — see game-rules.md
+        // Team Communication Rules.
+        #expect(observation.partnerHand == partnerHand)
+
+        // Opponent (seats 1 and 3) hand contents are never exposed — there is no
+        // property on AIObservation that surfaces them, only their counts above.
         #expect(observation.myPlayerID == p0id)
     }
 
@@ -172,6 +176,33 @@ struct AIConstraintTests {
             .withPlayers()
             .withCurrentColour(.amber)
             .withHand(forPlayer: 0, cards: hand)
+            .withDrawPile([])
+            .build()
+        let p0id = state.players[0].id
+        let observation = AIObservation(from: state, for: p0id)
+        var rng = SeededRNG(seed: 0)
+        let chosen = MediumAI.selectColour(observation: observation, rng: &rng)
+        #expect(chosen == .jade)
+    }
+
+    @Test("MediumAI selectColour weighs the partner's open hand, not just its own")
+    func testMediumAISelectColourFactorsPartnerHand() {
+        // Own hand is a tie between crimson and jade; partner's open hand is rich in jade,
+        // so the team-aware choice should break the tie toward jade.
+        let hand: [Card] = [
+            CardFactory.number(1, .crimson),
+            CardFactory.number(2, .jade)
+        ]
+        let partnerHand: [Card] = [
+            CardFactory.number(3, .jade),
+            CardFactory.number(4, .jade),
+            CardFactory.number(5, .jade)
+        ]
+        let state = GameStateBuilder()
+            .withPlayers()
+            .withCurrentColour(.amber)
+            .withHand(forPlayer: 0, cards: hand)
+            .withHand(forPlayer: 2, cards: partnerHand)  // seat 2 is the partner of seat 0
             .withDrawPile([])
             .build()
         let p0id = state.players[0].id

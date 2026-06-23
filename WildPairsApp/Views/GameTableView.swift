@@ -28,7 +28,9 @@ struct GameTableView: View {
                 tableBackground.ignoresSafeArea()
 
                 VStack(spacing: Theme.Space.s3) {
-                    if let partner = seat(at: 2) { PlayerZoneView(seat: partner) }
+                    if let partner = seat(at: 2) {
+                        PlayerZoneView(seat: partner, showColourName: showColourName)
+                    }
 
                     HStack(alignment: .center, spacing: Theme.Space.s3) {
                         if let left = seat(at: 1) { opponentZone(left) }

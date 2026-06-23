@@ -7,6 +7,7 @@ import WildPairsCore
 
 struct PlayerZoneView: View {
     let seat: PlayerSeatViewState
+    var showColourName: Bool = false
     var onCatchSolo: (() -> Void)? = nil
 
     var body: some View {
@@ -18,7 +19,11 @@ struct PlayerZoneView: View {
                 countBadge
             }
 
-            backsFan
+            if let partnerHand = seat.visiblePartnerHand {
+                openHandFan(partnerHand)
+            } else {
+                backsFan
+            }
 
             statusBadges
         }
@@ -55,6 +60,20 @@ struct PlayerZoneView: View {
         }
     }
 
+    /// Partner's hand, face-up — partner hands are open by design (game-rules.md Team
+    /// Communication Rules). Not tappable: only the local player's own hand is playable.
+    private func openHandFan(_ hand: [Card]) -> some View {
+        HStack(spacing: -Theme.CardSize.opponentBack.width * 0.4) {
+            ForEach(hand) { card in
+                CardView(card: card, size: Theme.CardSize.opponentBack, showColourName: showColourName)
+            }
+            if hand.isEmpty {
+                Color.clear.frame(width: Theme.CardSize.opponentBack.width,
+                                  height: Theme.CardSize.opponentBack.height)
+            }
+        }
+    }
+
     @ViewBuilder private var statusBadges: some View {
         if seat.hasFinishedRound {
             badge("Out!", system: "checkmark.circle.fill", tint: Theme.Palette.success)
@@ -78,9 +97,20 @@ struct PlayerZoneView: View {
 
     private var accessibilityLabel: String {
         var parts = ["\(seat.name), \(seat.handCount) cards"]
+        if let partnerHand = seat.visiblePartnerHand, !partnerHand.isEmpty {
+            parts.append("your partner, hand visible: \(partnerHandSummary(partnerHand))")
+        }
         if seat.isCurrentPlayer { parts.append("their turn") }
         if seat.hasFinishedRound { parts.append("out of the round") }
         else if seat.needsSoloCall { parts.append("has one card and has not called Solo") }
         return parts.joined(separator: ", ")
+    }
+
+    private func partnerHandSummary(_ hand: [Card]) -> String {
+        hand.map { card -> String in
+            let colour = card.colour?.displayName ?? "Wild"
+            if case .number(let v) = card.type { return "\(colour) \(v)" }
+            return "\(colour) \(card.type.abbreviation)"
+        }.joined(separator: ", ")
     }
 }
