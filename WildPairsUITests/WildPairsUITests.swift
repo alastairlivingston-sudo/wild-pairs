@@ -55,4 +55,32 @@ final class WildPairsUITests: XCTestCase {
         resume.tap()
         XCTAssertTrue(pause.waitForExistence(timeout: 3))
     }
+
+    // Landscape layout: the table must remain fully reachable (no clipped/overflowing
+    // controls) when rotated. Verifies the GameTableView GeometryReader + ScrollView fix.
+    func testGameTableSurvivesLandscapeRotation() {
+        let app = launch()
+        app.buttons["home-new-game"].tap()
+        app.buttons["newgame-start"].tap()
+        let pause = app.buttons["game-pause-button"]
+        XCTAssertTrue(pause.waitForExistence(timeout: 5))
+
+        XCUIDevice.shared.orientation = .landscapeLeft
+        // Give SwiftUI a beat to re-layout after the rotation.
+        Thread.sleep(forTimeInterval: 0.5)
+
+        // Every critical control must still be hittable on-screen post-rotation.
+        XCTAssertTrue(app.buttons["game-pause-button"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["game-pause-button"].isHittable, "Pause button not reachable in landscape")
+        XCTAssertTrue(app.buttons["game-draw-card-button"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["game-draw-card-button"].isHittable, "Draw pile not reachable in landscape")
+
+        let screenshot = app.screenshot()
+        let attachment = XCTAttachment(screenshot: screenshot)
+        attachment.name = "game-table-landscape"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+
+        XCUIDevice.shared.orientation = .portrait
+    }
 }

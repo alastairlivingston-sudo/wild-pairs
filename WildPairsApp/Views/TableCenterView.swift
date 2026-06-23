@@ -12,6 +12,7 @@ struct TableCenterView: View {
     let turnDirection: TurnDirection
     let canDraw: Bool
     let showColourName: Bool
+    var cardSize: CGSize = Theme.CardSize.regularHand
     let onDraw: () -> Void
 
     @Environment(\.colorScheme) private var scheme
@@ -30,11 +31,11 @@ struct TableCenterView: View {
     private var drawPile: some View {
         Button(action: onDraw) {
             ZStack {
-                CardBackView(size: Theme.CardSize.regularHand)
+                CardBackView(size: cardSize)
                 Text("\(drawPileCount)")
                     .font(.caption).fontWeight(.bold).monospacedDigit()
                     .padding(4).background(.ultraThinMaterial, in: Capsule())
-                    .offset(y: Theme.CardSize.regularHand.height * 0.32)
+                    .offset(y: cardSize.height * 0.32)
             }
         }
         .buttonStyle(.plain)
@@ -47,12 +48,12 @@ struct TableCenterView: View {
 
     @ViewBuilder private var discardPile: some View {
         if let top = topDiscard {
-            CardView(card: top, size: Theme.CardSize.regularHand, showColourName: showColourName)
+            CardView(card: top, size: cardSize, showColourName: showColourName)
                 .accessibilityLabel("Top of discard pile")
         } else {
             RoundedRectangle(cornerRadius: Theme.Radius.r3)
                 .strokeBorder(.secondary, style: StrokeStyle(lineWidth: 1, dash: [4]))
-                .frame(width: Theme.CardSize.regularHand.width, height: Theme.CardSize.regularHand.height)
+                .frame(width: cardSize.width, height: cardSize.height)
         }
     }
 

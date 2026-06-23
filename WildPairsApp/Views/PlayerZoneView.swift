@@ -8,6 +8,7 @@ import WildPairsCore
 struct PlayerZoneView: View {
     let seat: PlayerSeatViewState
     var showColourName: Bool = false
+    var cardBackSize: CGSize = Theme.CardSize.opponentBack
     var onCatchSolo: (() -> Void)? = nil
 
     var body: some View {
@@ -49,13 +50,12 @@ struct PlayerZoneView: View {
     }
 
     private var backsFan: some View {
-        HStack(spacing: -Theme.CardSize.opponentBack.width * 0.55) {
+        HStack(spacing: -cardBackSize.width * 0.55) {
             ForEach(0..<min(seat.handCount, 5), id: \.self) { _ in
-                CardBackView()
+                CardBackView(size: cardBackSize)
             }
             if seat.handCount == 0 {
-                Color.clear.frame(width: Theme.CardSize.opponentBack.width,
-                                  height: Theme.CardSize.opponentBack.height)
+                Color.clear.frame(width: cardBackSize.width, height: cardBackSize.height)
             }
         }
     }
@@ -63,13 +63,12 @@ struct PlayerZoneView: View {
     /// Partner's hand, face-up — partner hands are open by design (game-rules.md Team
     /// Communication Rules). Not tappable: only the local player's own hand is playable.
     private func openHandFan(_ hand: [Card]) -> some View {
-        HStack(spacing: -Theme.CardSize.opponentBack.width * 0.4) {
+        HStack(spacing: -cardBackSize.width * 0.4) {
             ForEach(hand) { card in
-                CardView(card: card, size: Theme.CardSize.opponentBack, showColourName: showColourName)
+                CardView(card: card, size: cardBackSize, showColourName: showColourName)
             }
             if hand.isEmpty {
-                Color.clear.frame(width: Theme.CardSize.opponentBack.width,
-                                  height: Theme.CardSize.opponentBack.height)
+                Color.clear.frame(width: cardBackSize.width, height: cardBackSize.height)
             }
         }
     }

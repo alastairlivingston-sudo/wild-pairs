@@ -15,8 +15,9 @@ struct GameTableView: View {
     @State private var showPause = false
 
     private var vs: GameViewState { vm.viewState }
-    private var cardSize: CGSize {
+    private func cardSize(isLandscape: Bool) -> CGSize {
         let large = settings.userSettings.largeCards
+        if isLandscape { return Theme.CardSize.landscapeHand }
         if hSize == .regular { return large ? Theme.CardSize.selected : Theme.CardSize.regularHand }
         return large ? Theme.CardSize.regularHand : Theme.CardSize.compactHand
     }
@@ -24,38 +25,50 @@ struct GameTableView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                tableBackground.ignoresSafeArea()
+            GeometryReader { geo in
+                let isLandscape = geo.size.width > geo.size.height
+                let spacing = isLandscape ? Theme.Space.s2 : Theme.Space.s3
+                let seatBackSize = isLandscape ? Theme.CardSize.landscapeBack : Theme.CardSize.opponentBack
+                let centerSize = isLandscape ? Theme.CardSize.landscapeHand : Theme.CardSize.regularHand
+                let handCardSize = cardSize(isLandscape: isLandscape)
 
-                VStack(spacing: Theme.Space.s3) {
-                    if let partner = seat(at: 2) {
-                        PlayerZoneView(seat: partner, showColourName: showColourName)
+                ZStack {
+                    tableBackground.ignoresSafeArea()
+
+                    ScrollView(.vertical, showsIndicators: false) {
+                        VStack(spacing: spacing) {
+                            if let partner = seat(at: 2) {
+                                PlayerZoneView(seat: partner, showColourName: showColourName,
+                                               cardBackSize: seatBackSize)
+                            }
+
+                            HStack(alignment: .center, spacing: spacing) {
+                                if let left = seat(at: 1) { opponentZone(left, backSize: seatBackSize) }
+                                Spacer(minLength: 0)
+                                TableCenterView(
+                                    topDiscard: vs.topDiscard, currentColour: vs.currentColour,
+                                    drawPileCount: vs.drawPileCount, turnDirection: vs.turnDirection,
+                                    canDraw: vs.isLocalPlayerTurn, showColourName: showColourName,
+                                    cardSize: centerSize, onDraw: vm.drawCard
+                                )
+                                Spacer(minLength: 0)
+                                if let right = seat(at: 3) { opponentZone(right, backSize: seatBackSize) }
+                            }
+
+                            Spacer(minLength: 0)
+                            PromptBanner(prompt: vs.prompt).padding(.horizontal, Theme.Space.s4)
+                            bottomControls
+                            HandView(hand: vs.localHand, cardSize: handCardSize,
+                                     showColourName: showColourName, onPlay: vm.play)
+                        }
+                        .padding(.vertical, spacing)
+                        .frame(minHeight: geo.size.height)
                     }
 
-                    HStack(alignment: .center, spacing: Theme.Space.s3) {
-                        if let left = seat(at: 1) { opponentZone(left) }
-                        Spacer(minLength: 0)
-                        TableCenterView(
-                            topDiscard: vs.topDiscard, currentColour: vs.currentColour,
-                            drawPileCount: vs.drawPileCount, turnDirection: vs.turnDirection,
-                            canDraw: vs.isLocalPlayerTurn, showColourName: showColourName,
-                            onDraw: vm.drawCard
-                        )
-                        Spacer(minLength: 0)
-                        if let right = seat(at: 3) { opponentZone(right) }
-                    }
+                    if let hint = vm.lastInvalidHint { invalidTooltip(hint, handCardSize: handCardSize) }
 
-                    Spacer(minLength: 0)
-                    PromptBanner(prompt: vs.prompt).padding(.horizontal, Theme.Space.s4)
-                    bottomControls
-                    HandView(hand: vs.localHand, cardSize: cardSize,
-                             showColourName: showColourName, onPlay: vm.play)
+                    if vs.phase != .playing { RoundEndView(vs: vs, onNext: vm.beginNextRound, onExit: onExit) }
                 }
-                .padding(.vertical, Theme.Space.s3)
-
-                if let hint = vm.lastInvalidHint { invalidTooltip(hint) }
-
-                if vs.phase != .playing { RoundEndView(vs: vs, onNext: vm.beginNextRound, onExit: onExit) }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -107,20 +120,20 @@ struct GameTableView: View {
         }
     }
 
-    private func opponentZone(_ seat: PlayerSeatViewState) -> some View {
+    private func opponentZone(_ seat: PlayerSeatViewState, backSize: CGSize) -> some View {
         PlayerZoneView(
-            seat: seat,
+            seat: seat, cardBackSize: backSize,
             onCatchSolo: seat.id == vs.catchableSoloPlayerID ? { vm.callOut(seat.id) } : nil
         )
     }
 
-    private func invalidTooltip(_ hint: String) -> some View {
+    private func invalidTooltip(_ hint: String, handCardSize: CGSize) -> some View {
         VStack {
             Spacer()
             Text(hint)
                 .font(.callout).padding(Theme.Space.s3)
                 .background(RoundedRectangle(cornerRadius: Theme.Radius.r2).fill(.ultraThinMaterial))
-                .padding(.bottom, cardSize.height + Theme.Space.s6)
+                .padding(.bottom, handCardSize.height + Theme.Space.s6)
         }
         .transition(.opacity)
         .allowsHitTesting(false)
