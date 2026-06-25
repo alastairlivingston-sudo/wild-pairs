@@ -18,7 +18,7 @@ public enum HapticStyle: String, Equatable, Sendable {
 // MARK: - SoundEffect
 
 /// Named sound effects that the audio coordinator will play.
-public enum SoundEffect: String, Equatable, Sendable {
+public enum SoundEffect: String, Equatable, Sendable, CaseIterable {
     case cardPlay        // Standard card played onto discard pile
     case cardDraw        // Card drawn from draw pile
     case cardShuffle     // Draw pile reshuffled

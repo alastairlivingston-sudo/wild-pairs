@@ -165,4 +165,28 @@ final class WildPairsUITests: XCTestCase {
         attachment.lifetime = .keepAlways
         add(attachment)
     }
+
+    // Sound coordinator: toggling sound effects off must not crash or break play — the
+    // coordinator should simply stop playing, gated purely on the settings flag.
+    func testSoundToggleAndGameStillPlayable() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest-reset-state"]
+        app.launch()
+        dismissOnboardingIfPresent(app)
+        app.buttons["home-settings"].tap()
+
+        let soundToggle = app.switches["settings-sound-toggle"]
+        XCTAssertTrue(soundToggle.waitForExistence(timeout: 5))
+        soundToggle.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
+
+        app.navigationBars.buttons.element(boundBy: 0).tap()  // back to Home
+        app.buttons["home-new-game"].tap()
+        app.buttons["newgame-start"].tap()
+
+        let pause = app.buttons["game-pause-button"]
+        XCTAssertTrue(pause.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["game-draw-card-button"].isHittable)
+        app.buttons["game-draw-card-button"].tap()
+        XCTAssertTrue(pause.isHittable, "Table should remain responsive with sound disabled")
+    }
 }

@@ -144,6 +144,7 @@ struct UserSettingsTests {
         """
         let decoded = try JSONDecoder().decode(UserSettings.self, from: Data(legacyJSON.utf8))
         #expect(decoded.hasSeenOnboarding == false)
+        #expect(decoded.soundEnabled == true)
         #expect(decoded.animationSpeed == .fast)
         #expect(decoded.colourBlindMode == true)
     }
@@ -154,6 +155,14 @@ struct UserSettingsTests {
         let data = try JSONEncoder().encode(settings)
         let decoded = try JSONDecoder().decode(UserSettings.self, from: data)
         #expect(decoded.hasSeenOnboarding == true)
+    }
+
+    @Test("soundEnabled round-trips correctly")
+    func testSoundEnabledRoundTrip() throws {
+        let settings = UserSettings(soundEnabled: false)
+        let data = try JSONEncoder().encode(settings)
+        let decoded = try JSONDecoder().decode(UserSettings.self, from: data)
+        #expect(decoded.soundEnabled == false)
     }
 }
 

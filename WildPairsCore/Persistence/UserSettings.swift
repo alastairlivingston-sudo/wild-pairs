@@ -18,6 +18,7 @@ public struct UserSettings: Codable, Equatable, Sendable {
 
     // Accessibility
     public var hapticsEnabled: Bool
+    public var soundEnabled: Bool
     public var reducedVisualEffects: Bool
     public var colourBlindMode: Bool
     public var patternFills: Bool
@@ -30,6 +31,7 @@ public struct UserSettings: Codable, Equatable, Sendable {
         animationSpeed: AnimationSpeed = .normal,
         confirmEndGame: Bool = true,
         hapticsEnabled: Bool = true,
+        soundEnabled: Bool = true,
         reducedVisualEffects: Bool = false,
         colourBlindMode: Bool = false,
         patternFills: Bool = false,
@@ -39,6 +41,7 @@ public struct UserSettings: Codable, Equatable, Sendable {
         self.animationSpeed = animationSpeed
         self.confirmEndGame = confirmEndGame
         self.hapticsEnabled = hapticsEnabled
+        self.soundEnabled = soundEnabled
         self.reducedVisualEffects = reducedVisualEffects
         self.colourBlindMode = colourBlindMode
         self.patternFills = patternFills
@@ -54,6 +57,7 @@ public struct UserSettings: Codable, Equatable, Sendable {
         animationSpeed = try c.decodeIfPresent(AnimationSpeed.self, forKey: .animationSpeed) ?? .normal
         confirmEndGame = try c.decodeIfPresent(Bool.self, forKey: .confirmEndGame) ?? true
         hapticsEnabled = try c.decodeIfPresent(Bool.self, forKey: .hapticsEnabled) ?? true
+        soundEnabled = try c.decodeIfPresent(Bool.self, forKey: .soundEnabled) ?? true
         reducedVisualEffects = try c.decodeIfPresent(Bool.self, forKey: .reducedVisualEffects) ?? false
         colourBlindMode = try c.decodeIfPresent(Bool.self, forKey: .colourBlindMode) ?? false
         patternFills = try c.decodeIfPresent(Bool.self, forKey: .patternFills) ?? false

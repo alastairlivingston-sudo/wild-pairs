@@ -15,6 +15,7 @@ final class GameViewModel: ObservableObject {
     private let presenter: GamePresenter
     private let settings: AppSettings
     private let haptics: HapticEngine
+    private let sound: SoundCoordinator
     private let onRoundEnd: (_ localTeamWon: Bool, _ difficulty: Difficulty, _ turns: Int) -> Void
 
     private var aiTask: Task<Void, Never>?
@@ -31,6 +32,7 @@ final class GameViewModel: ObservableObject {
         self.presenter = presenter
         self.settings = settings
         self.haptics = HapticEngine(settings: settings)
+        self.sound = SoundCoordinator(settings: settings)
         self.onRoundEnd = onRoundEnd
         self.viewState = presenter.viewState
         scheduleAITurnsIfNeeded()
@@ -65,7 +67,7 @@ final class GameViewModel: ObservableObject {
     func drawCard()                       { apply { presenter.draw() } }
     func chooseColour(_ c: CardColour)     { apply { presenter.chooseColour(c) } }
     func chooseTarget(_ id: UUID)          { apply { presenter.chooseTarget(id) } }
-    func callSolo()                        { haptics.soloCall(); apply { presenter.callSolo() } }
+    func callSolo()                        { haptics.soloCall(); sound.play(.soloCall); apply { presenter.callSolo() } }
     func callOut(_ id: UUID)               { apply { presenter.callOut(id) } }
 
     func beginNextRound() {
@@ -183,20 +185,42 @@ final class GameViewModel: ObservableObject {
     private func handle(_ effects: [GameEffect]) {
         for effect in effects {
             switch effect {
-            case .animateCardPlay:               haptics.cardPlay()
-            case .animateCardDraw(let to, _):    if to == localPlayerID { haptics.cardDrawn() }
+            case .animateCardPlay(let card, _):
+                haptics.cardPlay()
+                sound.play(soundEffect(forCardPlay: card))
+            case .animateCardDraw(let to, _):
+                if to == localPlayerID { haptics.cardDrawn() }
+                sound.play(.cardDraw)
+            case .animateCardShuffle:            sound.play(.cardShuffle)
+            case .animateHandSwap:               sound.play(.swapHands)
             case .announceSolo:                  break
-            case .soloCallMissed:                haptics.drawPenalty()
-            case .playRoundEnd(let team):        announceRoundEnd(team)
-            case .playGameEnd(let team):         announceRoundEnd(team)
-            default:                             break
+            case .soloCallMissed:                haptics.drawPenalty(); sound.play(.soloMissed)
+            case .playRoundEnd(let team):         announceRoundEnd(team, sound: .roundWin)
+            case .playGameEnd(let team):          announceRoundEnd(team, sound: .gameWin)
+            default:                              break
             }
         }
     }
 
-    private func announceRoundEnd(_ team: TeamID) {
+    private func soundEffect(forCardPlay card: Card) -> SoundEffect {
+        switch card.type {
+        case .skip, .skipTwo:                 return .skipPlayed
+        case .reverse:                        return .reversePlayed
+        case .drawTwo:                        return .drawTwoPlayed
+        case .drawFour, .changeColour:        return .wildPlayed
+        case .number, .discardAll, .targetedDraw, .forcedSwap, .teamPlay:
+            return .cardPlay
+        }
+    }
+
+    private func announceRoundEnd(_ team: TeamID, sound winSound: SoundEffect) {
         let localTeam = presenter.state.players.first { $0.id == localPlayerID }?.teamID
-        if team == localTeam { haptics.roundWin() } else { haptics.roundLoss() }
+        if team == localTeam {
+            haptics.roundWin()
+            sound.play(winSound)
+        } else {
+            haptics.roundLoss()
+        }
     }
 
     private func clearHintSoon() {
