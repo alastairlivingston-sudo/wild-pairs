@@ -17,6 +17,9 @@ final class GameViewModel: ObservableObject {
     @Published private(set) var roundTimeRemaining: TimeInterval?
     /// Seconds left on the local player's per-move timer; nil when it isn't their turn.
     @Published private(set) var moveTimeRemaining: TimeInterval?
+    /// The AI seat currently in its "thinking" delay, if any — drives the thinking
+    /// indicator (ux-spec.md §10 "Game table — AI turn (thinking indicator)").
+    @Published private(set) var thinkingPlayerID: UUID?
 
     private let presenter: GamePresenter
     private let settings: AppSettings
@@ -62,6 +65,9 @@ final class GameViewModel: ObservableObject {
     var localPlayerID: UUID { presenter.localPlayerID }
     var roundTimeLimit: TimeInterval { presenter.state.ruleProfile.roundTimeLimitSeconds }
     var moveTimeLimit: TimeInterval { presenter.state.ruleProfile.moveTimeLimitSeconds }
+    var thinkingDifficulty: Difficulty? {
+        thinkingPlayerID.flatMap { id in presenter.state.players.first { $0.id == id }?.difficulty }
+    }
 
     // MARK: Local intents
 
@@ -99,6 +105,7 @@ final class GameViewModel: ObservableObject {
         moveDeadline = nil
         roundTimeRemaining = nil
         moveTimeRemaining = nil
+        thinkingPlayerID = nil
     }
     func resume() {
         scheduleAITurnsIfNeeded()
@@ -125,10 +132,12 @@ final class GameViewModel: ObservableObject {
         aiTask = Task { @MainActor [weak self] in
             guard let self else { return }
             while !Task.isCancelled, self.presenter.nextAutomaticAction() != nil {
+                self.thinkingPlayerID = self.presenter.state.currentPlayer?.id
                 let delay = self.thinkDelay()
                 if delay > 0 {
                     try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 }
+                self.thinkingPlayerID = nil
                 if Task.isCancelled { return }
                 guard let effects = self.presenter.advanceAutomatic() else { break }
                 self.turnsThisRound += 1

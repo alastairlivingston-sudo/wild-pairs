@@ -15,7 +15,14 @@ struct PlayerZoneView: View {
     /// at that size CardView's internal content overflows its frame and corrupts the
     /// enclosing VStack's layout (the name/badge row above silently fails to render).
     var openHandCardSize: CGSize = Theme.CardSize.compactHand
+    var reducedMotion: Bool = false
+    var isThinking: Bool = false
+    var thinkingDotCount: Int = 3
     var onCatchSolo: (() -> Void)? = nil
+
+    /// Drives the active-player glow pulse (ux-spec.md §10 "Active player highlight": a
+    /// soft glow that pulses on a ~2s period; static border instead under Reduced Motion).
+    @State private var glowPulse = false
 
     var body: some View {
         VStack(spacing: Theme.Space.s1) {
@@ -26,6 +33,10 @@ struct PlayerZoneView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
                 countBadge
+            }
+
+            if isThinking {
+                ThinkingDotsView(dotCount: thinkingDotCount, isStatic: reducedMotion)
             }
 
             if let partnerHand = seat.visiblePartnerHand {
@@ -46,6 +57,10 @@ struct PlayerZoneView: View {
             RoundedRectangle(cornerRadius: Theme.Radius.r3)
                 .strokeBorder(Theme.Palette.accent, lineWidth: seat.isCurrentPlayer ? 2 : 0)
         )
+        .shadow(color: glowColor, radius: glowRadius)
+        .animation(.spring(response: 0.5, dampingFraction: 0.6), value: seat.needsSoloCall)
+        .onAppear { updateGlow(seat.isCurrentPlayer) }
+        .onChange(of: seat.isCurrentPlayer) { _, isCurrent in updateGlow(isCurrent) }
         // `.combine` merges the whole zone into a single VoiceOver element, which would
         // otherwise swallow the catch-out button (it stops being independently reachable
         // by swipe navigation). Forward the same action to the combined element's double
@@ -56,6 +71,21 @@ struct PlayerZoneView: View {
         .accessibilityAddTraits(canCatchSolo ? .isButton : [])
         .onTapGesture { if canCatchSolo { onCatchSolo?() } }
         .accessibilityIdentifier("seat-\(seat.seatPosition)")
+    }
+
+    private var glowColor: Color {
+        guard seat.isCurrentPlayer else { return .clear }
+        return Theme.Palette.accent.opacity(reducedMotion ? 0.3 : (glowPulse ? 0.6 : 0.15))
+    }
+    private var glowRadius: CGFloat {
+        guard seat.isCurrentPlayer else { return 0 }
+        return reducedMotion ? 4 : (glowPulse ? 10 : 4)
+    }
+    private func updateGlow(_ isCurrent: Bool) {
+        guard isCurrent, !reducedMotion else { glowPulse = false; return }
+        withAnimation(.easeInOut(duration: 2).repeatForever(autoreverses: true)) {
+            glowPulse = true
+        }
     }
 
     private var canCatchSolo: Bool { seat.needsSoloCall && onCatchSolo != nil }
@@ -102,6 +132,9 @@ struct PlayerZoneView: View {
             }
             .buttonStyle(.plain)
             .disabled(onCatchSolo == nil)
+            // ux-spec.md §10 "Solo! call": badge pops in via a spring scale (skipped under
+            // Reduced Motion, where it should simply appear).
+            .transition(reducedMotion ? .identity : .scale(scale: 0.3).combined(with: .opacity))
         }
     }
 

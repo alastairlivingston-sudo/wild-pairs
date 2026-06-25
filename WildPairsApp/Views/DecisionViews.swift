@@ -6,31 +6,38 @@ import WildPairsCore
 
 struct ColourPickerView: View {
     let onChoose: (CardColour) -> Void
+    var showPattern: Bool = false
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         VStack(spacing: Theme.Space.s4) {
-            Text("Choose a colour").font(.title2).fontWeight(.semibold)
+            Text("Choose a new colour").font(.title).fontWeight(.semibold)
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Theme.Space.s3) {
                 ForEach(CardColour.allCases, id: \.self) { colour in
                     Button { onChoose(colour) } label: {
-                        VStack(spacing: Theme.Space.s2) {
-                            Image(systemName: colour.symbolName).font(.title)
-                            Text(colour.displayName).fontWeight(.semibold)
+                        ZStack {
+                            RoundedRectangle(cornerRadius: Theme.Radius.r3).fill(colour.fillColor(scheme))
+                            if showPattern {
+                                CardPatternFill(colour: colour).clipShape(RoundedRectangle(cornerRadius: Theme.Radius.r3))
+                            }
+                            VStack(spacing: Theme.Space.s2) {
+                                Image(systemName: colour.symbolName).font(.title)
+                                Text(showPattern ? colour.displayName.uppercased() : colour.displayName)
+                                    .fontWeight(.semibold)
+                            }
+                            .foregroundStyle(.white)
                         }
-                        .frame(maxWidth: .infinity).frame(height: 88)
-                        .background(RoundedRectangle(cornerRadius: Theme.Radius.r3)
-                            .fill(colour.fillColor(scheme)))
-                        .foregroundStyle(.white)
+                        // ux-spec.md §5 "Choose a new colour": each swatch minimum 100×100pt.
+                        .frame(minWidth: 100, minHeight: 100)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(colour.displayName)
+                    .accessibilityLabel("\(colour.displayName), \(colour.symbolDisplayName) symbol, button")
                     .accessibilityIdentifier("colour-pick-\(colour.rawValue)")
                 }
             }
         }
         .padding(Theme.Space.s5)
-        .presentationDetents([.height(280)])
+        .presentationDetents([.height(340)])
         .interactiveDismissDisabled()
     }
 }
@@ -85,14 +92,46 @@ struct PromptBanner: View {
     private var text: String {
         switch prompt {
         case .yourTurn(let hint):        return hint
-        case .waitingFor(let name):      return "\(name) is playing…"
-        case .chooseColour:              return "Choose the new colour."
+        case .waitingFor(let name):      return "\(name) is thinking…"
+        case .chooseColour:              return "Choose a new colour."
         case .chooseTarget:              return "Choose a player."
-        case .mustDraw:                  return "No match — draw a card."
+        case .mustDraw:                  return "Your turn — no matching card. Draw one."
         case .roundOver(let team):       return "\(team) wins this round!"
         case .roundOverByTimeout(let team): return "Time's up — \(team) wins this round on lowest score."
         case .gameOver(let team):        return "\(team) wins the game!"
         case .paused:                    return "Paused."
+        }
+    }
+}
+
+// AI thinking indicator (ux-spec.md §10 "Game table — AI turn"): pulsing dots establish
+// that the AI is deliberating, not executing instantly. Dot count scales with difficulty;
+// Fast mode / Reduced Motion show a static label instead of animating, per spec.
+struct ThinkingDotsView: View {
+    let dotCount: Int
+    var isStatic: Bool = false
+
+    @State private var animate = false
+
+    var body: some View {
+        if isStatic {
+            Text("Thinking…").font(.caption2).foregroundStyle(.secondary)
+                .accessibilityLabel("Thinking")
+        } else {
+            HStack(spacing: 3) {
+                ForEach(0..<dotCount, id: \.self) { i in
+                    Circle()
+                        .fill(Theme.Palette.accent)
+                        .frame(width: 5, height: 5)
+                        .opacity(animate ? 1 : 0.3)
+                        .animation(
+                            .easeInOut(duration: 0.6).repeatForever().delay(Double(i) * 0.15),
+                            value: animate
+                        )
+                }
+            }
+            .onAppear { animate = true }
+            .accessibilityLabel("Thinking")
         }
     }
 }

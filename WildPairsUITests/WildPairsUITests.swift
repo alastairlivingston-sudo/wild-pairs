@@ -283,4 +283,51 @@ final class WildPairsUITests: XCTestCase {
         attachment.lifetime = .keepAlways
         add(attachment)
     }
+
+    // Plays a fast/easy/beginner game through to round-end to verify the new win/loss
+    // celebration UI (confetti + colour glow on win, gentle desaturate on loss, "So close!"
+    // copy) actually renders — not just that the code compiles.
+    func testRoundEndCelebrationRenders() {
+        // Defend against orientation leaking from a prior test in the same run (e.g. if its
+        // own portrait-reset defer raced the next test's launch) — wrong orientation here
+        // produces coordinates outside the visible screen and "failed to compute hit point".
+        XCUIDevice.shared.orientation = .portrait
+        defer { XCUIDevice.shared.orientation = .portrait }
+
+        // Cards mid-animation can briefly report an invalid activation point; tolerate
+        // that instead of aborting the whole drive loop on one transient hit-test failure.
+        continueAfterFailure = true
+
+        // A leftover saved game from an earlier test would show "Continue Game" instead of
+        // going straight into New Game flow, breaking the tap sequence below.
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest-reset-state"]
+        app.launch()
+        dismissOnboardingIfPresent(app)
+        app.buttons["home-new-game"].tap()
+        app.buttons["newgame-start"].tap()
+        XCTAssertTrue(app.buttons["game-pause-button"].waitForExistence(timeout: 5))
+
+        // Only ever tap the always-on-screen, fixed-position draw pile — drawing is legal
+        // any time it's the local player's turn (TableCenterView's canDraw doesn't require
+        // having no legal play), so this alone lets turns advance without ever touching the
+        // horizontally-scrolling hand, which can report flaky off-screen hit points for
+        // cards not currently scrolled into view.
+        let nextRound = app.buttons["roundend-next"]
+        let backToHome = app.buttons["End game"]
+        let draw = app.buttons["game-draw-card-button"]
+        let deadline = Date().addingTimeInterval(90)
+        while Date() < deadline, !nextRound.exists, !backToHome.exists {
+            if draw.exists, draw.isEnabled, draw.frame.width > 0 { draw.tap() }
+            usleep(200_000)
+        }
+
+        XCTAssertTrue(nextRound.exists || backToHome.exists, "Round should end within the time budget")
+
+        let screenshot = app.screenshot()
+        let attachment = XCTAttachment(screenshot: screenshot)
+        attachment.name = "round-end-celebration"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
 }

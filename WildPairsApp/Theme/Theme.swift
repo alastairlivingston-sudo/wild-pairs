@@ -85,6 +85,17 @@ extension CardColour {
         case .amber:   return "sun.max.fill"
         }
     }
+
+    /// Plain-English symbol name for VoiceOver (CLAUDE.md colour table): "Flame"/"Wave"/
+    /// "Leaf"/"Sun", as opposed to `symbolName`'s SF Symbol identifier.
+    var symbolDisplayName: String {
+        switch self {
+        case .crimson: return "Flame"
+        case .cobalt:  return "Wave"
+        case .jade:    return "Leaf"
+        case .amber:   return "Sun"
+        }
+    }
 }
 
 // MARK: - Color hex helper

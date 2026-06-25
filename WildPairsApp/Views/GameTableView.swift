@@ -23,6 +23,14 @@ struct GameTableView: View {
     }
     private var showColourName: Bool { settings.userSettings.colourBlindMode }
     private var showPattern: Bool { settings.userSettings.colourBlindMode && settings.userSettings.patternFills }
+    private var reducedMotion: Bool { settings.userSettings.reducedVisualEffects }
+    /// Dot count by difficulty (ux-spec.md §10 thinking-indicator table): Easy gets fewer
+    /// dots than Medium/Hard/Expert/Master, which all show the full three.
+    private var thinkingDotCount: Int { vm.thinkingDifficulty == .easy ? 2 : 3 }
+    private var tableSaturation: Double {
+        guard vs.phase != .playing, vs.localTeamWon == false, !settings.userSettings.reducedVisualEffects else { return 1 }
+        return 0
+    }
 
     var body: some View {
         NavigationStack {
@@ -60,10 +68,16 @@ struct GameTableView: View {
                         .padding(.vertical, spacing)
                         .frame(minHeight: geo.size.height)
                     }
+                    // Loss desaturates the table gently underneath the overlay (ux-spec.md
+                    // §10 "Round loss feedback"); skipped under Reduced visual effects.
+                    .saturation(tableSaturation)
+                    .animation(.easeInOut(duration: 0.6), value: tableSaturation)
 
                     if let hint = vm.lastInvalidHint { invalidTooltip(hint, handCardSize: handCardSize) }
 
-                    if vs.phase != .playing { RoundEndView(vs: vs, onNext: vm.beginNextRound, onExit: onExit) }
+                    if vs.phase != .playing {
+                        RoundEndView(vs: vs, settings: settings, onNext: vm.beginNextRound, onExit: onExit)
+                    }
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -83,7 +97,7 @@ struct GameTableView: View {
             }
         }
         .sheet(isPresented: colourSheetBinding) {
-            ColourPickerView(onChoose: vm.chooseColour)
+            ColourPickerView(onChoose: vm.chooseColour, showPattern: showPattern)
         }
         .sheet(isPresented: targetSheetBinding) {
             TargetPickerView(candidates: targetCandidates, onChoose: vm.chooseTarget)
@@ -123,7 +137,9 @@ struct GameTableView: View {
         VStack(spacing: spacing) {
             if let partner = seat(at: 2) {
                 PlayerZoneView(seat: partner, showColourName: showColourName, showPattern: showPattern,
-                               cardBackSize: seatBackSize, openHandCardSize: Theme.CardSize.compactHand)
+                               cardBackSize: seatBackSize, openHandCardSize: Theme.CardSize.compactHand,
+                               reducedMotion: reducedMotion, isThinking: partner.id == vm.thinkingPlayerID,
+                               thinkingDotCount: thinkingDotCount)
             }
             // At large Dynamic Type sizes the three zones plus their name/badge labels no
             // longer fit the screen width — wrap in a horizontal ScrollView so the right
@@ -151,7 +167,9 @@ struct GameTableView: View {
                 Spacer(minLength: 0)
                 if let partner = seat(at: 2) {
                     PlayerZoneView(seat: partner, showColourName: showColourName, showPattern: showPattern,
-                                   cardBackSize: seatBackSize, openHandCardSize: Theme.CardSize.landscapeHand)
+                                   cardBackSize: seatBackSize, openHandCardSize: Theme.CardSize.landscapeHand,
+                                   reducedMotion: reducedMotion, isThinking: partner.id == vm.thinkingPlayerID,
+                                   thinkingDotCount: thinkingDotCount)
                 }
                 Spacer(minLength: 0)
                 tableCenter(size: centerSize)
@@ -167,13 +185,14 @@ struct GameTableView: View {
             topDiscard: vs.topDiscard, currentColour: vs.currentColour,
             drawPileCount: vs.drawPileCount, turnDirection: vs.turnDirection,
             canDraw: vs.isLocalPlayerTurn, showColourName: showColourName, showPattern: showPattern,
-            cardSize: size, onDraw: vm.drawCard
+            reducedMotion: reducedMotion, cardSize: size, onDraw: vm.drawCard
         )
     }
 
     private func opponentZone(_ seat: PlayerSeatViewState, backSize: CGSize) -> some View {
         PlayerZoneView(
-            seat: seat, cardBackSize: backSize,
+            seat: seat, cardBackSize: backSize, reducedMotion: reducedMotion,
+            isThinking: seat.id == vm.thinkingPlayerID, thinkingDotCount: thinkingDotCount,
             onCatchSolo: seat.id == vs.catchableSoloPlayerID ? { vm.callOut(seat.id) } : nil
         )
     }

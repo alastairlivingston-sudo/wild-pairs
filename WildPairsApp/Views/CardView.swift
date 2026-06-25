@@ -152,7 +152,7 @@ extension CardType {
 
 // A colour-blind-mode texture overlay, rendered at 30% opacity so it adds tactile
 // distinction without obscuring the card content beneath (design-system.md §8).
-private struct CardPatternFill: View {
+struct CardPatternFill: View {
     let colour: CardColour
 
     var body: some View {

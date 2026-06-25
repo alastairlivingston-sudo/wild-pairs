@@ -110,6 +110,9 @@ public struct GameViewState: Equatable, Sendable {
     public let localTargetChoices: [UUID]
     /// A seat the local player can legally call out for a missed Solo!, if any.
     public let catchableSoloPlayerID: UUID?
+    /// Whether the local player's team won, once `winState` is set (nil while still playing).
+    /// Lets the UI choose "Your team wins…" vs "Opponents win…" framing (ux-spec.md §10).
+    public let localTeamWon: Bool?
 
     // MARK: Derivation
 
@@ -177,6 +180,8 @@ public struct GameViewState: Equatable, Sendable {
                 $0.id != localPlayerID && $0.hand.count == 1 && !$0.hasCalledSolo
               })?.id
             : nil
+
+        self.localTeamWon = state.winState.map { $0.winningTeam == localTeam }
 
         // Prompt
         self.prompt = GameViewState.prompt(
