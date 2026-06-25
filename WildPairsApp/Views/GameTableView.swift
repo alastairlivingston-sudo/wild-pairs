@@ -45,7 +45,14 @@ struct GameTableView: View {
                             }
 
                             Spacer(minLength: 0)
+                            if let roundRemaining = vm.roundTimeRemaining {
+                                RoundTimerBadge(remaining: roundRemaining, total: vm.roundTimeLimit)
+                            }
                             PromptBanner(prompt: vs.prompt).padding(.horizontal, Theme.Space.s4)
+                            if let moveRemaining = vm.moveTimeRemaining {
+                                MoveTimerBar(remaining: moveRemaining, total: vm.moveTimeLimit)
+                                    .padding(.horizontal, Theme.Space.s4)
+                            }
                             bottomControls
                             HandView(hand: vs.localHand, cardSize: handCardSize,
                                      showColourName: showColourName, showPattern: showPattern, onPlay: vm.play)

@@ -78,6 +78,9 @@ public enum PromptKind: Equatable, Sendable {
     case chooseTarget
     case mustDraw
     case roundOver(winningTeamName: String)
+    /// Round timer fallback fired (`WinReason.roundTimerExpired`) — nobody emptied their
+    /// hand, the round was decided by lowest card-point score instead of a normal go-out.
+    case roundOverByTimeout(winningTeamName: String)
     case gameOver(winningTeamName: String)
     case paused
 }
@@ -232,6 +235,9 @@ public struct GameViewState: Equatable, Sendable {
         localTeam: TeamID?, hasLegalPlay: Bool
     ) -> PromptKind {
         if state.phase == .roundEnded, let win = state.winState {
+            if win.reason == .roundTimerExpired {
+                return .roundOverByTimeout(winningTeamName: win.winningTeam.displayName)
+            }
             return .roundOver(winningTeamName: win.winningTeam.displayName)
         }
         if state.phase == .gameEnded, let win = state.winState {

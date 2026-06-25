@@ -90,8 +90,55 @@ struct PromptBanner: View {
         case .chooseTarget:              return "Choose a player."
         case .mustDraw:                  return "No match — draw a card."
         case .roundOver(let team):       return "\(team) wins this round!"
+        case .roundOverByTimeout(let team): return "Time's up — \(team) wins this round on lowest score."
         case .gameOver(let team):        return "\(team) wins the game!"
         case .paused:                    return "Paused."
         }
+    }
+}
+
+// Tasteful, unobtrusive countdown for the 3-minute round-wide fallback timer (game-rules.md
+// "Round Timer Fallback") — only shown once a round is actually running with the rule active.
+struct RoundTimerBadge: View {
+    let remaining: TimeInterval
+    let total: TimeInterval
+
+    private var isUrgent: Bool { remaining <= 30 }
+    private var label: String {
+        let seconds = max(0, Int(remaining.rounded()))
+        return String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+
+    var body: some View {
+        Label(label, systemImage: "clock")
+            .font(.caption).fontWeight(.semibold).monospacedDigit()
+            .foregroundStyle(isUrgent ? Theme.Palette.warning : .secondary)
+            .padding(.horizontal, Theme.Space.s3).padding(.vertical, 4)
+            .background(Capsule().fill(Theme.Palette.surface))
+            .accessibilityLabel("Round time remaining: \(label)")
+            .accessibilityIdentifier("game-round-timer")
+    }
+}
+
+// The local player's 10-second per-move countdown (game-rules.md "Per-Move Timer") — a thin
+// progress bar above the hand, only shown on the local player's turn. Colour shifts from
+// accent to warning as time runs low, mirroring the round timer's urgency cue.
+struct MoveTimerBar: View {
+    let remaining: TimeInterval
+    let total: TimeInterval
+
+    private var progress: Double { total > 0 ? max(0, min(1, remaining / total)) : 0 }
+    private var isUrgent: Bool { remaining <= 3 }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("\(Int(remaining.rounded()))s to play")
+                .font(.caption2).foregroundStyle(isUrgent ? Theme.Palette.warning : .secondary)
+            ProgressView(value: progress)
+                .tint(isUrgent ? Theme.Palette.warning : Theme.Palette.accent)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(Int(remaining.rounded())) seconds left to play")
+        .accessibilityIdentifier("game-move-timer")
     }
 }

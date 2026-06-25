@@ -12,6 +12,11 @@ final class GameViewModel: ObservableObject {
     @Published private(set) var viewState: GameViewState
     /// A transient line for the illegal-move tooltip; cleared after a short delay.
     @Published var lastInvalidHint: String?
+    /// Seconds left on the round-wide fallback timer; nil when not running (e.g. paused,
+    /// round not in `.playing`, or the rule profile disables it). Drives the countdown UI.
+    @Published private(set) var roundTimeRemaining: TimeInterval?
+    /// Seconds left on the local player's per-move timer; nil when it isn't their turn.
+    @Published private(set) var moveTimeRemaining: TimeInterval?
 
     private let presenter: GamePresenter
     private let settings: AppSettings
@@ -22,6 +27,9 @@ final class GameViewModel: ObservableObject {
     private var aiTask: Task<Void, Never>?
     private var roundTimerTask: Task<Void, Never>?
     private var moveTimerTask: Task<Void, Never>?
+    private var tickTask: Task<Void, Never>?
+    private var roundDeadline: Date?
+    private var moveDeadline: Date?
     private var turnsThisRound = 0
     private var roundResultRecorded = false
 
@@ -52,6 +60,8 @@ final class GameViewModel: ObservableObject {
     }
 
     var localPlayerID: UUID { presenter.localPlayerID }
+    var roundTimeLimit: TimeInterval { presenter.state.ruleProfile.roundTimeLimitSeconds }
+    var moveTimeLimit: TimeInterval { presenter.state.ruleProfile.moveTimeLimitSeconds }
 
     // MARK: Local intents
 
@@ -83,6 +93,12 @@ final class GameViewModel: ObservableObject {
         aiTask?.cancel()
         roundTimerTask?.cancel()
         moveTimerTask?.cancel()
+        tickTask?.cancel()
+        tickTask = nil
+        roundDeadline = nil
+        moveDeadline = nil
+        roundTimeRemaining = nil
+        moveTimeRemaining = nil
     }
     func resume() {
         scheduleAITurnsIfNeeded()
@@ -128,13 +144,17 @@ final class GameViewModel: ObservableObject {
     /// their hand before this fires, the engine decides the round by lowest score.
     private func scheduleRoundTimerIfNeeded() {
         roundTimerTask?.cancel()
+        roundDeadline = nil
         guard presenter.state.phase == .playing else { return }
         let seconds = presenter.state.ruleProfile.roundTimeLimitSeconds
         guard seconds > 0 else { return }
+        roundDeadline = Date().addingTimeInterval(seconds)
+        startTickingIfNeeded()
         roundTimerTask = Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
             guard let self, !Task.isCancelled else { return }
             let effects = self.presenter.roundTimerExpired()
+            self.roundDeadline = nil
             self.handle(effects)
             self.viewState = self.presenter.viewState
             self.checkRoundEnd()
@@ -145,21 +165,42 @@ final class GameViewModel: ObservableObject {
     /// only — forces a random legal move if they haven't acted in time.
     private func scheduleMoveTimerIfNeeded() {
         moveTimerTask?.cancel()
+        moveDeadline = nil
         guard presenter.state.phase == .playing,
               presenter.state.pendingDecision == nil,
               presenter.state.currentPlayer?.id == localPlayerID else { return }
         let seconds = presenter.state.ruleProfile.moveTimeLimitSeconds
         guard seconds > 0 else { return }
+        moveDeadline = Date().addingTimeInterval(seconds)
+        startTickingIfNeeded()
         moveTimerTask = Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
             guard let self, !Task.isCancelled else { return }
             let effects = self.presenter.forceTimedOutMove(for: self.localPlayerID)
+            self.moveDeadline = nil
             self.turnsThisRound += 1
             self.handle(effects)
             self.viewState = self.presenter.viewState
             self.checkRoundEnd()
             self.scheduleAITurnsIfNeeded()
             self.scheduleMoveTimerIfNeeded()
+        }
+    }
+
+    /// Republishes `roundTimeRemaining`/`moveTimeRemaining` a few times a second so the
+    /// countdown UI animates smoothly; stops itself once both deadlines clear.
+    private func startTickingIfNeeded() {
+        guard tickTask == nil else { return }
+        tickTask = Task { @MainActor [weak self] in
+            while let self, !Task.isCancelled {
+                self.roundTimeRemaining = self.roundDeadline.map { max(0, $0.timeIntervalSinceNow) }
+                self.moveTimeRemaining = self.moveDeadline.map { max(0, $0.timeIntervalSinceNow) }
+                if self.roundDeadline == nil && self.moveDeadline == nil {
+                    self.tickTask = nil
+                    return
+                }
+                try? await Task.sleep(nanoseconds: 200_000_000)
+            }
         }
     }
 

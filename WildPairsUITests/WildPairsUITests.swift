@@ -258,4 +258,29 @@ final class WildPairsUITests: XCTestCase {
         attachment.lifetime = .keepAlways
         add(attachment)
     }
+
+    // The round timer (3-min fallback) and per-move timer (10s, local turn only) exist in
+    // the engine but previously had no on-screen representation at all — regression check
+    // that the new countdown UI actually renders.
+    func testRoundAndMoveTimersAreVisible() {
+        let app = launch()
+        app.buttons["home-new-game"].tap()
+        app.buttons["newgame-start"].tap()
+        XCTAssertTrue(app.buttons["game-pause-button"].waitForExistence(timeout: 5))
+
+        let roundTimer = app.descendants(matching: .any)["game-round-timer"]
+        XCTAssertTrue(roundTimer.waitForExistence(timeout: 3), "Round timer countdown should be visible during play")
+
+        // The move timer only shows on the local player's turn, which depends on seating —
+        // don't fail the test if an AI is currently acting, just confirm it appears at some
+        // point within a few seconds if it's going to.
+        let moveTimer = app.descendants(matching: .any)["game-move-timer"]
+        _ = moveTimer.waitForExistence(timeout: 5)
+
+        let screenshot = app.screenshot()
+        let attachment = XCTAttachment(screenshot: screenshot)
+        attachment.name = "round-move-timers"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
 }

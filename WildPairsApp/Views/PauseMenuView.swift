@@ -48,9 +48,16 @@ struct RoundEndView: View {
     private var headline: String {
         switch vs.prompt {
         case .roundOver(let team): return "\(team) wins this round!"
+        case .roundOverByTimeout(let team): return "Time's up!"
         case .gameOver(let team):  return "\(team) wins the game!"
         default:                   return "Round over"
         }
+    }
+    private var subheadline: String? {
+        if case .roundOverByTimeout(let team) = vs.prompt {
+            return "Nobody emptied their hand — \(team) wins on lowest score."
+        }
+        return nil
     }
     private var isGameOver: Bool {
         if case .gameOver = vs.prompt { return true }
@@ -61,9 +68,13 @@ struct RoundEndView: View {
         ZStack {
             Color.black.opacity(0.45).ignoresSafeArea()
             VStack(spacing: Theme.Space.s5) {
-                Image(systemName: "trophy.fill")
+                Image(systemName: subheadline == nil ? "trophy.fill" : "clock.badge.exclamationmark.fill")
                     .font(.system(size: 56)).foregroundStyle(Theme.Palette.warning)
                 Text(headline).font(.largeTitle).fontWeight(.bold).multilineTextAlignment(.center)
+                if let subheadline {
+                    Text(subheadline).font(.subheadline).foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
 
                 VStack(spacing: Theme.Space.s2) {
                     ForEach(vs.scoreboard) { row in
