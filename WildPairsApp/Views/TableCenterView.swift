@@ -12,6 +12,7 @@ struct TableCenterView: View {
     let turnDirection: TurnDirection
     let canDraw: Bool
     let showColourName: Bool
+    var showPattern: Bool = false
     var cardSize: CGSize = Theme.CardSize.regularHand
     let onDraw: () -> Void
 
@@ -48,7 +49,7 @@ struct TableCenterView: View {
 
     @ViewBuilder private var discardPile: some View {
         if let top = topDiscard {
-            CardView(card: top, size: cardSize, showColourName: showColourName)
+            CardView(card: top, size: cardSize, showColourName: showColourName, showPattern: showPattern)
                 .accessibilityLabel("Top of discard pile")
         } else {
             RoundedRectangle(cornerRadius: Theme.Radius.r3)

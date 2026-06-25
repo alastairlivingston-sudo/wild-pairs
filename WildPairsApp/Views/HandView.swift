@@ -9,6 +9,7 @@ struct HandView: View {
     let hand: [CardViewModel]
     let cardSize: CGSize
     let showColourName: Bool
+    var showPattern: Bool = false
     let onPlay: (CardViewModel) -> Void
 
     @State private var shakingCardID: UUID?
@@ -18,7 +19,8 @@ struct HandView: View {
             HStack(spacing: Theme.Space.s2) {
                 ForEach(hand) { item in
                     CardView(card: item.card, size: cardSize,
-                             isPlayable: item.isPlayable, showColourName: showColourName)
+                             isPlayable: item.isPlayable, showColourName: showColourName,
+                             showPattern: showPattern)
                         .offset(y: item.isPlayable ? -Theme.Space.s3 : 0)
                         .modifier(ShakeEffect(animatableData: shakingCardID == item.id ? 1 : 0))
                         .onTapGesture { tap(item) }

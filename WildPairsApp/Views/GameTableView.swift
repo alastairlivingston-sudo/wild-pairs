@@ -22,6 +22,7 @@ struct GameTableView: View {
         return large ? Theme.CardSize.regularHand : Theme.CardSize.compactHand
     }
     private var showColourName: Bool { settings.userSettings.colourBlindMode }
+    private var showPattern: Bool { settings.userSettings.colourBlindMode && settings.userSettings.patternFills }
 
     var body: some View {
         NavigationStack {
@@ -47,7 +48,7 @@ struct GameTableView: View {
                             PromptBanner(prompt: vs.prompt).padding(.horizontal, Theme.Space.s4)
                             bottomControls
                             HandView(hand: vs.localHand, cardSize: handCardSize,
-                                     showColourName: showColourName, onPlay: vm.play)
+                                     showColourName: showColourName, showPattern: showPattern, onPlay: vm.play)
                         }
                         .padding(.vertical, spacing)
                         .frame(minHeight: geo.size.height)
@@ -112,8 +113,8 @@ struct GameTableView: View {
     private func portraitSeatsStack(spacing: CGFloat, seatBackSize: CGSize, centerSize: CGSize) -> some View {
         VStack(spacing: spacing) {
             if let partner = seat(at: 2) {
-                PlayerZoneView(seat: partner, showColourName: showColourName, cardBackSize: seatBackSize,
-                               openHandCardSize: Theme.CardSize.compactHand)
+                PlayerZoneView(seat: partner, showColourName: showColourName, showPattern: showPattern,
+                               cardBackSize: seatBackSize, openHandCardSize: Theme.CardSize.compactHand)
             }
             HStack(alignment: .center, spacing: spacing) {
                 if let left = seat(at: 1) { opponentZone(left, backSize: seatBackSize) }
@@ -132,8 +133,8 @@ struct GameTableView: View {
             if let left = seat(at: 1) { opponentZone(left, backSize: seatBackSize) }
             Spacer(minLength: 0)
             if let partner = seat(at: 2) {
-                PlayerZoneView(seat: partner, showColourName: showColourName, cardBackSize: seatBackSize,
-                               openHandCardSize: Theme.CardSize.landscapeHand)
+                PlayerZoneView(seat: partner, showColourName: showColourName, showPattern: showPattern,
+                               cardBackSize: seatBackSize, openHandCardSize: Theme.CardSize.landscapeHand)
             }
             Spacer(minLength: 0)
             tableCenter(size: centerSize)
@@ -146,7 +147,7 @@ struct GameTableView: View {
         TableCenterView(
             topDiscard: vs.topDiscard, currentColour: vs.currentColour,
             drawPileCount: vs.drawPileCount, turnDirection: vs.turnDirection,
-            canDraw: vs.isLocalPlayerTurn, showColourName: showColourName,
+            canDraw: vs.isLocalPlayerTurn, showColourName: showColourName, showPattern: showPattern,
             cardSize: size, onDraw: vm.drawCard
         )
     }

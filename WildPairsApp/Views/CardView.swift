@@ -11,6 +11,7 @@ struct CardView: View {
     var isPlayable: Bool = false
     var isSelected: Bool = false
     var showColourName: Bool = false
+    var showPattern: Bool = false
 
     @Environment(\.colorScheme) private var scheme
 
@@ -25,6 +26,10 @@ struct CardView: View {
         ZStack {
             RoundedRectangle(cornerRadius: Theme.Radius.r3)
                 .fill(faceColor)
+            if showPattern, let colour = card.colour {
+                CardPatternFill(colour: colour)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.r3))
+            }
             RoundedRectangle(cornerRadius: Theme.Radius.r3)
                 .strokeBorder(borderColor, lineWidth: isPlayable ? 3 : 1)
 
@@ -99,7 +104,86 @@ struct CardView: View {
         case .teamPlay: type = "Team Play"
         }
         let playable = isPlayable ? ", playable" : ""
-        return card.isWild ? "\(type)\(playable)" : "\(colour) \(type)\(playable)"
+        let pattern = (showPattern && !card.isWild) ? ", \(card.colour?.patternName ?? "") pattern" : ""
+        return card.isWild ? "\(type)\(playable)" : "\(colour) \(type)\(playable)\(pattern)"
+    }
+}
+
+// A colour-blind-mode texture overlay, rendered at 30% opacity so it adds tactile
+// distinction without obscuring the card content beneath (design-system.md §8).
+private struct CardPatternFill: View {
+    let colour: CardColour
+
+    var body: some View {
+        Canvas { context, size in
+            switch colour {
+            case .crimson: drawDiagonalLines(context: context, size: size)
+            case .cobalt: drawHorizontalLines(context: context, size: size)
+            case .jade: drawVerticalLines(context: context, size: size)
+            case .amber: drawDotGrid(context: context, size: size)
+            }
+        }
+        .opacity(0.3)
+        .allowsHitTesting(false)
+    }
+
+    private func drawHorizontalLines(context: GraphicsContext, size: CGSize) {
+        var y: CGFloat = 0
+        while y < size.height {
+            var path = Path()
+            path.move(to: CGPoint(x: 0, y: y))
+            path.addLine(to: CGPoint(x: size.width, y: y))
+            context.stroke(path, with: .color(.white), lineWidth: 1)
+            y += 4
+        }
+    }
+
+    private func drawVerticalLines(context: GraphicsContext, size: CGSize) {
+        var x: CGFloat = 0
+        while x < size.width {
+            var path = Path()
+            path.move(to: CGPoint(x: x, y: 0))
+            path.addLine(to: CGPoint(x: x, y: size.height))
+            context.stroke(path, with: .color(.white), lineWidth: 1)
+            x += 4
+        }
+    }
+
+    private func drawDiagonalLines(context: GraphicsContext, size: CGSize) {
+        let spacing: CGFloat = 4
+        var offset: CGFloat = -size.height
+        while offset < size.width {
+            var path = Path()
+            path.move(to: CGPoint(x: offset, y: size.height))
+            path.addLine(to: CGPoint(x: offset + size.height, y: 0))
+            context.stroke(path, with: .color(.white), lineWidth: 1)
+            offset += spacing
+        }
+    }
+
+    private func drawDotGrid(context: GraphicsContext, size: CGSize) {
+        let spacing: CGFloat = 6
+        var y: CGFloat = spacing / 2
+        while y < size.height {
+            var x: CGFloat = spacing / 2
+            while x < size.width {
+                let rect = CGRect(x: x - 1, y: y - 1, width: 2, height: 2)
+                context.fill(Path(ellipseIn: rect), with: .color(.white))
+                x += spacing
+            }
+            y += spacing
+        }
+    }
+}
+
+extension CardColour {
+    var patternName: String {
+        switch self {
+        case .crimson: return "diagonal hatching"
+        case .cobalt: return "horizontal lines"
+        case .jade: return "vertical lines"
+        case .amber: return "dot grid"
+        }
     }
 }
 

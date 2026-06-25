@@ -127,4 +127,42 @@ final class WildPairsUITests: XCTestCase {
         attachment.lifetime = .keepAlways
         add(attachment)
     }
+
+    // Colour-blind mode + pattern fills: enabling both must not crash or hide the table,
+    // and the cards should render with the colour-name label visible (pattern texture
+    // itself isn't asserted pixel-by-pixel here — see the attached screenshot).
+    func testColourBlindModeAndPatternFillsOnTable() {
+        // Settings persist across test runs in the same installed app; reset so the
+        // toggles start from a known (off) state rather than whatever a prior run left.
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest-reset-state"]
+        app.launch()
+        dismissOnboardingIfPresent(app)
+        app.buttons["home-settings"].tap()
+
+        // SwiftUI Form Toggle rows expose an outer row-level Switch (carrying the
+        // identifier) and an inner control Switch; only a tap landing on the inner
+        // control's frame actually flips the value, so tap the row's right edge where
+        // the visual knob renders rather than the row centre or its label.
+        let colourBlind = app.switches["settings-colourblind-toggle"]
+        XCTAssertTrue(colourBlind.waitForExistence(timeout: 5))
+        colourBlind.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
+
+        let patternFills = app.switches["settings-patternfills-toggle"]
+        XCTAssertTrue(patternFills.waitForExistence(timeout: 3))
+        patternFills.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
+
+        app.navigationBars.buttons.element(boundBy: 0).tap()  // back to Home
+        app.buttons["home-new-game"].tap()
+        app.buttons["newgame-start"].tap()
+
+        XCTAssertTrue(app.buttons["game-pause-button"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["game-draw-card-button"].isHittable)
+
+        let screenshot = app.screenshot()
+        let attachment = XCTAttachment(screenshot: screenshot)
+        attachment.name = "colourblind-pattern-fills-table"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
 }

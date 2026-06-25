@@ -53,6 +53,7 @@ struct HomeView: View {
                     NavigationLink { SettingsView(settings: settings) } label: {
                         Label("Settings", systemImage: "gearshape.fill").frame(maxWidth: .infinity)
                     }.buttonStyle(.bordered)
+                    .accessibilityIdentifier("home-settings")
                 }
                 .frame(maxWidth: 360)
                 .padding(.horizontal, Theme.Space.s4)

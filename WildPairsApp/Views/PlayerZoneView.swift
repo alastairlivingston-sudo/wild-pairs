@@ -8,6 +8,7 @@ import WildPairsCore
 struct PlayerZoneView: View {
     let seat: PlayerSeatViewState
     var showColourName: Bool = false
+    var showPattern: Bool = false
     var cardBackSize: CGSize = Theme.CardSize.opponentBack
     /// Size for the partner's face-up cards. CardView's corner/centre layout needs more
     /// room than a solid CardBackView does, so this must not reuse the tiny cardBackSize —
@@ -71,7 +72,8 @@ struct PlayerZoneView: View {
     private func openHandFan(_ hand: [Card]) -> some View {
         HStack(spacing: -openHandCardSize.width * 0.4) {
             ForEach(hand) { card in
-                CardView(card: card, size: openHandCardSize, showColourName: showColourName)
+                CardView(card: card, size: openHandCardSize, showColourName: showColourName,
+                         showPattern: showPattern)
             }
             if hand.isEmpty {
                 Color.clear.frame(width: openHandCardSize.width, height: openHandCardSize.height)
