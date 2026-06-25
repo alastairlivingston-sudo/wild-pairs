@@ -13,13 +13,44 @@ final class WildPairsUITests: XCTestCase {
     private func launch() -> XCUIApplication {
         let app = XCUIApplication()
         app.launch()
+        dismissOnboardingIfPresent(app)
         return app
+    }
+
+    /// On first launch (or after an erase) the onboarding overlay covers the home screen.
+    /// Every other test cares about what's underneath, so skip through it via Skip.
+    private func dismissOnboardingIfPresent(_ app: XCUIApplication) {
+        let skip = app.buttons["onboarding-skip"]
+        if skip.waitForExistence(timeout: 2) {
+            skip.tap()
+        }
     }
 
     // UIT-01: App launches to the home screen.
     func testLaunchesToHome() {
         let app = launch()
         XCTAssertTrue(app.buttons["home-new-game"].waitForExistence(timeout: 5))
+    }
+
+    // First-launch onboarding: shows automatically, walks through all pages, and dismissing
+    // it (either via Skip or finishing) never shows it again this session.
+    func testOnboardingShowsOnceAndDismisses() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest-reset-state"]
+        app.launch()
+
+        let next = app.buttons["onboarding-next"]
+        XCTAssertTrue(next.waitForExistence(timeout: 5), "Onboarding should show on first launch")
+
+        // Walk through every page via Next; the last page's button reads "Let's play".
+        for _ in 0..<4 {
+            guard next.exists else { break }
+            next.tap()
+        }
+
+        XCTAssertTrue(app.buttons["home-new-game"].waitForExistence(timeout: 5),
+                      "Home screen should be reachable once onboarding finishes")
+        XCTAssertFalse(app.buttons["onboarding-next"].exists, "Onboarding must not reappear after finishing")
     }
 
     // UIT-03 / UIT-04: Start a Standard Teams game and reach the game table.
