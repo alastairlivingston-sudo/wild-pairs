@@ -211,4 +211,51 @@ final class WildPairsUITests: XCTestCase {
         XCTAssertTrue(playabilityWord.waitForExistence(timeout: 3),
                       "Expected hand cards to announce playability state")
     }
+
+    // Dynamic Type at AX3 (UICTContentSizeCategoryAccessibilityXL): critical controls on
+    // Home, Settings, and the game table must remain reachable — no clipped/overlapping
+    // content that would make the app unusable at large accessibility text sizes. The
+    // `-UIPreferredContentSizeCategoryName` launch argument is UIKit's standard per-process
+    // override (it registers into NSUserDefaults at launch), scoped to this app only —
+    // no need to touch (or restore) the simulator's system-wide setting.
+    func testDynamicTypeAX3LayoutSurvives() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--uitest-reset-state",
+            "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXL",
+        ]
+        app.launch()
+        dismissOnboardingIfPresent(app)
+
+        XCTAssertTrue(app.buttons["home-new-game"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["home-new-game"].isHittable, "New Game button clipped at AX3 on Home")
+        XCTAssertTrue(app.buttons["home-settings"].isHittable, "Settings button clipped at AX3 on Home")
+
+        app.buttons["home-settings"].tap()
+        XCTAssertTrue(app.switches["settings-colourblind-toggle"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.switches["settings-colourblind-toggle"].isHittable, "Colour-blind toggle not reachable at AX3")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        app.buttons["home-new-game"].tap()
+        // At AX3 each Form row is much taller, so the Start button (last section) is below
+        // the fold and not yet realized by the lazy List — scroll to it, as a real user would.
+        let start = app.buttons["newgame-start"]
+        for _ in 0..<6 where !start.exists {
+            app.swipeUp()
+        }
+        XCTAssertTrue(start.waitForExistence(timeout: 5))
+        XCTAssertTrue(start.isHittable, "Start button not reachable at AX3 in New Game flow")
+        start.tap()
+
+        let pause = app.buttons["game-pause-button"]
+        XCTAssertTrue(pause.waitForExistence(timeout: 5))
+        XCTAssertTrue(pause.isHittable, "Pause button clipped at AX3 on game table")
+        XCTAssertTrue(app.buttons["game-draw-card-button"].isHittable, "Draw pile not reachable at AX3")
+
+        let screenshot = app.screenshot()
+        let attachment = XCTAttachment(screenshot: screenshot)
+        attachment.name = "dynamic-type-ax3-table"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
 }

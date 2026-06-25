@@ -63,6 +63,7 @@ struct GameTableView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Text("Round \(vs.roundNumber)").font(.footnote).foregroundStyle(.secondary)
+                        .lineLimit(1).minimumScaleFactor(0.5)
                 }
                 ToolbarItem(placement: .principal) { scoreChip }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -92,6 +93,7 @@ struct GameTableView: View {
             ForEach(vs.scoreboard) { row in
                 Text("\(row.displayName) \(row.score)")
                     .font(.caption).fontWeight(.semibold)
+                    .lineLimit(1).minimumScaleFactor(0.5)
             }
         }
     }
@@ -116,30 +118,40 @@ struct GameTableView: View {
                 PlayerZoneView(seat: partner, showColourName: showColourName, showPattern: showPattern,
                                cardBackSize: seatBackSize, openHandCardSize: Theme.CardSize.compactHand)
             }
-            HStack(alignment: .center, spacing: spacing) {
-                if let left = seat(at: 1) { opponentZone(left, backSize: seatBackSize) }
-                Spacer(minLength: 0)
-                tableCenter(size: centerSize)
-                Spacer(minLength: 0)
-                if let right = seat(at: 3) { opponentZone(right, backSize: seatBackSize) }
+            // At large Dynamic Type sizes the three zones plus their name/badge labels no
+            // longer fit the screen width — wrap in a horizontal ScrollView so the right
+            // opponent stays reachable by swiping instead of clipping off-screen.
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .center, spacing: spacing) {
+                    if let left = seat(at: 1) { opponentZone(left, backSize: seatBackSize) }
+                    Spacer(minLength: 0)
+                    tableCenter(size: centerSize)
+                    Spacer(minLength: 0)
+                    if let right = seat(at: 3) { opponentZone(right, backSize: seatBackSize) }
+                }
+                .frame(maxWidth: .infinity)
             }
         }
     }
 
     /// Landscape: all four seats and the table centre share a single row, halving the
     /// vertical footprint so nothing requires scrolling to reach on short landscape heights.
+    /// Wrapped horizontally for the same Dynamic Type overflow reason as the portrait row.
     private func landscapeSeatsRow(spacing: CGFloat, seatBackSize: CGSize, centerSize: CGSize) -> some View {
-        HStack(alignment: .center, spacing: spacing) {
-            if let left = seat(at: 1) { opponentZone(left, backSize: seatBackSize) }
-            Spacer(minLength: 0)
-            if let partner = seat(at: 2) {
-                PlayerZoneView(seat: partner, showColourName: showColourName, showPattern: showPattern,
-                               cardBackSize: seatBackSize, openHandCardSize: Theme.CardSize.landscapeHand)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(alignment: .center, spacing: spacing) {
+                if let left = seat(at: 1) { opponentZone(left, backSize: seatBackSize) }
+                Spacer(minLength: 0)
+                if let partner = seat(at: 2) {
+                    PlayerZoneView(seat: partner, showColourName: showColourName, showPattern: showPattern,
+                                   cardBackSize: seatBackSize, openHandCardSize: Theme.CardSize.landscapeHand)
+                }
+                Spacer(minLength: 0)
+                tableCenter(size: centerSize)
+                Spacer(minLength: 0)
+                if let right = seat(at: 3) { opponentZone(right, backSize: seatBackSize) }
             }
-            Spacer(minLength: 0)
-            tableCenter(size: centerSize)
-            Spacer(minLength: 0)
-            if let right = seat(at: 3) { opponentZone(right, backSize: seatBackSize) }
+            .frame(maxWidth: .infinity)
         }
     }
 

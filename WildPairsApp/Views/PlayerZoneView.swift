@@ -23,6 +23,8 @@ struct PlayerZoneView: View {
                 Text(seat.name)
                     .font(.subheadline).fontWeight(.semibold)
                     .foregroundStyle(seat.isCurrentPlayer ? Theme.Palette.accent : .secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
                 countBadge
             }
 

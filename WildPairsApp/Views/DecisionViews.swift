@@ -74,7 +74,11 @@ struct PromptBanner: View {
             .multilineTextAlignment(.center)
             .padding(.horizontal, Theme.Space.s4).padding(.vertical, Theme.Space.s2)
             .frame(maxWidth: .infinity)
-            .background(Capsule().fill(Theme.Palette.surface))
+            // A capsule's corner radius is height/2, so at large Dynamic Type sizes this
+            // banner wraps to several lines, the capsule grows tall, and its semicircular
+            // ends balloon inward and clip the text. A fixed-radius rounded rect has no
+            // such failure mode regardless of how many lines the text wraps to.
+            .background(RoundedRectangle(cornerRadius: Theme.Radius.r4).fill(Theme.Palette.surface))
             .accessibilityIdentifier("game-prompt")
     }
 
