@@ -44,10 +44,20 @@ struct PlayerZoneView: View {
             RoundedRectangle(cornerRadius: Theme.Radius.r3)
                 .strokeBorder(Theme.Palette.accent, lineWidth: seat.isCurrentPlayer ? 2 : 0)
         )
+        // `.combine` merges the whole zone into a single VoiceOver element, which would
+        // otherwise swallow the catch-out button (it stops being independently reachable
+        // by swipe navigation). Forward the same action to the combined element's double
+        // tap instead, so catching a Solo! call still works for VoiceOver users.
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint(catchSoloHint)
+        .accessibilityAddTraits(canCatchSolo ? .isButton : [])
+        .onTapGesture { if canCatchSolo { onCatchSolo?() } }
         .accessibilityIdentifier("seat-\(seat.seatPosition)")
     }
+
+    private var canCatchSolo: Bool { seat.needsSoloCall && onCatchSolo != nil }
+    private var catchSoloHint: String { canCatchSolo ? "Double tap to call them out" : "" }
 
     private var countBadge: some View {
         Text("\(seat.handCount)")
@@ -90,7 +100,6 @@ struct PlayerZoneView: View {
             }
             .buttonStyle(.plain)
             .disabled(onCatchSolo == nil)
-            .accessibilityHint(onCatchSolo == nil ? "" : "Double tap to call them out")
         }
     }
 

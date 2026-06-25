@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import WildPairsCore
 
 // Thin SwiftUI binding over the platform-agnostic GamePresenter. It owns no game logic:
@@ -193,13 +194,50 @@ final class GameViewModel: ObservableObject {
                 sound.play(.cardDraw)
             case .animateCardShuffle:            sound.play(.cardShuffle)
             case .animateHandSwap:               sound.play(.swapHands)
-            case .announceSolo:                  break
-            case .soloCallMissed:                haptics.drawPenalty(); sound.play(.soloMissed)
-            case .playRoundEnd(let team):         announceRoundEnd(team, sound: .roundWin)
-            case .playGameEnd(let team):          announceRoundEnd(team, sound: .gameWin)
-            default:                              break
+            case .announceSolo(let name):
+                announce(soloAnnouncement(for: name))
+            case .soloCallMissed(let name, let penalty):
+                haptics.drawPenalty()
+                sound.play(.soloMissed)
+                announce(soloMissedAnnouncement(for: name, penaltyCards: penalty))
+            case .playRoundEnd(let team):
+                announceRoundEnd(team, sound: .roundWin, isGameEnd: false)
+            case .playGameEnd(let team):
+                announceRoundEnd(team, sound: .gameWin, isGameEnd: true)
+            case .accessibilityAnnounce(let message):
+                announce(message)
+            default:
+                break
             }
         }
+    }
+
+    /// Posts a VoiceOver live-region announcement without moving the accessibility cursor
+    /// (accessibility-plan.md §2 — Solo!/round-end events must announce automatically).
+    private func announce(_ message: String) {
+        UIAccessibility.post(notification: .announcement, argument: message)
+    }
+
+    private func relation(toPlayerNamed name: String) -> String {
+        guard let player = presenter.state.players.first(where: { $0.name == name }) else { return name }
+        if player.id == localPlayerID { return "you" }
+        let localTeam = presenter.state.players.first { $0.id == localPlayerID }?.teamID
+        return player.teamID == localTeam ? "partner" : name
+    }
+
+    private func soloAnnouncement(for name: String) -> String {
+        switch relation(toPlayerNamed: name) {
+        case "you":     return "Solo called! You have one card remaining."
+        case "partner": return "Your partner called Solo! They have one card remaining."
+        default:        return "\(name) called Solo! They have one card remaining."
+        }
+    }
+
+    private func soloMissedAnnouncement(for name: String, penaltyCards: Int) -> String {
+        if relation(toPlayerNamed: name) == "you" {
+            return "You forgot to call Solo! — \(penaltyCards) penalty cards drawn."
+        }
+        return "\(name) forgot to call Solo! — drew \(penaltyCards) penalty cards."
     }
 
     private func soundEffect(forCardPlay card: Card) -> SoundEffect {
@@ -213,13 +251,15 @@ final class GameViewModel: ObservableObject {
         }
     }
 
-    private func announceRoundEnd(_ team: TeamID, sound winSound: SoundEffect) {
+    private func announceRoundEnd(_ team: TeamID, sound winSound: SoundEffect, isGameEnd: Bool) {
         let localTeam = presenter.state.players.first { $0.id == localPlayerID }?.teamID
         if team == localTeam {
             haptics.roundWin()
             sound.play(winSound)
+            announce(isGameEnd ? "Your team wins the game!" : "Your team wins this round.")
         } else {
             haptics.roundLoss()
+            announce(isGameEnd ? "Opponents win the game." : "Opponents win this round.")
         }
     }
 

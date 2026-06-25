@@ -12,6 +12,9 @@ struct CardView: View {
     var isSelected: Bool = false
     var showColourName: Bool = false
     var showPattern: Bool = false
+    /// Only the local human's own hand should announce playability/"double tap to select" —
+    /// partner's open hand and the discard pile's top card are informational, not actionable.
+    var announcePlayability: Bool = false
 
     @Environment(\.colorScheme) private var scheme
 
@@ -48,6 +51,7 @@ struct CardView: View {
         .scaleEffect(isSelected ? 1.05 : 1)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint(announcePlayability ? (isPlayable ? "Double tap to select" : "Double tap for more information") : "")
         .accessibilityAddTraits(isPlayable ? .isButton : [])
     }
 
@@ -87,25 +91,62 @@ struct CardView: View {
         return card.isWild ? .secondary.opacity(0.4) : .white.opacity(0.5)
     }
 
+    // Follows the canonical pattern from accessibility-plan.md §2: colour + name, card
+    // category, a one-sentence description for action/wild cards, then playability.
     private var accessibilityLabel: String {
         let colour = card.colour?.displayName ?? "Wild"
-        let type: String
-        switch card.type {
-        case .number(let v): type = "\(v)"
-        case .skip: type = "Skip"
-        case .skipTwo: type = "Skip Two"
-        case .reverse: type = "Reverse"
-        case .drawTwo: type = "Draw Two"
-        case .drawFour: type = "Draw Four"
-        case .changeColour: type = "Change Colour"
-        case .discardAll: type = "Discard All"
-        case .targetedDraw: type = "Targeted Draw"
-        case .forcedSwap: type = "Forced Swap"
-        case .teamPlay: type = "Team Play"
-        }
-        let playable = isPlayable ? ", playable" : ""
         let pattern = (showPattern && !card.isWild) ? ", \(card.colour?.patternName ?? "") pattern" : ""
-        return card.isWild ? "\(type)\(playable)" : "\(colour) \(type)\(playable)\(pattern)"
+        let playable = announcePlayability ? (isPlayable ? " Playable." : " Not playable.") : ""
+
+        switch card.type {
+        case .number(let v):
+            return "\(colour) \(Self.numberWords[v] ?? "\(v)"), number card.\(pattern)\(playable)"
+        default:
+            let description = card.type.accessibilityDescription
+            if card.isWild {
+                return "\(card.type.spokenName), wild card. \(description) Plays on any colour.\(playable)"
+            }
+            return "\(colour) \(card.type.spokenName), action card.\(pattern) \(description)\(playable)"
+        }
+    }
+
+    private static let numberWords = [
+        0: "Zero", 1: "One", 2: "Two", 3: "Three", 4: "Four",
+        5: "Five", 6: "Six", 7: "Seven", 8: "Eight", 9: "Nine",
+    ]
+}
+
+extension CardType {
+    var spokenName: String {
+        switch self {
+        case .number(let v): return "\(v)"
+        case .skip: return "Skip"
+        case .skipTwo: return "Skip Two"
+        case .reverse: return "Reverse"
+        case .drawTwo: return "Draw Two"
+        case .drawFour: return "Draw Four"
+        case .changeColour: return "Change Colour"
+        case .discardAll: return "Discard All"
+        case .targetedDraw: return "Targeted Draw"
+        case .forcedSwap: return "Forced Swap"
+        case .teamPlay: return "Team Play"
+        }
+    }
+
+    var accessibilityDescription: String {
+        switch self {
+        case .number: return ""
+        case .skip: return "Skips the next player's turn."
+        case .skipTwo: return "Skips the next two players' turns."
+        case .reverse: return "Reverses the direction of play."
+        case .drawTwo: return "The next player draws two cards and loses their turn."
+        case .drawFour: return "The next player draws four cards and loses their turn."
+        case .changeColour: return "Lets you choose a new colour for all players."
+        case .discardAll: return "Discard all cards of a chosen colour from your hand."
+        case .targetedDraw: return "Choose a player to draw cards."
+        case .forcedSwap: return "Swap your hand with any other player."
+        case .teamPlay: return "Invite your partner to play next."
+        }
     }
 }
 

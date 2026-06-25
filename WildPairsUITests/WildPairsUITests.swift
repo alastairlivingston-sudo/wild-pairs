@@ -189,4 +189,26 @@ final class WildPairsUITests: XCTestCase {
         app.buttons["game-draw-card-button"].tap()
         XCTAssertTrue(pause.isHittable, "Table should remain responsive with sound disabled")
     }
+
+    // VoiceOver: hand cards must expose the canonical accessibility label pattern
+    // (colour/name + card category + playability) per accessibility-plan.md §2, not just a
+    // bare abbreviation — regression check for the Phase 6 VoiceOver pass.
+    func testHandCardsHaveCanonicalAccessibilityLabels() {
+        let app = launch()
+        app.buttons["home-new-game"].tap()
+        app.buttons["newgame-start"].tap()
+        XCTAssertTrue(app.buttons["game-pause-button"].waitForExistence(timeout: 5))
+
+        let numberCard = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS 'number card'"))
+            .firstMatch
+        XCTAssertTrue(numberCard.waitForExistence(timeout: 3),
+                      "Expected at least one hand card labelled with the canonical 'number card' pattern")
+
+        let playabilityWord = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS 'Playable' OR label CONTAINS 'Not playable'"))
+            .firstMatch
+        XCTAssertTrue(playabilityWord.waitForExistence(timeout: 3),
+                      "Expected hand cards to announce playability state")
+    }
 }

@@ -50,7 +50,7 @@ struct TableCenterView: View {
     @ViewBuilder private var discardPile: some View {
         if let top = topDiscard {
             CardView(card: top, size: cardSize, showColourName: showColourName, showPattern: showPattern)
-                .accessibilityLabel("Top of discard pile")
+                .accessibilityLabel("Discard pile. Top card: \(discardCardLabel(top)). Current colour: \(currentColour.displayName).")
         } else {
             RoundedRectangle(cornerRadius: Theme.Radius.r3)
                 .strokeBorder(.secondary, style: StrokeStyle(lineWidth: 1, dash: [4]))
@@ -69,6 +69,12 @@ struct TableCenterView: View {
         .background(Capsule().fill(Theme.Palette.surface))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Current colour: \(currentColour.displayName)")
+    }
+
+    private func discardCardLabel(_ card: Card) -> String {
+        guard let colour = card.colour else { return "\(card.type.spokenName), wild card" }
+        if case .number(let v) = card.type { return "\(colour.displayName) \(v), number card" }
+        return "\(colour.displayName) \(card.type.spokenName), action card"
     }
 
     private var directionArrow: some View {

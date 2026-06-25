@@ -20,7 +20,7 @@ struct HandView: View {
                 ForEach(hand) { item in
                     CardView(card: item.card, size: cardSize,
                              isPlayable: item.isPlayable, showColourName: showColourName,
-                             showPattern: showPattern)
+                             showPattern: showPattern, announcePlayability: true)
                         .offset(y: item.isPlayable ? -Theme.Space.s3 : 0)
                         .modifier(ShakeEffect(animatableData: shakingCardID == item.id ? 1 : 0))
                         .onTapGesture { tap(item) }
