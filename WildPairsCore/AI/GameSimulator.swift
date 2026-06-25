@@ -39,13 +39,25 @@ public enum GameSimulator {
         seed: UInt64 = 0,
         maxTurns: Int = 1000
     ) -> SimulationResult {
+        runMixed(mode: mode, teamADifficulty: difficulty, teamBDifficulty: difficulty, seed: seed, maxTurns: maxTurns)
+    }
+
+    /// Like `run`, but each team can be a different AI difficulty — lets balance testing
+    /// confirm stronger difficulties actually win more often (docs/ai-balance-report.md).
+    public static func runMixed(
+        mode: GameMode = .standardTeams,
+        teamADifficulty: Difficulty,
+        teamBDifficulty: Difficulty,
+        seed: UInt64 = 0,
+        maxTurns: Int = 1000
+    ) -> SimulationResult {
         let config = GameConfig(
             mode: mode,
             players: [
-                PlayerConfig(name: "A0", role: .ai, teamID: .teamA, difficulty: difficulty, seatPosition: 0),
-                PlayerConfig(name: "B1", role: .ai, teamID: .teamB, difficulty: difficulty, seatPosition: 1),
-                PlayerConfig(name: "A2", role: .ai, teamID: .teamA, difficulty: difficulty, seatPosition: 2),
-                PlayerConfig(name: "B3", role: .ai, teamID: .teamB, difficulty: difficulty, seatPosition: 3)
+                PlayerConfig(name: "A0", role: .ai, teamID: .teamA, difficulty: teamADifficulty, seatPosition: 0),
+                PlayerConfig(name: "B1", role: .ai, teamID: .teamB, difficulty: teamBDifficulty, seatPosition: 1),
+                PlayerConfig(name: "A2", role: .ai, teamID: .teamA, difficulty: teamADifficulty, seatPosition: 2),
+                PlayerConfig(name: "B3", role: .ai, teamID: .teamB, difficulty: teamBDifficulty, seatPosition: 3)
             ],
             ruleProfile: ruleProfile(for: mode),
             seed: seed
@@ -64,7 +76,7 @@ public enum GameSimulator {
 
             // Resolve pending decision first
             if let pending = state.pendingDecision {
-                (state, _) = resolvePending(pending: pending, state: state, rng: &rng, difficulty: difficulty)
+                (state, _) = resolvePending(pending: pending, state: state, rng: &rng)
                 turns += 1
                 continue
             }
@@ -121,8 +133,7 @@ public enum GameSimulator {
     private static func resolvePending(
         pending: PendingDecision,
         state: GameState,
-        rng: inout SeededRNG,
-        difficulty: Difficulty
+        rng: inout SeededRNG
     ) -> (GameState, [GameEffect]) {
         switch pending {
         case .colourChoice(let playerID):

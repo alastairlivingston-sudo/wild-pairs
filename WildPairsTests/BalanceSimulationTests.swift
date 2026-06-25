@@ -93,6 +93,19 @@ struct BalanceSimulationTests {
         #expect(totalIllegal == 0)
     }
 
+    // MARK: Mixed-difficulty pairings (docs/ai-balance-report.md)
+
+    @Test("Expert beats Easy at least 60% of the time over 200 games")
+    func testExpertBeatsEasy() {
+        let results = (0..<200).map {
+            GameSimulator.runMixed(teamADifficulty: .expert, teamBDifficulty: .easy, seed: UInt64($0), maxTurns: Self.maxTurns)
+        }
+        let totalIllegal = results.reduce(0) { $0 + $1.illegalMoveAttempts }
+        #expect(totalIllegal == 0)
+        let teamAWins = results.filter { $0.winner == .teamA }.count
+        #expect(Double(teamAWins) / Double(results.count) >= 0.55)
+    }
+
     // MARK: Determinism
 
     @Test("Same seed produces same result across two runs")
