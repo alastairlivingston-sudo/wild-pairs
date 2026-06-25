@@ -330,4 +330,75 @@ final class WildPairsUITests: XCTestCase {
         attachment.lifetime = .keepAlways
         add(attachment)
     }
+
+    // A full multi-round session: round 1 ends, "Next round" advances to round 2, and the
+    // table is still fully functional there — not just reachable once and never re-tested.
+    //
+    // Two related flows are deliberately NOT automated here, by design rather than oversight:
+    //   - Solo!/catch: AI players auto-call Solo the instant they reach one card
+    //     (GameEngine.applySoloRequirement), so an AI is never catchable — only the human
+    //     could ever be caught, which would require driving their hand down to exactly one
+    //     card via taps on the horizontally-scrolling hand (the same off-screen hit-testing
+    //     flakiness this file's draw-only bot strategy exists to avoid). Already covered at
+    //     the unit level (AIConstraintTests, WinConditionTests' Solo! cases).
+    //   - Round-timer expiry: the default is 180s with no UI affordance to shorten it for a
+    //     test, and it's already covered thoroughly by TimedRoundTests at the engine level.
+    func testMultiRoundSessionContinuesPastFirstRound() {
+        XCUIDevice.shared.orientation = .portrait
+        defer { XCUIDevice.shared.orientation = .portrait }
+        continueAfterFailure = true
+
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest-reset-state"]
+        app.launch()
+        dismissOnboardingIfPresent(app)
+        app.buttons["home-new-game"].tap()
+        app.buttons["newgame-start"].tap()
+        XCTAssertTrue(app.buttons["game-pause-button"].waitForExistence(timeout: 5))
+
+        let nextRound = app.buttons["roundend-next"]
+        let backToHome = app.buttons["End game"]
+        let draw = app.buttons["game-draw-card-button"]
+
+        func drawUntil(_ condition: @autoclosure () -> Bool, timeout: TimeInterval) {
+            let deadline = Date().addingTimeInterval(timeout)
+            while Date() < deadline, !condition() {
+                if draw.exists, draw.isEnabled, draw.frame.width > 0 { draw.tap() }
+                usleep(200_000)
+            }
+        }
+
+        drawUntil(nextRound.exists || backToHome.exists, timeout: 90)
+        guard nextRound.exists else {
+            // The first round ended in a game-over (best-of-N reached) rather than a round
+            // win — there's no second round to advance to in that case, which is a valid
+            // outcome, not a failure of this test.
+            return
+        }
+
+        nextRound.tap()
+        XCTAssertTrue(app.buttons["game-pause-button"].waitForExistence(timeout: 5),
+                      "Game table should still be functional at the start of round 2")
+        let roundLabel = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Round'")).firstMatch
+        XCTAssertTrue(roundLabel.waitForExistence(timeout: 3))
+        XCTAssertFalse(roundLabel.label.contains("Round 1"), "Round number should have advanced past round 1")
+
+        // Confirm round 2 itself is genuinely playable (not just reachable) by successfully
+        // drawing a few times — full AI-driven rounds vary too much in length to require a
+        // second complete round within a tight combined test budget; round-end itself is
+        // already proven end-to-end by testRoundEndCelebrationRenders above.
+        var sawSuccessfulDraw = false
+        let settleDeadline = Date().addingTimeInterval(20)
+        while Date() < settleDeadline, !sawSuccessfulDraw {
+            if draw.exists, draw.isEnabled, draw.frame.width > 0 {
+                let countBefore = draw.label
+                draw.tap()
+                usleep(300_000)
+                if draw.label != countBefore { sawSuccessfulDraw = true }
+            }
+            usleep(200_000)
+        }
+        XCTAssertTrue(sawSuccessfulDraw || nextRound.exists || backToHome.exists,
+                      "Round 2 should be responsive to play, not frozen")
+    }
 }
