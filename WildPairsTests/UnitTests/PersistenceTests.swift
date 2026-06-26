@@ -135,6 +135,35 @@ struct UserSettingsTests {
         #expect(AnimationSpeed.fast.rawValue == "fast")
         #expect(AnimationSpeed.off.rawValue == "off")
     }
+
+    @Test("Settings JSON missing a newer key (e.g. hasSeenOnboarding) decodes with its default rather than failing")
+    func testForwardCompatibleDecodeMissingKey() throws {
+        let legacyJSON = """
+        {"animationSpeed":"fast","confirmEndGame":false,"hapticsEnabled":true,
+         "reducedVisualEffects":false,"colourBlindMode":true,"patternFills":false,"largeCards":false}
+        """
+        let decoded = try JSONDecoder().decode(UserSettings.self, from: Data(legacyJSON.utf8))
+        #expect(decoded.hasSeenOnboarding == false)
+        #expect(decoded.soundEnabled == true)
+        #expect(decoded.animationSpeed == .fast)
+        #expect(decoded.colourBlindMode == true)
+    }
+
+    @Test("hasSeenOnboarding round-trips correctly")
+    func testHasSeenOnboardingRoundTrip() throws {
+        let settings = UserSettings(hasSeenOnboarding: true)
+        let data = try JSONEncoder().encode(settings)
+        let decoded = try JSONDecoder().decode(UserSettings.self, from: data)
+        #expect(decoded.hasSeenOnboarding == true)
+    }
+
+    @Test("soundEnabled round-trips correctly")
+    func testSoundEnabledRoundTrip() throws {
+        let settings = UserSettings(soundEnabled: false)
+        let data = try JSONEncoder().encode(settings)
+        let decoded = try JSONDecoder().decode(UserSettings.self, from: data)
+        #expect(decoded.soundEnabled == false)
+    }
 }
 
 // MARK: - GameStats round-trip

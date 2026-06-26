@@ -25,8 +25,8 @@ public struct GameEngine {
             return handleCallSolo(playerID: playerID, state: state)
         case .callOutSolo(let targetID, let callerID):
             return handleCallOutSolo(targetPlayerID: targetID, callerID: callerID, state: state)
-        case .teamPass(let playerID):
-            return handleTeamPass(playerID: playerID, state: state)
+        case .submitTeamPass(let playerID, let card):
+            return handleSubmitTeamPass(playerID: playerID, card: card, state: state)
         case .passTurn(let playerID):
             return handlePassTurn(playerID: playerID, state: state)
         case .pauseGame:
@@ -109,6 +109,8 @@ public struct GameEngine {
         deck.discard(startCard)
         let startColour = startCard.colour ?? .crimson
 
+        let teamPassEnabled = config.ruleProfile.teamPassEnabled
+
         let state = GameState(
             schemaVersion: 1,
             players: players,
@@ -116,9 +118,9 @@ public struct GameEngine {
             turnDirection: .clockwise,
             currentColour: startColour,
             currentCardType: startCard.type,
-            pendingDecision: nil,
+            pendingDecision: teamPassEnabled ? firstTeamPassDecision(for: players) : nil,
             deck: deck,
-            phase: .playing,
+            phase: teamPassEnabled ? .teamPass : .playing,
             mode: config.mode,
             ruleProfile: config.ruleProfile,
             roundNumber: 1,
@@ -558,13 +560,76 @@ public struct GameEngine {
 
     // MARK: - Team pass (Side-to-Side pre-round)
 
-    private static func handleTeamPass(
+    // MARK: - Team pass (Side-to-Side Teams)
+
+    /// Records one player's Team Pass submission (a card to give, or nil to decline). Once
+    /// every player has submitted, performs the simultaneous within-team swap for any team
+    /// where both members chose a card, then transitions to `.playing`. Players submit in
+    /// seat order — this is a sequencing convenience, not a fairness leak: nobody's choice
+    /// is revealed to the others (not even their own partner) until the swap itself happens.
+    private static func handleSubmitTeamPass(
         playerID: UUID,
+        card: Card?,
         state: GameState
     ) -> (GameState, [GameEffect]) {
-        // Team pass is a pre-round swap; the card to pass is carried in the action
-        // For Phase 2 we accept the action and do nothing — full logic in Phase 3
-        return (state, [])
+        guard state.phase == .teamPass,
+              case .teamPass(let pendingID) = state.pendingDecision,
+              pendingID == playerID,
+              let playerIndex = state.players.firstIndex(where: { $0.id == playerID }) else {
+            return (state, [.accessibilityAnnounce("Invalid move")])
+        }
+        if let card, !state.players[playerIndex].hand.contains(where: { $0.id == card.id }) {
+            return (state, [.accessibilityAnnounce("Invalid move")])
+        }
+
+        var s = state
+        if let card {
+            s.teamPassSelections = (s.teamPassSelections ?? [:])
+            s.teamPassSelections?[playerID] = card
+        } else {
+            s.teamPassDeclined = (s.teamPassDeclined ?? [])
+            s.teamPassDeclined?.insert(playerID)
+        }
+
+        let submittedIDs = Set((s.teamPassSelections ?? [:]).keys).union(s.teamPassDeclined ?? [])
+        guard let next = s.players
+            .sorted(by: { $0.seatPosition < $1.seatPosition })
+            .first(where: { !submittedIDs.contains($0.id) })
+        else {
+            return resolveTeamPass(state: s)
+        }
+
+        s.pendingDecision = .teamPass(playerID: next.id)
+        return (s, [.triggerAutosave])
+    }
+
+    /// Every player has submitted; swap cards within each team that both opted in, then
+    /// open play. A unilateral decline cancels that team's swap (you can't exchange with a
+    /// partner who isn't exchanging back) but never blocks the other team's swap.
+    private static func resolveTeamPass(state: GameState) -> (GameState, [GameEffect]) {
+        var s = state
+        let selections = s.teamPassSelections ?? [:]
+
+        for team in [TeamID.teamA, .teamB] {
+            let teamPlayerIndices = s.players.indices.filter { s.players[$0].teamID == team }
+            guard teamPlayerIndices.count == 2,
+                  let givingCardA = selections[s.players[teamPlayerIndices[0]].id],
+                  let givingCardB = selections[s.players[teamPlayerIndices[1]].id] else {
+                continue
+            }
+            let indexA = teamPlayerIndices[0]
+            let indexB = teamPlayerIndices[1]
+            s.players[indexA].hand.removeAll { $0.id == givingCardA.id }
+            s.players[indexB].hand.removeAll { $0.id == givingCardB.id }
+            s.players[indexA].hand.append(givingCardB)
+            s.players[indexB].hand.append(givingCardA)
+        }
+
+        s.teamPassSelections = nil
+        s.teamPassDeclined = nil
+        s.pendingDecision = nil
+        s.phase = .playing
+        return (s, [.accessibilityAnnounce("Team pass complete. Play begins."), .triggerAutosave])
     }
 
     // MARK: - Pass turn
@@ -610,10 +675,23 @@ public struct GameEngine {
         s.currentCardType = startCard.type
         s.currentPlayerIndex = 0
         s.turnDirection = .clockwise
-        s.pendingDecision = nil
         s.winState = nil
-        s.phase = .playing
+        s.teamPassSelections = nil
+        s.teamPassDeclined = nil
+        if s.ruleProfile.teamPassEnabled {
+            s.pendingDecision = firstTeamPassDecision(for: s.players)
+            s.phase = .teamPass
+        } else {
+            s.pendingDecision = nil
+            s.phase = .playing
+        }
         return (s, [.animateCardShuffle, .triggerAutosave])
+    }
+
+    /// Seat-ordered first player who must submit a Team Pass choice.
+    private static func firstTeamPassDecision(for players: [Player]) -> PendingDecision? {
+        guard let first = players.sorted(by: { $0.seatPosition < $1.seatPosition }).first else { return nil }
+        return .teamPass(playerID: first.id)
     }
 
     // MARK: - Win detection

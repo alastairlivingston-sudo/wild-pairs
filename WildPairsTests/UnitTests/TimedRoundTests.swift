@@ -39,6 +39,13 @@ struct TimedRoundTests {
         #expect(next.winState?.winningPlayerID == next.players[0].id)
         #expect(next.winState?.reason == .roundTimerExpired)
         #expect(effects.contains { if case .playRoundEnd(let t) = $0 { return t == .teamA }; return false })
+
+        let viewState = GameViewState(from: next, localPlayerID: next.players[0].id)
+        guard case .roundOverByTimeout(let teamName) = viewState.prompt else {
+            Issue.record("Expected .roundOverByTimeout, got \(viewState.prompt)")
+            return
+        }
+        #expect(teamName == TeamID.teamA.displayName)
     }
 
     @Test("Round timer tie-break: equal points favours fewer cards, then lower seat position")

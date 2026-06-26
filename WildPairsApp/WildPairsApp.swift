@@ -14,10 +14,19 @@ struct WildPairsApp: App {
 // so autosave, resume, settings, and stats all read/write the same Documents files.
 
 struct RootView: View {
-    @StateObject private var settings = AppSettings()
+    @StateObject private var settings: AppSettings
     @State private var game: GameViewModel?
 
     private let persistence = PersistenceService()
+
+    init() {
+        // UI tests pass this to start from a clean slate (no saved game/settings/stats),
+        // so onboarding and other first-launch behaviour can be verified deterministically.
+        if ProcessInfo.processInfo.arguments.contains("--uitest-reset-state") {
+            DataResetService(service: PersistenceService()).resetAll()
+        }
+        _settings = StateObject(wrappedValue: AppSettings())
+    }
 
     var body: some View {
         Group {
@@ -29,6 +38,20 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut, value: game == nil)
+        .fullScreenCover(isPresented: showOnboardingBinding) {
+            OnboardingView(onDismiss: dismissOnboarding)
+        }
+    }
+
+    private var showOnboardingBinding: Binding<Bool> {
+        Binding(
+            get: { !settings.userSettings.hasSeenOnboarding },
+            set: { _ in }
+        )
+    }
+
+    private func dismissOnboarding() {
+        settings.userSettings.hasSeenOnboarding = true
     }
 
     private func startGame(_ config: GameConfig) {

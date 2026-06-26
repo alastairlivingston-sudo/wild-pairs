@@ -67,8 +67,9 @@ View → GameAction intent → GameViewModel → GameEngine.reduce(state, action
 
 ### AI fairness
 - `AIObservation` struct: what an AI player may legally know
-- AI may see: discard pile, current colour/action, all players' card counts, history of played cards, team win state
-- AI may NOT see: any player's hidden hand (own or others') beyond what rules explicitly reveal
+- AI may see: discard pile, current colour/action, all players' card counts, history of played cards, team win state, own hand, **and its partner's hand contents** (`AIObservation.partnerHand`)
+- AI may NOT see: any opponent's hidden hand, beyond what rules explicitly reveal
+- Partner hands are open between teammates by design (see `docs/game-rules.md` Team Communication Rules) — this applies symmetrically to the human (sees AI partner's hand in the UI) and the AI (may use partner hand contents in move/colour/target heuristics)
 - Exception: Forced Swap card legally reveals both hands to the swapping players
 
 ## Canonical Design Vocabulary

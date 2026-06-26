@@ -31,6 +31,10 @@ enum Theme {
         static let regularHand = CGSize(width: 80, height: 120)
         static let selected = CGSize(width: 100, height: 150)
         static let opponentBack = CGSize(width: 44, height: 66)
+        /// Smaller variants used when the table must fit a short landscape height
+        /// (iPhone landscape, and any device where width vastly exceeds height).
+        static let landscapeHand = CGSize(width: 50, height: 75)
+        static let landscapeBack = CGSize(width: 30, height: 45)
     }
 
     // MARK: UI colours (§7)
@@ -79,6 +83,17 @@ extension CardColour {
         case .cobalt:  return "water.waves"
         case .jade:    return "leaf.fill"
         case .amber:   return "sun.max.fill"
+        }
+    }
+
+    /// Plain-English symbol name for VoiceOver (CLAUDE.md colour table): "Flame"/"Wave"/
+    /// "Leaf"/"Sun", as opposed to `symbolName`'s SF Symbol identifier.
+    var symbolDisplayName: String {
+        switch self {
+        case .crimson: return "Flame"
+        case .cobalt:  return "Wave"
+        case .jade:    return "Leaf"
+        case .amber:   return "Sun"
         }
     }
 }

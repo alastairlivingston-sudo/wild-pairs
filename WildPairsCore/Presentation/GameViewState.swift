@@ -35,16 +35,22 @@ public struct PlayerSeatViewState: Equatable, Sendable, Identifiable {
     public let isLocalPlayer: Bool
     /// Holds exactly one card and has not satisfied the Solo! requirement — catchable.
     public let needsSoloCall: Bool
+    /// The seat's hand contents, populated only for the local player's partner — partner
+    /// hands are open by design (see `docs/game-rules.md` Team Communication Rules).
+    /// Nil for the local player's own seat (use `GameViewState.localHand` instead) and for
+    /// opponent seats, which remain count-only.
+    public let visiblePartnerHand: [Card]?
 
     public init(
         id: UUID, name: String, teamID: TeamID, seatPosition: Int,
         handCount: Int, isCurrentPlayer: Bool, hasFinishedRound: Bool,
-        isLocalPlayer: Bool, needsSoloCall: Bool
+        isLocalPlayer: Bool, needsSoloCall: Bool, visiblePartnerHand: [Card]? = nil
     ) {
         self.id = id; self.name = name; self.teamID = teamID
         self.seatPosition = seatPosition; self.handCount = handCount
         self.isCurrentPlayer = isCurrentPlayer; self.hasFinishedRound = hasFinishedRound
         self.isLocalPlayer = isLocalPlayer; self.needsSoloCall = needsSoloCall
+        self.visiblePartnerHand = visiblePartnerHand
     }
 }
 
@@ -70,8 +76,14 @@ public enum PromptKind: Equatable, Sendable {
     case waitingFor(playerName: String)
     case chooseColour
     case chooseTarget
+    /// Side-to-Side Teams only: the local player must submit a card to pass to their
+    /// partner, or decline.
+    case chooseTeamPass
     case mustDraw
     case roundOver(winningTeamName: String)
+    /// Round timer fallback fired (`WinReason.roundTimerExpired`) — nobody emptied their
+    /// hand, the round was decided by lowest card-point score instead of a normal go-out.
+    case roundOverByTimeout(winningTeamName: String)
     case gameOver(winningTeamName: String)
     case paused
 }
@@ -99,14 +111,21 @@ public struct GameViewState: Equatable, Sendable {
     public let awaitingLocalColourChoice: Bool
     /// Non-empty when the engine is waiting for the local player to pick a target.
     public let localTargetChoices: [UUID]
+    /// True when the engine is waiting for the local player to submit their Side-to-Side
+    /// Team Pass choice (a card to give their partner, or decline).
+    public let awaitingLocalTeamPass: Bool
     /// A seat the local player can legally call out for a missed Solo!, if any.
     public let catchableSoloPlayerID: UUID?
+    /// Whether the local player's team won, once `winState` is set (nil while still playing).
+    /// Lets the UI choose "Your team wins…" vs "Opponents win…" framing (ux-spec.md §10).
+    public let localTeamWon: Bool?
 
     // MARK: Derivation
 
     public init(from state: GameState, localPlayerID: UUID) {
         let local = state.players.first { $0.id == localPlayerID }
         let localTeam = local?.teamID
+        let partnerID = state.teamState.partnerID(for: localPlayerID)
 
         self.seats = state.players
             .sorted { $0.seatPosition < $1.seatPosition }
@@ -117,7 +136,8 @@ public struct GameViewState: Equatable, Sendable {
                     isCurrentPlayer: state.currentPlayer?.id == p.id,
                     hasFinishedRound: p.hasFinishedRound,
                     isLocalPlayer: p.id == localPlayerID,
-                    needsSoloCall: p.hand.count == 1 && !p.hasCalledSolo
+                    needsSoloCall: p.hand.count == 1 && !p.hasCalledSolo,
+                    visiblePartnerHand: p.id == partnerID ? p.hand : nil
                 )
             }
 
@@ -159,6 +179,11 @@ public struct GameViewState: Equatable, Sendable {
         } else {
             self.localTargetChoices = []
         }
+        if case .teamPass(let pid) = state.pendingDecision, pid == localPlayerID {
+            self.awaitingLocalTeamPass = true
+        } else {
+            self.awaitingLocalTeamPass = false
+        }
 
         // A non-local seat the local player could catch for a missed Solo!
         self.catchableSoloPlayerID = state.ruleProfile.soloCallEnabled
@@ -166,6 +191,8 @@ public struct GameViewState: Equatable, Sendable {
                 $0.id != localPlayerID && $0.hand.count == 1 && !$0.hasCalledSolo
               })?.id
             : nil
+
+        self.localTeamWon = state.winState.map { $0.winningTeam == localTeam }
 
         // Prompt
         self.prompt = GameViewState.prompt(
@@ -224,6 +251,9 @@ public struct GameViewState: Equatable, Sendable {
         localTeam: TeamID?, hasLegalPlay: Bool
     ) -> PromptKind {
         if state.phase == .roundEnded, let win = state.winState {
+            if win.reason == .roundTimerExpired {
+                return .roundOverByTimeout(winningTeamName: win.winningTeam.displayName)
+            }
             return .roundOver(winningTeamName: win.winningTeam.displayName)
         }
         if state.phase == .gameEnded, let win = state.winState {
@@ -234,6 +264,9 @@ public struct GameViewState: Equatable, Sendable {
         }
         if case .targetChoice(let pid, _) = state.pendingDecision {
             return pid == localPlayerID ? .chooseTarget : .waitingFor(playerName: name(of: pid, in: state))
+        }
+        if case .teamPass(let pid) = state.pendingDecision {
+            return pid == localPlayerID ? .chooseTeamPass : .waitingFor(playerName: name(of: pid, in: state))
         }
         if isLocalTurn {
             return hasLegalPlay ? .yourTurn(hint: matchHint(state: state)) : .mustDraw

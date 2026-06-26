@@ -11,6 +11,9 @@ public enum TurnDirection: String, Codable, Equatable, Sendable {
 /// The current phase of the game lifecycle.
 public enum GamePhase: String, Codable, Equatable, Sendable {
     case dealing       // Cards are being dealt; no actions yet
+    /// Side-to-Side Teams only (`RuleProfile.teamPassEnabled`): after dealing, before the
+    /// first card is played, each player privately submits a card to pass (or declines).
+    case teamPass
     case playing       // Active round in progress
     case roundEnded    // A round has finished; scoring in progress
     case gameEnded     // The game has a winner
@@ -32,7 +35,7 @@ public enum PendingDecision: Codable, Equatable, Sendable {
     case colourChoice(playerID: UUID)
     /// The player with this ID must choose a target from the valid list.
     case targetChoice(playerID: UUID, validTargets: [UUID])
-    /// The player with this ID may invoke team pass (their teammate plays a card).
+    /// The player with this ID must submit (or decline) their Team Pass card.
     case teamPass(playerID: UUID)
     /// A challenged draw-four is awaiting resolution.
     case drawFourChallenge(challengerID: UUID, challengedID: UUID)
@@ -151,6 +154,18 @@ public struct GameState: Codable, Equatable, Sendable {
     /// Populated when `phase` transitions to `.roundEnded` or `.gameEnded`.
     public var winState: WinState?
 
+    // MARK: Side-to-Side Team Pass (in-progress selections during `.teamPass` phase)
+
+    /// Players who have submitted a card to pass, keyed by the giving player's ID. Optional
+    /// (rather than defaulting to `[:]`) so older persisted snapshots without this key still
+    /// decode via the synthesized `Decodable`'s automatic `decodeIfPresent` for `Optional`
+    /// stored properties — nil is treated as empty everywhere it's read.
+    public var teamPassSelections: [UUID: Card]?
+
+    /// Players who have explicitly declined to pass this round. Same forward-compatibility
+    /// reasoning as `teamPassSelections`.
+    public var teamPassDeclined: Set<UUID>?
+
     // MARK: Randomness
 
     /// The seed used to initialise the RNG for this game.
@@ -171,7 +186,8 @@ public struct GameState: Codable, Equatable, Sendable {
         case schemaVersion, players, currentPlayerIndex, turnDirection
         case currentColour, currentCardType, pendingDecision, deck
         case phase, mode, ruleProfile, roundNumber, teamScores
-        case winState, rngSeed, actionCount, eventLog
+        case winState, teamPassSelections, teamPassDeclined
+        case rngSeed, actionCount, eventLog
     }
 
     // Custom Equatable to exclude eventLog from equality checks
@@ -190,6 +206,8 @@ public struct GameState: Codable, Equatable, Sendable {
         lhs.roundNumber == rhs.roundNumber &&
         lhs.teamScores == rhs.teamScores &&
         lhs.winState == rhs.winState &&
+        lhs.teamPassSelections == rhs.teamPassSelections &&
+        lhs.teamPassDeclined == rhs.teamPassDeclined &&
         lhs.rngSeed == rhs.rngSeed &&
         lhs.actionCount == rhs.actionCount
         // eventLog intentionally excluded
@@ -226,6 +244,8 @@ public struct GameState: Codable, Equatable, Sendable {
         roundNumber: Int = 1,
         teamScores: [TeamID: Int] = [.teamA: 0, .teamB: 0],
         winState: WinState? = nil,
+        teamPassSelections: [UUID: Card]? = nil,
+        teamPassDeclined: Set<UUID>? = nil,
         rngSeed: UInt64 = 0,
         actionCount: Int = 0,
         eventLog: [GameEvent] = []
@@ -244,6 +264,8 @@ public struct GameState: Codable, Equatable, Sendable {
         self.roundNumber = roundNumber
         self.teamScores = teamScores
         self.winState = winState
+        self.teamPassSelections = teamPassSelections
+        self.teamPassDeclined = teamPassDeclined
         self.rngSeed = rngSeed
         self.actionCount = actionCount
         self.eventLog = eventLog

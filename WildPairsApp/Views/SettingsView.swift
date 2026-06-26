@@ -21,10 +21,14 @@ struct SettingsView: View {
 
             Section("Accessibility") {
                 Toggle("Haptics", isOn: s.hapticsEnabled)
+                Toggle("Sound effects", isOn: s.soundEnabled)
+                    .accessibilityIdentifier("settings-sound-toggle")
                 Toggle("Reduced visual effects", isOn: s.reducedVisualEffects)
                 Toggle("Colour-blind mode", isOn: s.colourBlindMode)
+                    .accessibilityIdentifier("settings-colourblind-toggle")
                 if settings.userSettings.colourBlindMode {
                     Toggle("Pattern fills", isOn: s.patternFills)
+                        .accessibilityIdentifier("settings-patternfills-toggle")
                 }
                 Toggle("Large cards", isOn: s.largeCards)
             }

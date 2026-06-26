@@ -8,8 +8,10 @@ import Foundation
 /// ## Fairness Guarantee
 ///
 /// `AIObservation` is the **only** input passed to any AI implementation.
-/// It deliberately omits the hand contents of all players except the AI's
-/// own player — mirroring what a human player can observe at the table.
+/// It deliberately omits the hand contents of every player except the AI's
+/// own player and its teammate — mirroring what a human player can observe
+/// at the table, where partner hands are open by design (see
+/// `docs/game-rules.md` Team Communication Rules).
 ///
 /// AI implementations must never:
 /// - Receive or inspect a full `GameState` directly.
@@ -72,9 +74,12 @@ public struct AIObservation: Sendable {
 
     // MARK: Own Hand Only (private to this AI player)
 
-    /// The AI's own hand — the only hand contents exposed in `AIObservation`.
-    /// All other players' hands are withheld.
+    /// The AI's own hand.
     public let myHand: [Card]
+
+    /// The AI's partner's hand contents — open between teammates by design.
+    /// Empty if the AI has no partner. Opponent hands are never exposed.
+    public let partnerHand: [Card]
 
     /// The player ID of the AI receiving this observation.
     public let myPlayerID: UUID
@@ -110,8 +115,8 @@ public struct AIObservation: Sendable {
 
     /// Creates an `AIObservation` by filtering a full `GameState` for the given player.
     ///
-    /// Only the specified player's hand is included. All other hands are replaced
-    /// with card count values only.
+    /// Only the specified player's hand and their partner's hand are included.
+    /// Opponent hands are replaced with card count values only.
     ///
     /// - Parameters:
     ///   - state: The full game state (accessible only to the engine/ViewModel).
@@ -142,5 +147,8 @@ public struct AIObservation: Sendable {
         self.myHand = targetPlayer?.hand ?? []
         self.myPlayerID = playerID
         self.myTeamID = targetPlayer?.teamID ?? .teamA
+
+        let partnerID = state.teamState.partnerID(for: playerID)
+        self.partnerHand = state.players.first(where: { $0.id == partnerID })?.hand ?? []
     }
 }

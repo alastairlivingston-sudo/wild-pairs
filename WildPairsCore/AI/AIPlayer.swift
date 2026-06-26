@@ -46,6 +46,38 @@ public enum AIPlayer {
         }
     }
 
+    /// Side-to-Side Teams only: picks a card from `myHand` to pass to the partner, or nil
+    /// to decline. Easy mimics its "random valid move" philosophy (a coin flip on whether
+    /// to pass at all, then a random card). Medium and up always attempt to pass, choosing
+    /// the card whose colour is least represented in their own hand — i.e. their hardest
+    /// card to use themselves, since giving it up costs the least optionality. Wild cards
+    /// are never offered: they're too flexible to give away if any colour card is available.
+    public static func selectTeamPassCard(
+        observation: AIObservation,
+        difficulty: Difficulty,
+        rng: inout SeededRNG
+    ) -> Card? {
+        guard !observation.myHand.isEmpty else { return nil }
+        switch difficulty {
+        case .easy:
+            guard Bool.random(using: &rng) else { return nil }
+            return observation.myHand.randomElement(using: &rng)
+        case .medium, .hard, .expert, .master:
+            let nonWild = observation.myHand.filter { !$0.isWild }
+            let candidates = nonWild.isEmpty ? observation.myHand : nonWild
+            var colourCounts: [CardColour: Int] = [:]
+            for card in observation.myHand {
+                guard let colour = card.colour else { continue }
+                colourCounts[colour, default: 0] += 1
+            }
+            return candidates.min { lhs, rhs in
+                let lhsCount = lhs.colour.map { colourCounts[$0, default: 0] } ?? Int.max
+                let rhsCount = rhs.colour.map { colourCounts[$0, default: 0] } ?? Int.max
+                return lhsCount < rhsCount
+            }
+        }
+    }
+
     public static func thinkDelay(for difficulty: Difficulty) -> TimeInterval {
         switch difficulty {
         case .easy:   return 0.3
@@ -132,18 +164,27 @@ enum MediumAI {
     }
 
     static func selectColour(observation: AIObservation, rng: inout SeededRNG) -> CardColour {
-        let counts = Dictionary(
+        // Team-aware: weight by own hand plus the partner's open hand, so the chosen colour
+        // sets up whichever teammate is better placed to keep playing, not just the AI itself.
+        let myCounts = Dictionary(
             grouping: observation.myHand.compactMap(\.colour),
             by: { $0 }
         ).mapValues { $0.count }
+        let partnerCounts = Dictionary(
+            grouping: observation.partnerHand.compactMap(\.colour),
+            by: { $0 }
+        ).mapValues { $0.count }
+        let teamCounts = CardColour.allCases.reduce(into: [CardColour: Int]()) { result, colour in
+            result[colour] = myCounts[colour, default: 0] + partnerCounts[colour, default: 0]
+        }
         // Dictionary.max(by:) ties break in hash-iteration order, which is randomized per
         // process for enum keys — that made AI colour choice (and everything downstream of
         // it) non-deterministic across runs of the same seed. Break ties via the fixed,
         // canonical CardColour.allCases order instead.
-        guard let maxCount = counts.values.max() else {
+        guard let maxCount = teamCounts.values.max(), maxCount > 0 else {
             return CardColour.allCases.randomElement(using: &rng) ?? .crimson
         }
-        return CardColour.allCases.first { counts[$0] == maxCount } ?? .crimson
+        return CardColour.allCases.first { teamCounts[$0] == maxCount } ?? .crimson
     }
 
     static func selectTarget(
@@ -170,6 +211,7 @@ enum HardAI {
         static let colourAdvantage:    Float = 0.3
         static let actionConservation: Float = 1.5
         static let partnerPenalty:     Float = 3.0
+        static let partnerSynergy:     Float = 0.4
     }
 
     static func chooseMove(observation: AIObservation, rng: inout SeededRNG) -> GameAction {
@@ -206,6 +248,11 @@ enum HardAI {
         if !card.isWild, let colour = card.colour {
             let myColourCount = Float(observation.myHand.filter { $0.colour == colour }.count)
             score += Weight.colourAdvantage * myColourCount
+
+            // Team synergy: leaving the active colour on something the partner's open hand
+            // is rich in sets them up for their next turn, regardless of seating order.
+            let partnerColourCount = Float(observation.partnerHand.filter { $0.colour == colour }.count)
+            score += Weight.partnerSynergy * partnerColourCount
         }
 
         // Conservation of rare powerful cards when urgency is low

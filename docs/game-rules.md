@@ -385,7 +385,7 @@ Team Play is double-edged: it gives both teammates more cards (potentially valua
 
 Team pass is optional per team. A team may decline to pass. The house rule setting controls whether team pass is available at all.
 
-**Team communication:** Players may NOT verbally or non-verbally signal the contents of their hand to their partner beyond what is visible on the table (i.e., the number of cards each player holds). This is a gentlemen's rule and is not enforced by the app.
+**Team communication:** See [Team Communication Rules](#team-communication-rules) — partner hands are open between teammates; opponent hands remain hidden. The Team Pass card choice above is the one exception made privately, before either teammate sees the other's selection.
 
 **Team play cards in Side-to-Side mode:** Team Play cards in this mode may use the partner-plays-immediately variant (configurable as a house rule).
 
@@ -513,16 +513,22 @@ partner doesn't need to. Under the **Both-Teammates-Out house rule**:
 
 ### Team Communication Rules
 
-Players may observe:
+**Open partner hands (canonical).** Teammates play with open hands between each other: each
+player can see their partner's hand contents in full, at all times. This is a deliberate
+teamwork mechanic, not a leak — Wild Pairs is cooperative-competitive, and seeing your partner's
+hand is how you coordinate which colour to steer toward, when to hold a Draw Four, and when to
+set up their out. The rule applies symmetrically: the human sees the AI partner's hand, and the
+AI partner equally "sees" the human's hand and may use it when choosing moves, colours, and
+targets (see `AIObservation.partnerHand` and the fairness note below).
+
+Opponent hands remain hidden. Players (human and AI alike) may observe about opponents only:
 - How many cards each player holds (visible at all times).
 - Which cards have been played (visible in the discard pile).
 
-Players may NOT signal:
-- The colours or types of cards in their hand.
-- Which card they plan to play.
-- Whether they want their partner to pass a specific card (in Side-to-Side mode, this decision must be made independently).
-
-The app does not enforce communication rules but the spirit of the game requires playing each hand privately.
+Players may NOT signal anything about an opponent's hand beyond the above, and may NOT use any
+information besides what this section grants. In Side-to-Side mode, the Team Pass card choice is
+still made privately per-player, simultaneously, before either teammate sees the other's pass
+selection.
 
 ---
 

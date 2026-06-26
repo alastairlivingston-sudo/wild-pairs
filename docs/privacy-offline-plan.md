@@ -507,5 +507,6 @@ If any match is found in app content, UI strings, or metadata, it must be replac
 | Date | Change | Author |
 |---|---|---|
 | 2026-06-21 | Initial version | Wild Pairs team |
+| 2026-06-26 | Phase 6 added `SoundCoordinator` (`AVAudioPlayer`/`AVAudioSession`, local bundled `.caf` assets only, no mic/capture). `scripts/check_privacy_manifest.sh` flags the `AVFoundation` import as an informational required-reason-API category to review; it is not actually one of Apple's required-reason categories (file timestamps, disk space, active keyboard, UserDefaults, system boot time) — playback APIs aren't covered. No `PrivacyInfo.xcprivacy` change needed; `NSPrivacyAccessedAPITypes` correctly stays empty. | Claude (Phase 6/7 session) |
 
 > Update this table whenever the data model, API usage, or SDK list changes.
