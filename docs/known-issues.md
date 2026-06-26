@@ -1,6 +1,6 @@
 # Known Issues
 
-> Owner: qa-lead | Updated: Phase 2 gate prep — Mac round-trip validated (2026-06-22)
+> Owner: qa-lead | Updated: Phase 9 visual overhaul (2026-06-26)
 
 ## Format
 Each issue: **ID** · **Severity** · **Phase found** · **Status** · Description · Workaround · Resolution
@@ -12,7 +12,10 @@ Status: `open` / `in-progress` / `resolved` / `wontfix` / `deferred`
 
 ## Open Issues
 
-_No code bugs yet — no code written. Phase 2 implementation issues will be logged here as they arise._
+| ID | Severity | Phase found | Status | Description | Workaround |
+|---|---|---|---|---|---|
+| KI-030 | medium | Phase 9 | open | design-system.md §3's "AX3+ activates large card mode automatically" is not wired to `dynamicTypeSize` anywhere in code — large card mode is currently a manual Settings toggle only | User can manually enable "Large cards" in Settings at large Dynamic Type sizes; not auto-detected |
+| KI-035 | low | Phase 9 | open | `testRoundEndCelebrationRenders` (WildPairsUITests) failed once in a full-suite `quality_full.sh` run on the iPad Air 13" destination (150s draw-loop budget not reached) but passed cleanly in ~52s when re-run in isolation on the same destination — consistent with RNG-dependent round length / simulator contention when running back-to-back with the other 17 UI tests, not a Phase 9 layout/logic regression (no code change made) | Re-run the single test in isolation if it fails in a full-suite run; consider raising the 150s budget or seeding a shorter test-only round if this recurs |
 
 ---
 
@@ -36,6 +39,10 @@ _No code bugs yet — no code written. Phase 2 implementation issues will be log
 | KI-014 | high | Phase 1 | resolved | ISSUE-09: ux-spec Journey 10 showed Solo! auto-calling for human; canonical is manual+timeout | Fixed Journey 10 to show manual 5s countdown tap mechanic (2026-06-21) |
 | KI-029 | high | Phase 1 | resolved | OneDrive used as source-sync mechanism; conflict copies and casing differences risked lost edits | GitHub established as single source of truth; OneDrive sync retired. `.gitignore`, `docs/git-workflow.md`, and `enterprise-build-notes.md` §Step 1 updated (2026-06-21) |
 | KI-028 | low | Phase 2 gate | resolved | Mac round-trip not yet run: `Package.swift` + `WildPairsCore` + `WildPairsTests` must compile and `swift test` must pass on Mac before Phase 2 code is written | Ran on Mac (Swift 6.3.2, Command Line Tools only). `WildPairsCore` builds clean; `swift test` runs all 13 Phase-2/3 placeholder tests green. Root finding: `WildPairsTests` uses Swift Testing (`import Testing`); on a Command-Line-Tools-only machine `Testing.framework`/`lib_TestingInterop.dylib` are present but not on the default dyld search paths, so **bare `swift test` fails** with "no such module 'Testing'". Added `scripts/swift_test.sh` (derives framework search path + rpaths from `xcode-select -p`) as the canonical, portable test command; bare `swift test` works once full Xcode is installed. No package, manifest, or model change required (`Package.swift` unchanged at tools-version 5.9; zero deps; only `import Foundation` in core). Docs updated: `testing-strategy.md` §9, `enterprise-build-notes.md` §6, `git-workflow.md` (2026-06-22) |
+| KI-031 | high | Phase 9 | resolved | Cards clipped off the right edge in portrait: local hand's last card, partner's open hand, and the current-colour indicator were all cut off | Root cause was `HandView`'s fixed-width `ScrollView`+`HStack`, the partner `openHandFan`, and the horizontal `ScrollView` seat wrappers in `GameTableView`. Replaced all three with width-aware overlapping fans / a fixed `GeometryReader` grid that always fits the available width (Phase 9 A5/A6/A7, 2026-06-26) |
+| KI-032 | medium | Phase 9 | resolved | Landscape orientation supported but never polished; doubled the layout code and was the source of several of the above clipping paths | Locked to portrait-only (`Info.plist`); removed the landscape branch from `GameTableView` entirely (Phase 9 A1, 2026-06-26) |
+| KI-033 | low | Phase 9 | resolved | Card back used `suit.club.fill` (an off-brand real-deck club suit symbol) | Replaced with a branded four-suit/monogram `CardBackView` design (Phase 9 A4, 2026-06-26) |
+| KI-034 | high | Phase 9 | resolved | Two bugs only surfaced by simulator/UI-test verification, not code review: (1) the HandView clipping fix (KI-031) still clipped the last hand card off the right edge in practice — a centring `HStack` was sized to the full `GeometryReader` width by its flexible `Spacer`s, then `.padding(.horizontal, 16)` was added on top of that already-full-width container, overflowing 16pt past each screen edge; (2) `HandView`'s `.accessibilityLabel("Your hand, N cards")` was applied directly to a `GeometryReader`, which has no view identity of its own, so the label leaked down and overwrote every individual hand card's accessibility label with the literal string "Your hand, 7 cards" instead of its real card description — caught by `testHandCardsHaveCanonicalAccessibilityLabels` failing in `WildPairsUITests`, not by manual review | (1) Centre the fan by sizing it to the *full* GeometryReader width directly (`.frame(width: geo.size.width, alignment: .center)`) instead of an inner flexible-Spacer `HStack` plus separate padding. (2) Add `.accessibilityElement(children: .contain)` before the label — the documented pattern for giving a container its own summary label while keeping children individually reachable. Both verified via `xcrun simctl io screenshot` (pixel-level edge check) and a full `WildPairsUITests` run (18/18 pass) after the fix (2026-06-26). Lesson: SwiftUI layout/accessibility modifier interactions on non-drawing containers (`GeometryReader`, flexible `Spacer`s) can behave unintuitively — code review alone did not catch either bug; simulator screenshots and the UI test suite did |
 
 ---
 

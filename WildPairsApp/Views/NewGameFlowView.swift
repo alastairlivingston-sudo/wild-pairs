@@ -12,43 +12,53 @@ struct NewGameFlowView: View {
     @State private var cardSet: CardSet = .standard
 
     var body: some View {
-        Form {
-            Section("Mode") {
-                Picker("Mode", selection: $mode) {
-                    Text("Standard Teams").tag(GameMode.standardTeams)
-                    Text("All-Wild Teams").tag(GameMode.allWild)
-                    Text("Side-to-Side Teams").tag(GameMode.sideToSide)
+        ZStack {
+            TableBackground()
+            Form {
+                Section("Mode") {
+                    Picker("Mode", selection: $mode) {
+                        Text("Standard Teams").tag(GameMode.standardTeams)
+                        Text("All-Wild Teams").tag(GameMode.allWild)
+                        Text("Side-to-Side Teams").tag(GameMode.sideToSide)
+                    }
+                    .pickerStyle(.inline)
+                    Text(modeBlurb).font(.footnote).foregroundStyle(.secondary)
                 }
-                .pickerStyle(.inline)
-                Text(modeBlurb).font(.footnote).foregroundStyle(.secondary)
-            }
-            Section("Difficulty") {
-                Picker("Difficulty", selection: $difficulty) {
-                    ForEach(Difficulty.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+                .listRowBackground(Color.black.opacity(0.25))
+                Section("Difficulty") {
+                    Picker("Difficulty", selection: $difficulty) {
+                        ForEach(Difficulty.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
                 }
-                .pickerStyle(.segmented)
-            }
-            Section("Card set") {
-                Picker("Card set", selection: $cardSet) {
-                    Text("Beginner").tag(CardSet.beginner)
-                    Text("Standard").tag(CardSet.standard)
-                    Text("Advanced").tag(CardSet.advanced)
+                .listRowBackground(Color.black.opacity(0.25))
+                Section("Card set") {
+                    Picker("Card set", selection: $cardSet) {
+                        Text("Beginner").tag(CardSet.beginner)
+                        Text("Standard").tag(CardSet.standard)
+                        Text("Advanced").tag(CardSet.advanced)
+                    }
+                    .pickerStyle(.segmented)
+                    Text(cardSetBlurb).font(.footnote).foregroundStyle(.secondary)
                 }
-                .pickerStyle(.segmented)
-                Text(cardSetBlurb).font(.footnote).foregroundStyle(.secondary)
-            }
-            Section {
-                Button {
-                    onStart(.standardFourPlayer(mode: mode, difficulty: difficulty, cardSet: cardSet))
-                } label: {
-                    Text("Start Game").frame(maxWidth: .infinity)
+                .listRowBackground(Color.black.opacity(0.25))
+                Section {
+                    Button {
+                        onStart(.standardFourPlayer(mode: mode, difficulty: difficulty, cardSet: cardSet))
+                    } label: {
+                        Text("Start Game")
+                    }
+                    .buttonStyle(.wpPrimary)
+                    .listRowBackground(Color.clear)
+                    .accessibilityIdentifier("newgame-start")
                 }
-                .buttonStyle(.borderedProminent)
-                .accessibilityIdentifier("newgame-start")
+                .listRowBackground(Color.clear)
             }
+            .scrollContentBackground(.hidden)
         }
         .navigationTitle("New Game")
         .navigationBarTitleDisplayMode(.inline)
+        .preferredColorScheme(.dark)
     }
 
     private var modeBlurb: String {

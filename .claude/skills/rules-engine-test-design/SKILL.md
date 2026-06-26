@@ -14,6 +14,11 @@ Generate comprehensive test scenarios from docs/game-rules.md. Every rule in the
 - WildPairsCore module structure (to know where test files live and what types exist)
 - Current test file locations (typically WildPairsCore/Tests/WildPairsTests/)
 
+The existing scenario list this skill maintains lives in `docs/testing-strategy.md` §5
+(`testHumanHasNoValidCardMustDraw` etc., in `WildPairsCoreTests/ScenarioTests.swift`) — read it
+first to avoid duplicating tests that already exist, and update it (not just the test file)
+when this skill adds or changes scenarios.
+
 ## Steps
 
 1. **Read docs/game-rules.md.** Read the complete rules document. Extract every numbered rule, sub-rule, card effect, win condition, and edge case. Create a flat list of all rules to be tested (numbered to match the spec).

@@ -1,9 +1,13 @@
 ﻿#!/usr/bin/env bash
-# Run on Mac with Xcode installed.
+# Runs on macOS with Xcode installed.
 # Usage: bash scripts/run_unit_tests.sh
 # Run all unit tests for the WildPairsCore Swift Package.
 # Filters: EngineTests, RulesTests, AITests, PersistenceTests.
 # Exit 0 = PASS (all tests pass). Exit 1 = FAIL (any test fails or build error).
+#
+# This is a filtered, formatted-output wrapper over swift_test.sh — it delegates the
+# actual `swift test` invocation there so Command-Line-Tools-only machines also get the
+# Testing.framework search-path fix (KI-028), instead of duplicating that logic here.
 
 set -euo pipefail
 
@@ -18,8 +22,7 @@ echo "Project root: $PROJECT_ROOT"
 echo ""
 
 # Run tests with verbose output to show counts
-OUTPUT=$(swift test \
-    --package-path "$PROJECT_ROOT" \
+OUTPUT=$(bash "$SCRIPT_DIR/swift_test.sh" \
     --filter "EngineTests|RulesTests|AITests|PersistenceTests" \
     2>&1)
 

@@ -1,5 +1,5 @@
 ﻿#!/usr/bin/env bash
-# Run on Mac with Xcode installed.
+# Runs on macOS with Xcode installed.
 # Usage: bash scripts/check_privacy_manifest.sh
 # Check for PrivacyInfo.xcprivacy if required-reason APIs are used.
 # Wild Pairs must have NSPrivacyTracking: false and NSPrivacyTrackingDomains: [].

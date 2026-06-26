@@ -6,35 +6,44 @@ import WildPairsCore
 
 struct RulesView: View {
     var body: some View {
-        List {
-            Section("How to play") {
-                bullet("Match the top card by colour, number, or action type — or play a wild.")
-                bullet("Can't match? Draw a card. If it's playable you may play it right away.")
-                bullet("Call Solo! the moment you're down to one card, or risk a 2-card penalty.")
-                bullet("You and your partner are a team. Both of you must empty your hands to win the round.")
-            }
-            Section("Card glossary") {
-                ForEach(GlossaryEntry.all) { entry in
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(entry.name).font(.headline)
-                        Text(entry.text).font(.subheadline).foregroundStyle(.secondary)
-                    }
-                    .padding(.vertical, 2)
+        ZStack {
+            TableBackground()
+            List {
+                Section("How to play") {
+                    bullet("Match the top card by colour, number, or action type — or play a wild.")
+                    bullet("Can't match? Draw a card. If it's playable you may play it right away.")
+                    bullet("Call Solo! the moment you're down to one card, or risk a 2-card penalty.")
+                    bullet("You and your partner are a team. Both of you must empty your hands to win the round.")
                 }
+                .listRowBackground(Color.black.opacity(0.25))
+                Section("Card glossary") {
+                    ForEach(GlossaryEntry.all) { entry in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(entry.name).font(.headline)
+                            Text(entry.text).font(.subheadline).foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+                .listRowBackground(Color.black.opacity(0.25))
+                Section("Modes") {
+                    bullet("Standard Teams — match by colour, number, or action.")
+                    bullet("All-Wild Teams — every card is playable every turn; pure action chaos.")
+                    bullet("Side-to-Side Teams — Standard rules plus an optional team card-pass at round start.")
+                }
+                .listRowBackground(Color.black.opacity(0.25))
+                Section("Difficulty") {
+                    bullet("Easy — random valid plays.")
+                    bullet("Medium — prefers action cards, basic team sense.")
+                    bullet("Hard — scores every move across multiple factors.")
+                    bullet("Expert — looks ahead and plays the highest-value move.")
+                }
+                .listRowBackground(Color.black.opacity(0.25))
             }
-            Section("Modes") {
-                bullet("Standard Teams — match by colour, number, or action.")
-                bullet("All-Wild Teams — every card is playable every turn; pure action chaos.")
-                bullet("Side-to-Side Teams — Standard rules plus an optional team card-pass at round start.")
-            }
-            Section("Difficulty") {
-                bullet("Easy — random valid plays.")
-                bullet("Medium — prefers action cards, basic team sense.")
-                bullet("Hard — scores every move across multiple factors.")
-                bullet("Expert — looks ahead and plays the highest-value move.")
-            }
+            .scrollContentBackground(.hidden)
         }
         .navigationTitle("Rules")
+        .preferredColorScheme(.dark)
     }
 
     private func bullet(_ text: String) -> some View {

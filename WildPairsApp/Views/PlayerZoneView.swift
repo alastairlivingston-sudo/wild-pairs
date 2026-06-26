@@ -15,6 +15,9 @@ struct PlayerZoneView: View {
     /// at that size CardView's internal content overflows its frame and corrupts the
     /// enclosing VStack's layout (the name/badge row above silently fails to render).
     var openHandCardSize: CGSize = Theme.CardSize.compactHand
+    /// Maximum width the card fan may occupy before it must overlap more tightly (A6) —
+    /// callers pass the seat's allotted slice of the table so the fan never clips.
+    var maxFanWidth: CGFloat? = nil
     var reducedMotion: Bool = false
     var isThinking: Bool = false
     var thinkingDotCount: Int = 3
@@ -48,14 +51,15 @@ struct PlayerZoneView: View {
             statusBadges
         }
         .padding(Theme.Space.s2)
+        .frame(maxWidth: maxFanWidth.map { $0 + Theme.Space.s2 * 2 })
         .background(
             RoundedRectangle(cornerRadius: Theme.Radius.r3)
-                .fill(Theme.Palette.surface)
-                .opacity(seat.isCurrentPlayer ? 1 : 0.5)
+                .fill(Color.black.opacity(seat.isCurrentPlayer ? 0.32 : 0.2))
         )
         .overlay(
             RoundedRectangle(cornerRadius: Theme.Radius.r3)
-                .strokeBorder(Theme.Palette.accent, lineWidth: seat.isCurrentPlayer ? 2 : 0)
+                .strokeBorder(seat.isCurrentPlayer ? Theme.Palette.accent : Color.white.opacity(0.12),
+                              lineWidth: seat.isCurrentPlayer ? 2 : 1)
         )
         .shadow(color: glowColor, radius: glowRadius)
         .animation(.spring(response: 0.5, dampingFraction: 0.6), value: seat.needsSoloCall)
@@ -98,29 +102,54 @@ struct PlayerZoneView: View {
             .background(Capsule().fill(Theme.Palette.accent.opacity(0.15)))
     }
 
+    /// Width-aware overlap so a fan of `count` cards at `cardWidth` never exceeds
+    /// `maxFanWidth` (falls back to the comfortable default overlap when there's room).
+    private func fanStep(count: Int, cardWidth: CGFloat, comfortableOverlap: CGFloat) -> CGFloat {
+        guard count > 1 else { return cardWidth }
+        let comfortableStep = cardWidth - comfortableOverlap
+        guard let maxWidth = maxFanWidth else { return comfortableStep }
+        let comfortableTotal = cardWidth + comfortableStep * CGFloat(count - 1)
+        if comfortableTotal <= maxWidth { return comfortableStep }
+        let step = (maxWidth - cardWidth) / CGFloat(count - 1)
+        return max(step, cardWidth * 0.15)
+    }
+
     private var backsFan: some View {
-        HStack(spacing: -cardBackSize.width * 0.55) {
-            ForEach(0..<min(seat.handCount, 5), id: \.self) { _ in
-                CardBackView(size: cardBackSize)
-            }
-            if seat.handCount == 0 {
-                Color.clear.frame(width: cardBackSize.width, height: cardBackSize.height)
+        let count = min(seat.handCount, 5)
+        let step = fanStep(count: count, cardWidth: cardBackSize.width, comfortableOverlap: cardBackSize.width * 0.55)
+        return ZStack(alignment: .leading) {
+            ForEach(0..<max(count, 1), id: \.self) { i in
+                if count == 0 {
+                    Color.clear.frame(width: cardBackSize.width, height: cardBackSize.height)
+                } else {
+                    CardBackView(size: cardBackSize).offset(x: CGFloat(i) * step)
+                        .transition(reducedMotion ? .identity : .scale(scale: 0.5).combined(with: .opacity))
+                }
             }
         }
+        .frame(width: count > 0 ? cardBackSize.width + step * CGFloat(count - 1) : cardBackSize.width,
+               height: cardBackSize.height)
     }
 
     /// Partner's hand, face-up — partner hands are open by design (game-rules.md Team
     /// Communication Rules). Not tappable: only the local player's own hand is playable.
     private func openHandFan(_ hand: [Card]) -> some View {
-        HStack(spacing: -openHandCardSize.width * 0.4) {
-            ForEach(hand) { card in
-                CardView(card: card, size: openHandCardSize, showColourName: showColourName,
-                         showPattern: showPattern)
-            }
-            if hand.isEmpty {
+        let count = hand.count
+        let step = fanStep(count: count, cardWidth: openHandCardSize.width, comfortableOverlap: openHandCardSize.width * 0.4)
+        return ZStack(alignment: .leading) {
+            if count == 0 {
                 Color.clear.frame(width: openHandCardSize.width, height: openHandCardSize.height)
+            } else {
+                ForEach(Array(hand.enumerated()), id: \.element.id) { index, card in
+                    CardView(card: card, size: openHandCardSize, showColourName: showColourName,
+                             showPattern: showPattern)
+                        .offset(x: CGFloat(index) * step)
+                        .transition(reducedMotion ? .identity : .scale(scale: 0.5).combined(with: .opacity))
+                }
             }
         }
+        .frame(width: count > 0 ? openHandCardSize.width + step * CGFloat(count - 1) : openHandCardSize.width,
+               height: openHandCardSize.height)
     }
 
     @ViewBuilder private var statusBadges: some View {

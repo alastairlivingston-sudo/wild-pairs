@@ -4,7 +4,8 @@ import Foundation
 import UniformTypeIdentifiers
 
 // Generates the 1024x1024 App Icon: four fanned, rounded cards in the game's original
-// colour palette (Theme.Palette / CLAUDE.md colour table) on a dark table-like background.
+// colour palette (Theme.Palette / CLAUDE.md colour table) on a premium dark felt background
+// (Theme.Felt, Phase 9 A11), with gold borders matching the in-app card finish.
 // No borrowed visual language from any existing card game (brand safety).
 
 let size = 1024.0
@@ -22,12 +23,12 @@ func hex(_ h: UInt32, alpha: CGFloat = 1) -> CGColor {
     return CGColor(red: r, green: g, blue: b, alpha: alpha)
 }
 
-// Background: dark table colour (matches Theme.Palette.tableDark).
-ctx.setFillColor(hex(0x1C2526))
+// Background: deep felt colour (matches Theme.Felt.baseDark).
+ctx.setFillColor(hex(0x0B2C26))
 ctx.fill(CGRect(x: 0, y: 0, width: size, height: size))
 
 // Subtle radial-ish vignette for depth (kept simple: a slightly lighter centre square).
-ctx.setFillColor(hex(0x222D2E))
+ctx.setFillColor(hex(0x163F35))
 let inset = size * 0.06
 ctx.fillEllipse(in: CGRect(x: inset, y: inset, width: size - inset * 2, height: size - inset * 2))
 
@@ -67,10 +68,10 @@ for (colour, angle, xOffset) in cards {
     ctx.fillPath()
     ctx.restoreGState()
 
-    // White border for the playing-card look.
+    // Gold border for the premium playing-card look (matches Theme.Palette.accent).
     ctx.saveGState()
     ctx.addPath(path)
-    ctx.setStrokeColor(CGColor(red: 1, green: 1, blue: 1, alpha: 0.85))
+    ctx.setStrokeColor(hex(0xD9B872, alpha: 0.9))
     ctx.setLineWidth(size * 0.006)
     ctx.strokePath()
     ctx.restoreGState()

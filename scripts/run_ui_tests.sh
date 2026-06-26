@@ -1,5 +1,5 @@
 ﻿#!/usr/bin/env bash
-# Run on Mac with Xcode installed.
+# Runs on macOS with Xcode installed.
 # Usage: bash scripts/run_ui_tests.sh
 # Run UI tests on iPhone and iPad simulators using xcodebuild.
 # Requires: Xcode project at project root (available after Phase 5).

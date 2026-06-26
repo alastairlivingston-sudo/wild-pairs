@@ -155,6 +155,8 @@ let result = GameSimulator.run(
 
 Each scenario is one `@Test` function in `WildPairsCoreTests/ScenarioTests.swift`. The description column summarises what the test asserts.
 
+> Use the **rules-engine-test-design** skill to (re)generate this list from `docs/game-rules.md` — it produces a positive + negative test pair per rule and ready-to-compile Swift Testing stubs grouped by rule area. Re-run it whenever `game-rules.md` changes.
+
 | Test function | Description |
 |---|---|
 | `testHumanHasNoValidCardMustDraw` | When human's hand contains no card matching top discard colour or number, and no wild, the only legal action is draw. Engine presents draw-only state. |

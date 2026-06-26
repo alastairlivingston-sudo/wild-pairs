@@ -10,22 +10,29 @@ struct PauseMenuView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    Button { onResume() } label: { Label("Resume", systemImage: "play.fill") }
-                }
-                Section {
-                    NavigationLink { RulesView() } label: { Label("Rules", systemImage: "questionmark.circle.fill") }
-                    NavigationLink { SettingsView(settings: settings) } label: { Label("Settings", systemImage: "gearshape.fill") }
-                }
-                Section {
-                    Button(role: .destructive) {
-                        if settings.userSettings.confirmEndGame { confirmEnd = true } else { onEndGame() }
-                    } label: {
-                        Label("End game", systemImage: "xmark.circle.fill")
+            ZStack {
+                TableBackground()
+                List {
+                    Section {
+                        Button { onResume() } label: { Label("Resume", systemImage: "play.fill") }
                     }
-                    .accessibilityIdentifier("pause-end-game")
+                    .listRowBackground(Color.black.opacity(0.25))
+                    Section {
+                        NavigationLink { RulesView() } label: { Label("Rules", systemImage: "questionmark.circle.fill") }
+                        NavigationLink { SettingsView(settings: settings) } label: { Label("Settings", systemImage: "gearshape.fill") }
+                    }
+                    .listRowBackground(Color.black.opacity(0.25))
+                    Section {
+                        Button(role: .destructive) {
+                            if settings.userSettings.confirmEndGame { confirmEnd = true } else { onEndGame() }
+                        } label: {
+                            Label("End game", systemImage: "xmark.circle.fill")
+                        }
+                        .accessibilityIdentifier("pause-end-game")
+                    }
+                    .listRowBackground(Color.black.opacity(0.25))
                 }
+                .scrollContentBackground(.hidden)
             }
             .navigationTitle("Paused")
             .navigationBarTitleDisplayMode(.inline)
@@ -37,6 +44,7 @@ struct PauseMenuView: View {
             }
         }
         .interactiveDismissDisabled()
+        .preferredColorScheme(.dark)
     }
 }
 
@@ -97,31 +105,32 @@ struct RoundEndView: View {
                 }
                 .padding(Theme.Space.s4)
                 .frame(maxWidth: 320)
-                .background(RoundedRectangle(cornerRadius: Theme.Radius.r3).fill(Theme.Palette.surface))
+                .background(RoundedRectangle(cornerRadius: Theme.Radius.r3).fill(Color.black.opacity(0.3)))
 
                 VStack(spacing: Theme.Space.s3) {
                     if !isGameOver {
                         Button { onNext() } label: {
-                            Text("Next round").frame(maxWidth: .infinity)
+                            Text("Next round")
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.wpPrimary)
                         .accessibilityIdentifier("roundend-next")
                     }
                     Button { onExit() } label: {
-                        Text(isGameOver ? "Back to Home" : "End game").frame(maxWidth: .infinity)
+                        Text(isGameOver ? "Back to Home" : "End game")
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.wpSecondary)
                 }
                 .frame(maxWidth: 320)
             }
             .padding(Theme.Space.s6)
             .background(
-                RoundedRectangle(cornerRadius: Theme.Radius.r4).fill(Theme.Palette.background)
+                RoundedRectangle(cornerRadius: Theme.Radius.r4).fill(Theme.Felt.base(.dark))
                     .shadow(color: didWin ? Theme.Palette.warning.opacity(0.4) : .clear, radius: 24)
             )
             .padding(Theme.Space.s5)
             .shadow(color: .black.opacity(0.2), radius: 16, y: 4)
         }
+        .preferredColorScheme(.dark)
         .accessibilityAddTraits(.isModal)
     }
 }

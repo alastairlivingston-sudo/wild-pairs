@@ -1,5 +1,5 @@
 ﻿#!/usr/bin/env bash
-# Run on Mac with Xcode installed.
+# Runs on macOS with Xcode installed.
 # Usage: bash scripts/check_project_capabilities.sh
 # Check .entitlements files for unnecessary capabilities.
 # Wild Pairs requires NO special capabilities beyond basic code-signing entitlements.

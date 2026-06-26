@@ -1,5 +1,5 @@
 ﻿#!/usr/bin/env bash
-# Run on Mac with Xcode installed.
+# Runs on macOS with Xcode installed.
 # Usage: bash scripts/run_simulations.sh
 # Run AI balance simulation tests.
 # Filters: SimulationTests target in WildPairsCore.
