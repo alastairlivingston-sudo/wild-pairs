@@ -12,10 +12,11 @@
 | Primary user | Personal use; App Store–quality codebase |
 
 ## Environment Constraint
-Claude Code runs on **Windows 11 Enterprise**. Xcode and the Swift toolchain are macOS-only.  
-All `.swift` files and `.sh` scripts created here are valid macOS/Xcode artifacts, synced to a Mac via OneDrive for building and testing.  
-**Do not attempt to compile or run Swift from the Windows host.**  
-Scripts are labelled **"Run on Mac with Xcode installed"**.
+Development happens directly on **macOS with Xcode installed** — there is no separate
+Windows host and no OneDrive sync step. Build, run, and test locally with `swift build` /
+`swift test` / `xcodebuild`, as documented in "Testing Commands" below. Scripts under
+`scripts/` run on macOS directly; the historical "Run on Mac with Xcode installed" labelling
+on older scripts is a holdover from an earlier setup and can be ignored.
 
 ## Phase Plan
 | Phase | Name | Gate doc |

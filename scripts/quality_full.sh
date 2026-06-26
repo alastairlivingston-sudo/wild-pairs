@@ -1,5 +1,5 @@
 ﻿#!/usr/bin/env bash
-# Run on Mac with Xcode installed.
+# Runs on macOS with Xcode installed.
 # Usage: bash scripts/quality_full.sh
 # Complete quality gate at phase completion. May take several minutes.
 # Runs: Swift Package build, all unit tests, simulation tests,

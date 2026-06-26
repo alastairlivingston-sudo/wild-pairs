@@ -1,5 +1,5 @@
 ﻿#!/usr/bin/env bash
-# Run on Mac with Xcode installed.
+# Runs on macOS with Xcode installed.
 # Usage: bash scripts/check_permissions_minimal.sh
 # Check Info.plist for protected-resource usage description keys.
 # Wild Pairs requires NO protected resources (no camera, mic, location, etc.).

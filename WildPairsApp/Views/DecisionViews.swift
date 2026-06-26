@@ -7,38 +7,41 @@ import WildPairsCore
 struct ColourPickerView: View {
     let onChoose: (CardColour) -> Void
     var showPattern: Bool = false
-    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        VStack(spacing: Theme.Space.s4) {
-            Text("Choose a new colour").font(.title).fontWeight(.semibold)
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Theme.Space.s3) {
-                ForEach(CardColour.allCases, id: \.self) { colour in
-                    Button { onChoose(colour) } label: {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: Theme.Radius.r3).fill(colour.fillColor(scheme))
-                            if showPattern {
-                                CardPatternFill(colour: colour).clipShape(RoundedRectangle(cornerRadius: Theme.Radius.r3))
+        ZStack {
+            TableBackground()
+            VStack(spacing: Theme.Space.s4) {
+                Text("Choose a new colour").font(.title).fontWeight(.semibold).foregroundStyle(.white)
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Theme.Space.s3) {
+                    ForEach(CardColour.allCases, id: \.self) { colour in
+                        Button { onChoose(colour) } label: {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: Theme.Radius.r3).fill(colour.fillColor(.dark))
+                                if showPattern {
+                                    CardPatternFill(colour: colour).clipShape(RoundedRectangle(cornerRadius: Theme.Radius.r3))
+                                }
+                                VStack(spacing: Theme.Space.s2) {
+                                    SuitSymbol(colour: colour, lineWidth: 2.4).frame(width: 28, height: 28)
+                                    Text(showPattern ? colour.displayName.uppercased() : colour.displayName)
+                                        .fontWeight(.semibold)
+                                }
+                                .foregroundStyle(.white)
                             }
-                            VStack(spacing: Theme.Space.s2) {
-                                Image(systemName: colour.symbolName).font(.title)
-                                Text(showPattern ? colour.displayName.uppercased() : colour.displayName)
-                                    .fontWeight(.semibold)
-                            }
-                            .foregroundStyle(.white)
+                            // ux-spec.md §5 "Choose a new colour": each swatch minimum 100×100pt.
+                            .frame(minWidth: 100, minHeight: 100)
                         }
-                        // ux-spec.md §5 "Choose a new colour": each swatch minimum 100×100pt.
-                        .frame(minWidth: 100, minHeight: 100)
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("\(colour.displayName), \(colour.symbolDisplayName) symbol, button")
+                        .accessibilityIdentifier("colour-pick-\(colour.rawValue)")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("\(colour.displayName), \(colour.symbolDisplayName) symbol, button")
-                    .accessibilityIdentifier("colour-pick-\(colour.rawValue)")
                 }
             }
+            .padding(Theme.Space.s5)
         }
-        .padding(Theme.Space.s5)
         .presentationDetents([.height(340)])
         .interactiveDismissDisabled()
+        .preferredColorScheme(.dark)
     }
 }
 
@@ -47,27 +50,32 @@ struct TargetPickerView: View {
     let onChoose: (UUID) -> Void
 
     var body: some View {
-        VStack(spacing: Theme.Space.s4) {
-            Text("Choose a player").font(.title2).fontWeight(.semibold)
-            ForEach(candidates) { seat in
-                Button { onChoose(seat.id) } label: {
-                    HStack {
-                        Text(seat.name).fontWeight(.semibold)
-                        Spacer()
-                        Text("\(seat.handCount) cards").foregroundStyle(.secondary)
+        ZStack {
+            TableBackground()
+            VStack(spacing: Theme.Space.s4) {
+                Text("Choose a player").font(.title2).fontWeight(.semibold).foregroundStyle(.white)
+                ForEach(candidates) { seat in
+                    Button { onChoose(seat.id) } label: {
+                        HStack {
+                            Text(seat.name).fontWeight(.semibold)
+                            Spacer()
+                            Text("\(seat.handCount) cards").foregroundStyle(.secondary)
+                        }
+                        .padding(Theme.Space.s4)
+                        .frame(maxWidth: .infinity)
+                        .foregroundStyle(.white)
+                        .background(RoundedRectangle(cornerRadius: Theme.Radius.r3).fill(Color.black.opacity(0.3)))
                     }
-                    .padding(Theme.Space.s4)
-                    .frame(maxWidth: .infinity)
-                    .background(RoundedRectangle(cornerRadius: Theme.Radius.r3).fill(Theme.Palette.surface))
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(seat.name), \(seat.handCount) cards")
+                    .accessibilityIdentifier("target-pick-\(seat.seatPosition)")
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("\(seat.name), \(seat.handCount) cards")
-                .accessibilityIdentifier("target-pick-\(seat.seatPosition)")
             }
+            .padding(Theme.Space.s5)
         }
-        .padding(Theme.Space.s5)
         .presentationDetents([.medium])
         .interactiveDismissDisabled()
+        .preferredColorScheme(.dark)
     }
 }
 
@@ -81,38 +89,42 @@ struct TeamPassPickerView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(spacing: Theme.Space.s4) {
-            Text("Team Pass").font(.title).fontWeight(.semibold)
-            Text("Choose a card to give your partner, or decline.")
-                .font(.subheadline).foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+        ZStack {
+            TableBackground()
+            VStack(spacing: Theme.Space.s4) {
+                Text("Team Pass").font(.title).fontWeight(.semibold).foregroundStyle(.white)
+                Text("Choose a card to give your partner, or decline.")
+                    .font(.subheadline).foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Theme.Space.s3) {
-                    ForEach(hand) { card in
-                        Button {
-                            onChoose(card)
-                            dismiss()
-                        } label: {
-                            CardView(card: card, size: Theme.CardSize.regularHand)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Theme.Space.s3) {
+                        ForEach(hand) { card in
+                            Button {
+                                onChoose(card)
+                                dismiss()
+                            } label: {
+                                CardView(card: card, size: Theme.CardSize.regularHand)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("teampass-card-\(card.id)")
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("teampass-card-\(card.id)")
                     }
+                    .padding(.horizontal, Theme.Space.s2)
                 }
-                .padding(.horizontal, Theme.Space.s2)
-            }
 
-            Button("Decline — keep my hand") {
-                onChoose(nil)
-                dismiss()
+                Button("Decline — keep my hand") {
+                    onChoose(nil)
+                    dismiss()
+                }
+                .buttonStyle(.wpSecondary)
+                .accessibilityIdentifier("teampass-decline")
             }
-            .buttonStyle(.bordered)
-            .accessibilityIdentifier("teampass-decline")
+            .padding(Theme.Space.s5)
         }
-        .padding(Theme.Space.s5)
         .presentationDetents([.height(320)])
         .interactiveDismissDisabled()
+        .preferredColorScheme(.dark)
     }
 }
 
@@ -123,6 +135,7 @@ struct PromptBanner: View {
     var body: some View {
         Text(text)
             .font(.body).fontWeight(.medium)
+            .foregroundStyle(.white)
             .multilineTextAlignment(.center)
             .padding(.horizontal, Theme.Space.s4).padding(.vertical, Theme.Space.s2)
             .frame(maxWidth: .infinity)
@@ -130,7 +143,7 @@ struct PromptBanner: View {
             // banner wraps to several lines, the capsule grows tall, and its semicircular
             // ends balloon inward and clip the text. A fixed-radius rounded rect has no
             // such failure mode regardless of how many lines the text wraps to.
-            .background(RoundedRectangle(cornerRadius: Theme.Radius.r4).fill(Theme.Palette.surface))
+            .background(RoundedRectangle(cornerRadius: Theme.Radius.r4).fill(Color.black.opacity(0.3)))
             .accessibilityIdentifier("game-prompt")
     }
 
@@ -197,9 +210,9 @@ struct RoundTimerBadge: View {
     var body: some View {
         Label(label, systemImage: "clock")
             .font(.caption).fontWeight(.semibold).monospacedDigit()
-            .foregroundStyle(isUrgent ? Theme.Palette.warning : .secondary)
+            .foregroundStyle(isUrgent ? Theme.Palette.warning : .white.opacity(0.8))
             .padding(.horizontal, Theme.Space.s3).padding(.vertical, 4)
-            .background(Capsule().fill(Theme.Palette.surface))
+            .background(Capsule().fill(Color.black.opacity(0.3)))
             .accessibilityLabel("Round time remaining: \(label)")
             .accessibilityIdentifier("game-round-timer")
     }

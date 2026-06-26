@@ -1,6 +1,6 @@
 # Wild Pairs — Phase 1 Opus Action List
 
-> Source: [phase-1-opus-review.md](phase-1-opus-review.md)
+> Source: [phase-1-opus-review.md](archive/phase-1-opus-review.md) (archived — this action list is the live, kept-current document)
 > Owner: release-manager (coordination); document owners as noted per action
 > Rule: **Phase 2 does not start until every "Blocks Phase 2 = Yes" action is Done.**
 

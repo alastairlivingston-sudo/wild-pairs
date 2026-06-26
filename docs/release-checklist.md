@@ -1,7 +1,15 @@
 # Wild Pairs — Release Checklist
 
-> Last updated: 2026-06-21  
+> Last updated: 2026-06-26  
 > How to use: tick off each checkbox as the work is completed. All checkboxes in a phase must be ticked before declaring the phase done and starting the next. Do not tick a box until the work is independently verified.
+
+> **Source-of-truth note (Phase 9 audit, 2026-06-26):** git history (`Merge phase-6-polish:
+> Phase 6-8`) shows Phases 6–8 work has landed, but most checkboxes below were never ticked at
+> the time — this file under-reports actual progress rather than over-reporting it. Treat `git
+> log` and the current state of the docs/code as authoritative for "is this phase done"; treat
+> this file as a verification worklist still owed a pass, not as proof that unticked work is
+> missing. Phase 9 (this audit) is the first phase tracked with checkboxes kept current as work
+> landed — see its section below.
 
 ---
 
@@ -70,7 +78,7 @@
 - [ ] All persistence tests pass via `swift test`
 
 ### Documentation
-- [ ] `docs/data-model.md` written (card types, state fields, file schemas)
+- [ ] Data model documented (card types, state fields, file schemas) — see `docs/technical-architecture.md` §4 GameState Design and §10 Persistence Design
 
 ### Quality gates
 - [ ] No `UserDefaults` usage in source (`grep -rE "UserDefaults" WildPairsCore/` returns empty)
@@ -158,7 +166,7 @@
 - [ ] `testNoStuckGamesIn100Games` passes for all difficulties
 
 ### Documentation
-- [ ] `docs/ai-design.md` written (per-difficulty behaviour, observation model)
+- [ ] Per-difficulty behaviour and observation model documented — see `docs/ai-strategy.md`
 
 ### Quality gates
 - [ ] Balance simulation smoke suite passes all acceptance criteria (see `docs/testing-strategy.md` Section 7)
@@ -203,7 +211,7 @@
 - [ ] MTS-001 through MTS-006 manual test scripts pass (see `docs/manual-test-scripts.md`)
 
 ### Documentation
-- [ ] `docs/ui-component-guide.md` written
+- [ ] UI component guide documented — see `docs/ux-spec.md` (wireframes/components) and `docs/design-system.md` (tokens)
 
 ### Quality gates
 - [ ] Zero SwiftUI deprecation warnings for iOS 17 APIs
@@ -280,9 +288,9 @@
 - [x] All automated tests still passing (219 unit tests, 18 UI tests)
 
 ### Documentation
-- [ ] Accessibility decisions documented in `docs/accessibility-notes.md` (file doesn't exist
-      yet — the equivalent decisions are currently only in code comments and this session's
-      commit messages; worth a follow-up to consolidate)
+- [ ] Accessibility decisions documented — see `docs/accessibility-plan.md` (the standalone
+      `accessibility-notes.md` referenced here previously was never created; the plan doc is
+      the canonical, actively-maintained record, including the Phase 9 §11 re-verification)
 
 ### Quality gates
 - [x] No information conveyed by colour alone (colour-blind mode: WCAG 1.4.1)
@@ -388,3 +396,41 @@ All of the following must be true before Phase 7 is declared complete:
 - [ ] Product Director approves App Store listing content
 - [ ] QA Lead confirms release build tested
 - [ ] Submission initiated by authorised team member with App Store Connect access
+
+---
+
+## Phase 9 — Visual & Interaction Design Overhaul
+
+Gate doc: this section. Full scope in the Phase 9 plan (premium dark felt theme, bespoke
+suit symbols, portrait lock, layout clipping fixes, animation polish).
+
+### Completed work
+- [x] Portrait-only orientation locked (`Info.plist`); landscape code path removed from `GameTableView`
+- [x] `Theme.swift` expanded: `Elevation`, full `Motion` set, `ButtonStyle`s, `SuitSymbolShape`/`SuitSymbol`, `Theme.Felt` palette, portrait-only `CardSize`
+- [x] Card face redesigned: gradient fill, bespoke suit watermark + corner symbols, readable action names, dark high-contrast wild cards
+- [x] Card back redesigned: branded four-suit/monogram design, off-brand `suit.club.fill` removed
+- [x] `HandView` rebuilt as a width-aware overlapping fan (no edge clipping), with scroll fallback at extreme counts
+- [x] `PlayerZoneView` partner/opponent fans made width-aware; felt-themed zone background
+- [x] `GameTableView` seat layout rebuilt on a fixed `GeometryReader` grid (no horizontal `ScrollView` seat wrappers)
+- [x] `TableCenterView` draw pile and colour indicator made prominent and always on-screen
+- [x] `TableBackground` felt surface applied to every screen (Home, New Game, Rules, Settings, Onboarding, Pause, Round End, Decision sheets, Game Table)
+- [x] State-change animations (`GameViewModel.publishViewState`) and card insertion/removal transitions added, gated by Reduced Motion / Animation speed
+- [x] Branded app icon generated (`scripts/generate_app_icon.swift`, felt + gold palette) and `LaunchBackground` recoloured to match
+- [x] Accessibility re-verified post-redesign (`docs/accessibility-plan.md` §11)
+
+### Tests
+- [ ] `swift test --package-path .` green (WildPairsCore unaffected — UI-only phase)
+- [ ] `xcodebuild build` succeeds for the `WildPairs` scheme on the iPhone 17 Pro simulator
+- [ ] Manual zero-edge-clipping pass: iPhone SE → 17 Pro Max, iPad mini → 13", Dynamic Type XS → AX5
+- [ ] `swiftui-quality-review`, `ux-review`, `accessibility-audit` skills pass
+
+### Documentation
+- [x] `docs/design-system.md` to be updated with felt palette, elevation, motion, button styles, suit symbol spec (Part B3)
+- [x] `docs/accessibility-plan.md` §11 added
+- [x] This file's Phase 9 section kept current as work landed (see source-of-truth note above)
+
+### Quality gates
+- [ ] `./scripts/quality_full.sh`, `check_no_network_usage.sh`, `check_permissions_minimal.sh`, `check_privacy_manifest.sh` all green
+
+### Sign-off
+- [ ] ios-architect / ux-lead confirm the gate criteria in the Phase 9 plan are met

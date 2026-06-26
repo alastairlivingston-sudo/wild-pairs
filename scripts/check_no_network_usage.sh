@@ -1,5 +1,5 @@
 ﻿#!/usr/bin/env bash
-# Run on Mac with Xcode installed.
+# Runs on macOS with Xcode installed.
 # Usage: bash scripts/check_no_network_usage.sh
 # Scans WildPairsCore/ and WildPairsApp/ source files for network API usage.
 # All findings must be reviewed -- false positives are possible and must be documented.

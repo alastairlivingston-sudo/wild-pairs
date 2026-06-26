@@ -120,12 +120,32 @@ final class GameViewModel: ObservableObject {
         let effects = action()
         turnsThisRound += 1
         handle(effects)
-        viewState = presenter.viewState
+        publishViewState()
         checkRoundEnd()
         enforceTurnCapIfNeeded()
         scheduleAITurnsIfNeeded()
         scheduleRoundTimerIfNeeded()
         scheduleMoveTimerIfNeeded()
+    }
+
+    /// Animates hand/table changes (card play/draw/turn pass — A9) unless the user has
+    /// disabled animation (`AnimationSpeed.off`) or enabled Reduced Motion, in which case the
+    /// new state is published instantly with no transition.
+    private var stateAnimation: Animation? {
+        guard !settings.userSettings.reducedVisualEffects else { return nil }
+        switch settings.userSettings.animationSpeed {
+        case .off:    return nil
+        case .fast:   return Theme.Motion.fast
+        case .normal: return Theme.Motion.turnPass
+        }
+    }
+
+    private func publishViewState() {
+        guard let animation = stateAnimation else {
+            viewState = presenter.viewState
+            return
+        }
+        withAnimation(animation) { viewState = presenter.viewState }
     }
 
     /// Defensive turn cap (game-rules.md §Error Handling, playtest-review.md G4): the pure
@@ -140,7 +160,7 @@ final class GameViewModel: ObservableObject {
         let effects = presenter.roundTimerExpired()
         roundDeadline = nil
         handle(effects)
-        viewState = presenter.viewState
+        publishViewState()
         checkRoundEnd()
     }
 
@@ -160,7 +180,7 @@ final class GameViewModel: ObservableObject {
                 guard let effects = self.presenter.advanceAutomatic() else { break }
                 self.turnsThisRound += 1
                 self.handle(effects)
-                self.viewState = self.presenter.viewState
+                self.publishViewState()
                 self.checkRoundEnd()
                 self.enforceTurnCapIfNeeded()
             }
@@ -184,7 +204,7 @@ final class GameViewModel: ObservableObject {
             let effects = self.presenter.roundTimerExpired()
             self.roundDeadline = nil
             self.handle(effects)
-            self.viewState = self.presenter.viewState
+            self.publishViewState()
             self.checkRoundEnd()
         }
     }
@@ -208,7 +228,7 @@ final class GameViewModel: ObservableObject {
             self.moveDeadline = nil
             self.turnsThisRound += 1
             self.handle(effects)
-            self.viewState = self.presenter.viewState
+            self.publishViewState()
             self.checkRoundEnd()
             self.enforceTurnCapIfNeeded()
             self.scheduleAITurnsIfNeeded()

@@ -1,6 +1,6 @@
 # Known Issues
 
-> Owner: qa-lead | Updated: Phase 2 gate prep — Mac round-trip validated (2026-06-22)
+> Owner: qa-lead | Updated: Phase 9 visual overhaul (2026-06-26)
 
 ## Format
 Each issue: **ID** · **Severity** · **Phase found** · **Status** · Description · Workaround · Resolution
@@ -12,7 +12,9 @@ Status: `open` / `in-progress` / `resolved` / `wontfix` / `deferred`
 
 ## Open Issues
 
-_No code bugs yet — no code written. Phase 2 implementation issues will be logged here as they arise._
+| ID | Severity | Phase found | Status | Description | Workaround |
+|---|---|---|---|---|---|
+| KI-030 | medium | Phase 9 | open | design-system.md §3's "AX3+ activates large card mode automatically" is not wired to `dynamicTypeSize` anywhere in code — large card mode is currently a manual Settings toggle only | User can manually enable "Large cards" in Settings at large Dynamic Type sizes; not auto-detected |
 
 ---
 
@@ -36,6 +38,9 @@ _No code bugs yet — no code written. Phase 2 implementation issues will be log
 | KI-014 | high | Phase 1 | resolved | ISSUE-09: ux-spec Journey 10 showed Solo! auto-calling for human; canonical is manual+timeout | Fixed Journey 10 to show manual 5s countdown tap mechanic (2026-06-21) |
 | KI-029 | high | Phase 1 | resolved | OneDrive used as source-sync mechanism; conflict copies and casing differences risked lost edits | GitHub established as single source of truth; OneDrive sync retired. `.gitignore`, `docs/git-workflow.md`, and `enterprise-build-notes.md` §Step 1 updated (2026-06-21) |
 | KI-028 | low | Phase 2 gate | resolved | Mac round-trip not yet run: `Package.swift` + `WildPairsCore` + `WildPairsTests` must compile and `swift test` must pass on Mac before Phase 2 code is written | Ran on Mac (Swift 6.3.2, Command Line Tools only). `WildPairsCore` builds clean; `swift test` runs all 13 Phase-2/3 placeholder tests green. Root finding: `WildPairsTests` uses Swift Testing (`import Testing`); on a Command-Line-Tools-only machine `Testing.framework`/`lib_TestingInterop.dylib` are present but not on the default dyld search paths, so **bare `swift test` fails** with "no such module 'Testing'". Added `scripts/swift_test.sh` (derives framework search path + rpaths from `xcode-select -p`) as the canonical, portable test command; bare `swift test` works once full Xcode is installed. No package, manifest, or model change required (`Package.swift` unchanged at tools-version 5.9; zero deps; only `import Foundation` in core). Docs updated: `testing-strategy.md` §9, `enterprise-build-notes.md` §6, `git-workflow.md` (2026-06-22) |
+| KI-031 | high | Phase 9 | resolved | Cards clipped off the right edge in portrait: local hand's last card, partner's open hand, and the current-colour indicator were all cut off | Root cause was `HandView`'s fixed-width `ScrollView`+`HStack`, the partner `openHandFan`, and the horizontal `ScrollView` seat wrappers in `GameTableView`. Replaced all three with width-aware overlapping fans / a fixed `GeometryReader` grid that always fits the available width (Phase 9 A5/A6/A7, 2026-06-26) |
+| KI-032 | medium | Phase 9 | resolved | Landscape orientation supported but never polished; doubled the layout code and was the source of several of the above clipping paths | Locked to portrait-only (`Info.plist`); removed the landscape branch from `GameTableView` entirely (Phase 9 A1, 2026-06-26) |
+| KI-033 | low | Phase 9 | resolved | Card back used `suit.club.fill` (an off-brand real-deck club suit symbol) | Replaced with a branded four-suit/monogram `CardBackView` design (Phase 9 A4, 2026-06-26) |
 
 ---
 

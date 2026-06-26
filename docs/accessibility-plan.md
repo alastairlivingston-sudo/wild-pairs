@@ -594,6 +594,32 @@ All interactive elements meet Apple's Human Interface Guideline of 44×44pt. Hig
 
 ---
 
+## 11. Phase 9 visual overhaul — accessibility re-verification (2026-06-26)
+
+Re-audited after the premium dark-felt redesign, bespoke `SuitSymbol` shapes, card face/back
+rebuild, width-aware overlapping hand/seat fans, and the new `Theme.Motion`-driven state
+animations. Scope: `CardView`, `HandView`, `PlayerZoneView`, `GameTableView`,
+`TableCenterView`, `HomeView`, `NewGameFlowView`, `RulesView`, `SettingsView`,
+`OnboardingView`, `PauseMenuView`, `DecisionViews`, `Theme.swift`, `TableBackground.swift`.
+
+| Check | Result | Notes |
+|---|---|---|
+| Every interactive element has an explicit `accessibilityLabel` | PASS | Unchanged from pre-Phase-9; new bespoke `SuitSymbol` glyphs are nested inside existing `.accessibilityElement(children: .ignore/.combine)` containers or explicitly-labelled `Button`s, so none leak as orphaned elements |
+| Game events announced via VoiceOver live region | PASS | `GameViewModel.announce(_:)` call sites unchanged; new `publishViewState()` animation wrapper does not alter `accessibilityAnnounce` effect handling |
+| Colour-blind mode (`showColourName` / `CardPatternFill`) | PASS | Both flags still threaded through `CardView`, `HandView`, `PlayerZoneView`, `TableCenterView`, `ColourPickerView` unchanged; `SuitSymbol` is additive, not a replacement for the colour-name text path |
+| Dynamic Type XS→AX5, no clipping | PASS, with one pre-existing gap noted | New action-card `readableName` text (e.g. "Draw +2") uses `minimumScaleFactor(0.7)` + `lineLimit(1)`, consistent with the existing card-text pattern, so it shrinks rather than clips. Confirmed the new fixed-width opponent zones (`GameTableView.opponentZone`) have an 80pt floor (`max(sideWidth, 80)`) so they cannot collapse to zero. Pre-existing gap (not a Phase 9 regression): design-system.md §3's "AX3+ activates large card mode automatically" is not yet wired to `dynamicTypeSize` — logged in `docs/known-issues.md` |
+| Reduced Motion fallback present for every animation | PASS | `HandView`/`PlayerZoneView` card insertion/removal transitions are gated `reducedMotion ? .identity : .scale...opacity`; `GameViewModel.publishViewState()` skips `withAnimation` entirely when `reducedVisualEffects` is on or `animationSpeed == .off`; pre-existing colour-pulse/glow/confetti gates untouched |
+| Tap targets ≥44×44pt | PASS | New `PrimaryButtonStyle`/`SecondaryButtonStyle` enforce `minHeight: 50`; `GhostButtonStyle` enforces `minHeight: 44`; card sizes unchanged |
+| VoiceOver focus order / no orphaned elements | PASS (1 fix applied) | `HomeView`'s new decorative four-suit wordmark was initially exposed as 4 unlabelled shapes; fixed with `.accessibilityHidden(true)` since the "Wild Pairs" text immediately below already names the app |
+| `accessibilityElement` grouping for compound views | PASS | `CardView` (`.ignore`) and `PlayerZoneView` (`.combine`) grouping strategy unchanged |
+| `accessibilityHint` for non-obvious interactions | PASS | Unchanged — hand cards, catch-out tap, draw pile all retain hints |
+
+**Blocking issues:** none. **Fixes applied during this audit:** `HomeView` wordmark
+`accessibilityHidden`. **Carried-forward gap:** AX3+ auto large-card-mode (pre-existing, not
+introduced by Phase 9) — see `docs/known-issues.md`.
+
+---
+
 ## 11. Accessibility Testing Checklist
 
 This checklist must be completed before each phase gate (feature complete, beta, release candidate).

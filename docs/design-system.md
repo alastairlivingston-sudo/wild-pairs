@@ -249,6 +249,28 @@ Use system semantic colours for all chrome/UI elements. This ensures automatic c
 - Dark mode: `#1C2526` — dark slate, evokes a darker felt surface
 - These are the only non-system UI colours used outside the four game colours.
 
+### Felt palette (Phase 9 — premium dark felt mood)
+
+Phase 9 replaced the flat table-surface colour above with a textured felt surface used
+behind every screen (`TableBackground`, not just the game table), dark-first per the Phase 9
+design direction:
+
+| Token | Hex | Usage |
+|---|---|---|
+| `felt.baseDark` | `#0B2C26` | Dark-mode felt base (primary) |
+| `felt.baseDarkHighlight` | `#163F35` | Dark-mode radial highlight toward screen centre |
+| `felt.baseLight` | `#1F5C4B` | Light-mode felt base |
+| `felt.baseLightHighlight` | `#2C7A63` | Light-mode radial highlight |
+| `felt.vignette` | `black @ 55%` | Edge vignette (radial, outer ring) |
+| `felt.gold` | `#D9B872` | Warm accent — replaces system indigo as `Theme.Palette.accent`; used for borders, primary buttons, suit-symbol watermarks |
+| `felt.cream` | `#F3ECD9` | Warm light text/wordmark colour on felt |
+
+`TableBackground` composes these as: solid felt base → radial highlight (centre-out) → a
+faint diagonal weave texture at 5% opacity → a radial vignette (clear centre, dark edges).
+The game table view (and all menu screens) lock `.preferredColorScheme(.dark)` so text/icon
+contrast tokens stay deterministic regardless of the device's system appearance setting —
+this is a deliberate "dark-first" choice, not a light-mode regression.
+
 ---
 
 ## 8. Colour-blind Safe Palette
@@ -307,6 +329,22 @@ Pattern fills are rendered at 30% opacity over the solid colour background, so t
 | Destructive | `.destructive` | Danger (Reset data, End game) | 50pt | Filled, `color.error`, radius2, white text | `.buttonStyle(.borderedProminent)` with `.tint(.red)` |
 | Icon | `.icon` | Icon-only (Pause, Settings gear) | 44×44pt | Icon only, no background, `color.accent` | `.buttonStyle(.plain)` |
 
+### Phase 9 implementation (code: `PrimaryButtonStyle` / `SecondaryButtonStyle` / `GhostButtonStyle` / `DestructiveButtonStyle`)
+
+The "SwiftUI" column above described stock modifiers (`.borderedProminent` etc.); Phase 9
+replaced these with dedicated `ButtonStyle` types in `Theme.swift` so every screen renders
+consistently against the dark felt background instead of relying on the system accent colour:
+
+| Style | Background | Foreground | Min height |
+|---|---|---|---|
+| `.wpPrimary` | `Theme.Palette.accent` (felt gold) fill | Dark felt text | 50pt |
+| `.wpSecondary` | Transparent, gold 1.5pt stroke | `Theme.Palette.accent` | 50pt |
+| `.wpGhost` | None | `Theme.Palette.accent` | 44pt |
+| `.wpDestructive` | `Theme.Palette.error` fill | White | 50pt |
+
+All four scale their pressed state by reducing fill/stroke opacity (`PrimaryButtonStyle` also
+applies a slight `scaleEffect`), and all meet the 44×44pt minimum tap target from this section.
+
 ### Button minimum tap targets
 
 - All buttons minimum **44×44pt** touch target.
@@ -356,6 +394,15 @@ These four symbols appear on every card and in all colour indicators. They must 
 - Symbol weight visually matches SF Symbol "regular" weight at equivalent sizes.
 - Symbols are used only in foreground colour (no fills required — they are outlines/silhouettes).
 
+**Phase 9 implementation:** `SuitSymbolShape` (a `Shape` conformance, switching on `CardColour`
+to draw the flame/wave/leaf/sun `Path`s described below) and `SuitSymbol` (a `View` wrapper
+applying a `StrokeStyle` with rounded caps/joins, default `lineWidth: 1.6`). Used in three
+places per card: the corner index (small), a large faint (16% opacity) centre watermark behind
+the number/action glyph, and the `CardBackView`/colour-indicator/colour-picker chips. This
+replaced the SF Symbols placeholders (`flame.fill`, `water.waves`, `leaf.fill`, `sun.max.fill`)
+that `CardColour.symbolName` still exposes for VoiceOver/legacy reference only — visuals never
+use them anymore.
+
 | Symbol | Shape description |
 |---|---|
 | Flame (Crimson) | Teardrop flame shape, slightly tilted, with a small inner flame curl |
@@ -385,6 +432,23 @@ Shadows in Wild Pairs are subtle. They suggest depth and interactivity without c
 - Button shadows: none (relying on colour and border for depth, not shadow).
 - Do not stack multiple shadow modifiers on the same element — use one elevation level per element.
 
+### Phase 9 update — dark-felt elevation values
+
+The shadow opacities above were tuned for a light/near-white table surface. Against the
+Phase 9 dark felt background, those values are nearly invisible, so `Theme.Elevation` uses
+stronger dark-mode-appropriate values instead (defined in code as `Theme.Elevation.flat` /
+`.resting` / `.active` / `.floating`):
+
+| Level | Token | Shadow spec |
+|---|---|---|
+| Flat | `elevation0` | None |
+| Resting | `elevation1` | `shadow(color: .black.opacity(0.28), radius: 4, x: 0, y: 2)` |
+| Active | `elevation2` | `shadow(color: .black.opacity(0.38), radius: 10, x: 0, y: 4)` |
+| Floating | `elevation3` | `shadow(color: .black.opacity(0.45), radius: 18, x: 0, y: 6)` |
+
+The usage rules above (which level applies to which element) are unchanged — only the
+opacity/radius/y-offset values were recalibrated for the dark surface.
+
 ---
 
 ## 12. Animation Durations
@@ -406,6 +470,30 @@ All durations are defined as named constants in a shared `AnimationTokens` enum 
 | `aiThinkExpert` | 1.2s | n/a | 0.1s | 0s | Expert AI thinking delay |
 | `tooltipDismiss` | 2.5s | n/a | 2.5s | 2.5s | Illegal-move tooltip hold duration |
 | `toastDismiss` | 3.0s | n/a | 3.0s | 3.0s | Mode summary toast duration |
+
+### Phase 9 motion tokens (code: `Theme.Motion`)
+
+In addition to the named durations above, `Theme.Motion` defines reusable `Animation` values
+used directly by views/view models (rather than every call site hand-rolling a spring):
+
+| Token | Definition | Usage |
+|---|---|---|
+| `cardPlay` | `.spring(response: 0.3, dampingFraction: 0.7)` | Card lift/playability change |
+| `fast` | `.easeOut(duration: 0.15)` | Shake-reject, fast-mode transitions |
+| `moderate` | `.easeInOut(duration: 0.5)` | Solo! badge, skip/reverse |
+| `deal` | `.easeInOut(duration: 0.6)` | Deal-in sequence |
+| `playArc` | `.spring(response: 0.35, dampingFraction: 0.75)` | Card hand→discard motion |
+| `draw` | `.spring(response: 0.4, dampingFraction: 0.8)` | Card deck→hand motion |
+| `turnPass` | `.easeInOut(duration: 0.3)` | General state-change animation driving `GameViewModel.publishViewState()` |
+| `celebration` | `.spring(response: 0.6, dampingFraction: 0.65)` | Round/game win |
+| `micro` | `.easeOut(duration: 0.1)` | Smallest UI feedback (selection ticks) |
+| `dealStagger` | `0.06` (seconds, not an `Animation`) | Per-card delay multiplier when dealing a hand |
+
+`GameViewModel.publishViewState()` wraps every engine-state republish in `Theme.Motion.turnPass`
+(or `.fast` in Fast mode), unless Reduced Motion or `AnimationSpeed.off` is active, in which case
+the new state is published with no animation at all. `HandView` and `PlayerZoneView` card fans
+add `.transition(.scale.combined(with: .opacity))` (or `.identity` under Reduced Motion) so cards
+animate in/out of the hand and seats instead of snapping.
 
 ### Fast mode
 
@@ -470,6 +558,20 @@ All haptics use `UIImpactFeedbackGenerator`, `UINotificationFeedbackGenerator`, 
 ---
 
 ## 15. Device-specific Layout Decisions
+
+### Phase 9 — portrait-only lock
+
+Phase 9 locked the app to **portrait only** on both iPhone and iPad (`Info.plist
+UISupportedInterfaceOrientations` / `~ipad`, both reduced to `UIInterfaceOrientationPortrait`).
+The landscape guidance below (iPhone landscape, iPad landscape side panel) is **historical and
+superseded** — there is no landscape code path in `GameTableView` or anywhere else in
+`WildPairsApp` as of Phase 9. The portrait game-table layout is a fixed `GeometryReader` grid:
+partner zone top-centre (full width), then a row of (left opponent, table centre, right
+opponent) each given an explicit width fraction of the available screen width — never a
+horizontal `ScrollView`, so seats cannot clip off-screen at any Dynamic Type size. Hand and
+seat card fans use width-aware overlap (see `HandView`/`PlayerZoneView`) to fit any device
+width from iPhone SE to iPad Pro 13" without scrolling, falling back to a scrollable row only
+at extreme card counts.
 
 ### Size class strategy
 

@@ -10,34 +10,38 @@ struct OnboardingView: View {
     private let pages = OnboardingPage.all
 
     var body: some View {
-        VStack(spacing: Theme.Space.s4) {
-            HStack {
-                Spacer()
-                Button("Skip", action: onDismiss)
-                    .accessibilityIdentifier("onboarding-skip")
-            }
-            .padding([.top, .horizontal], Theme.Space.s4)
-
-            TabView(selection: $page) {
-                ForEach(Array(pages.enumerated()), id: \.offset) { index, item in
-                    pageView(item).tag(index)
+        ZStack {
+            TableBackground()
+            VStack(spacing: Theme.Space.s4) {
+                HStack {
+                    Spacer()
+                    Button("Skip", action: onDismiss)
+                        .buttonStyle(.wpGhost)
+                        .accessibilityIdentifier("onboarding-skip")
                 }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .always))
+                .padding([.top, .horizontal], Theme.Space.s4)
 
-            Button(page == pages.count - 1 ? "Let's play" : "Next") {
-                if page == pages.count - 1 {
-                    onDismiss()
-                } else {
-                    withAnimation { page += 1 }
+                TabView(selection: $page) {
+                    ForEach(Array(pages.enumerated()), id: \.offset) { index, item in
+                        pageView(item).tag(index)
+                    }
                 }
+                .tabViewStyle(.page(indexDisplayMode: .always))
+
+                Button(page == pages.count - 1 ? "Let's play" : "Next") {
+                    if page == pages.count - 1 {
+                        onDismiss()
+                    } else {
+                        withAnimation { page += 1 }
+                    }
+                }
+                .buttonStyle(.wpPrimary)
+                .frame(maxWidth: 280)
+                .padding(.bottom, Theme.Space.s5)
+                .accessibilityIdentifier("onboarding-next")
             }
-            .buttonStyle(.borderedProminent)
-            .frame(maxWidth: 280)
-            .padding(.bottom, Theme.Space.s5)
-            .accessibilityIdentifier("onboarding-next")
         }
-        .background(Theme.Palette.surface.ignoresSafeArea())
+        .preferredColorScheme(.dark)
     }
 
     private func pageView(_ item: OnboardingPage) -> some View {

@@ -1,5 +1,5 @@
 ﻿#!/usr/bin/env bash
-# Run on Mac with Xcode installed.
+# Runs on macOS with Xcode installed.
 # Usage: bash scripts/quality_light.sh
 # Fast quality check after Swift edits. Should complete in under 60 seconds.
 # Runs: Swift Package build, fast unit tests, network scan.
