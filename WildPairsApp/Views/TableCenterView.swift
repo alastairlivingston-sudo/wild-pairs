@@ -1,9 +1,10 @@
 import SwiftUI
 import WildPairsCore
 
-// The centre of the table: the draw pile (tap to draw on your turn), the discard top, the
-// active-colour indicator (chip + name, always — colour-blind safe), and the turn-direction
-// arrow.
+// The centre of the table: a real tappable stacked draw pile with a visible count chip, the
+// discard top, and a prominent felt-inset colour chip (bespoke suit symbol + name) plus the
+// turn-direction arrow. Phase 9 A7: the draw pile and colour indicator were previously
+// near-invisible/clipped — both are now first-class, legible elements.
 
 struct TableCenterView: View {
     let topDiscard: Card?
@@ -24,13 +25,13 @@ struct TableCenterView: View {
     @State private var arrowAngle: Double?
 
     var body: some View {
-        HStack(spacing: Theme.Space.s5) {
-            drawPile
-            discardPile
-            VStack(spacing: Theme.Space.s3) {
-                colourIndicator
-                directionArrow
+        VStack(spacing: Theme.Space.s2) {
+            colourIndicator
+            HStack(spacing: Theme.Space.s3) {
+                drawPile
+                discardPile
             }
+            directionArrow
         }
         .onChange(of: currentColour) { _, _ in pulseColour() }
         .onChange(of: turnDirection) { _, _ in rotateArrow() }
@@ -40,17 +41,23 @@ struct TableCenterView: View {
     private var drawPile: some View {
         Button(action: onDraw) {
             ZStack {
+                // Real stacked-deck illusion: two faint offset backs beneath the top card.
+                CardBackView(size: cardSize).offset(x: 3, y: 3).opacity(0.5)
+                CardBackView(size: cardSize).offset(x: 1.5, y: 1.5).opacity(0.75)
                 CardBackView(size: cardSize)
                 Text("\(drawPileCount)")
-                    .font(.caption).fontWeight(.bold).monospacedDigit()
-                    .padding(Theme.Space.s1).background(.ultraThinMaterial, in: Capsule())
-                    .offset(y: cardSize.height * 0.32)
+                    .font(.caption.bold()).monospacedDigit()
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, Theme.Space.s2).padding(.vertical, 3)
+                    .background(Capsule().fill(Color.black.opacity(0.55)))
+                    .overlay(Capsule().strokeBorder(Theme.Palette.accent.opacity(0.6), lineWidth: 1))
+                    .offset(y: cardSize.height * 0.42)
             }
         }
         .buttonStyle(.plain)
         .disabled(!canDraw)
         .opacity(canDraw ? 1 : 0.5)
-        .frame(minHeight: 56)
+        .frame(minHeight: 64)
         .accessibilityLabel("Draw pile, \(drawPileCount) cards")
         .accessibilityHint(canDraw ? "Double tap to draw a card" : "")
         .accessibilityIdentifier("game-draw-card-button")
@@ -63,20 +70,29 @@ struct TableCenterView: View {
                 .accessibilityLabel("Discard pile. Top card: \(discardCardLabel(top)). Current colour: \(currentColour.displayName).")
         } else {
             RoundedRectangle(cornerRadius: Theme.Radius.r3)
-                .strokeBorder(.secondary, style: StrokeStyle(lineWidth: 1, dash: [4]))
+                .strokeBorder(Theme.Palette.accent.opacity(0.4), style: StrokeStyle(lineWidth: 1, dash: [4]))
                 .frame(width: cardSize.width, height: cardSize.height)
         }
     }
 
+    /// Felt-inset chip — always shows colour + bespoke symbol + name, on-screen and never
+    /// clipped (this was the element cut off at the right edge before A1's portrait lock).
     private var colourIndicator: some View {
-        VStack(spacing: 2) {
-            Image(systemName: currentColour.symbolName)
+        HStack(spacing: Theme.Space.s2) {
+            SuitSymbol(colour: currentColour, lineWidth: 2)
+                .frame(width: 18, height: 18)
                 .foregroundStyle(currentColour.fillColor(scheme))
             Text(currentColour.displayName)
-                .font(.caption2).fontWeight(.semibold)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white)
+                .lineLimit(1)
         }
-        .padding(Theme.Space.s2)
-        .background(Capsule().fill(Theme.Palette.surface))
+        .padding(.horizontal, Theme.Space.s3).padding(.vertical, Theme.Space.s2)
+        .background(
+            Capsule()
+                .fill(Color.black.opacity(0.35))
+                .overlay(Capsule().strokeBorder(currentColour.fillColor(scheme), lineWidth: 1.5))
+        )
         .scaleEffect(colourPulse ? 1.08 : 1.0)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Current colour: \(currentColour.displayName)")
@@ -90,7 +106,7 @@ struct TableCenterView: View {
 
     private var directionArrow: some View {
         Image(systemName: "arrow.clockwise")
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Theme.Palette.accent.opacity(0.8))
             .rotationEffect(.degrees(arrowAngle ?? (turnDirection == .clockwise ? 0 : 180)))
             .accessibilityLabel(turnDirection == .clockwise ? "Play direction clockwise" : "Play direction counter-clockwise")
     }

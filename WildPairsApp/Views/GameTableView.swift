@@ -1,9 +1,11 @@
 import SwiftUI
 import WildPairsCore
 
-// The primary gameplay screen. Seats are arranged to match the table geometry (you at the
-// bottom, partner opposite, opponents to the sides). Adapts hand-card size to the size class.
-// All game logic lives in the ViewModel/Core; this view only renders state and forwards taps.
+// The primary gameplay screen. Portrait-only (Phase 9 A1): partner top-centre, opponents
+// upper-left/upper-right, you at the bottom, table centre between the opponents. All zones
+// are sized from `GeometryReader` so nothing ever clips off-screen — no horizontal
+// `ScrollView` seat wrappers. All game logic lives in the ViewModel/Core; this view only
+// renders state and forwards taps.
 
 struct GameTableView: View {
     @ObservedObject var vm: GameViewModel
@@ -15,9 +17,8 @@ struct GameTableView: View {
     @State private var showPause = false
 
     private var vs: GameViewState { vm.viewState }
-    private func cardSize(isLandscape: Bool) -> CGSize {
+    private var handCardSize: CGSize {
         let large = settings.userSettings.largeCards
-        if isLandscape { return Theme.CardSize.landscapeHand }
         if hSize == .regular { return large ? Theme.CardSize.selected : Theme.CardSize.regularHand }
         return large ? Theme.CardSize.regularHand : Theme.CardSize.compactHand
     }
@@ -35,22 +36,19 @@ struct GameTableView: View {
     var body: some View {
         NavigationStack {
             GeometryReader { geo in
-                let isLandscape = geo.size.width > geo.size.height
-                let spacing = isLandscape ? Theme.Space.s2 : Theme.Space.s3
-                let seatBackSize = isLandscape ? Theme.CardSize.landscapeBack : Theme.CardSize.opponentBack
-                let centerSize = isLandscape ? Theme.CardSize.landscapeHand : Theme.CardSize.regularHand
-                let handCardSize = cardSize(isLandscape: isLandscape)
+                let spacing = Theme.Space.s3
+                let seatBackSize = Theme.CardSize.opponentBack
+                let centerSize = Theme.CardSize.compactHand
+                let centerWidth = centerSize.width * 2 + Theme.Space.s3
+                let sideWidth = (geo.size.width - centerWidth - spacing * 4) / 2
 
                 ZStack {
-                    tableBackground.ignoresSafeArea()
+                    TableBackground().ignoresSafeArea()
 
                     ScrollView(.vertical, showsIndicators: false) {
                         VStack(spacing: spacing) {
-                            if isLandscape {
-                                landscapeSeatsRow(spacing: spacing, seatBackSize: seatBackSize, centerSize: centerSize)
-                            } else {
-                                portraitSeatsStack(spacing: spacing, seatBackSize: seatBackSize, centerSize: centerSize)
-                            }
+                            portraitSeatsStack(spacing: spacing, seatBackSize: seatBackSize,
+                                                centerSize: centerSize, sideWidth: max(sideWidth, 80))
 
                             Spacer(minLength: 0)
                             if let roundRemaining = vm.roundTimeRemaining {
@@ -63,7 +61,8 @@ struct GameTableView: View {
                             }
                             bottomControls
                             HandView(hand: vs.localHand, cardSize: handCardSize,
-                                     showColourName: showColourName, showPattern: showPattern, onPlay: vm.play)
+                                     showColourName: showColourName, showPattern: showPattern,
+                                     reducedMotion: reducedMotion, onPlay: vm.play)
                         }
                         .padding(.vertical, spacing)
                         .frame(minHeight: geo.size.height)
@@ -110,6 +109,10 @@ struct GameTableView: View {
                           onEndGame: onExit)
         }
         .onChange(of: showPause) { _, paused in if paused { vm.pause() } }
+        // The felt table is a deliberately dark-first surface (Phase 9 A2); locking the
+        // colour scheme keeps text/contrast tokens (.secondary, .white) deterministic
+        // instead of drifting with the system light/dark appearance.
+        .preferredColorScheme(.dark)
     }
 
     private var scoreChip: some View {
@@ -135,51 +138,31 @@ struct GameTableView: View {
         }
     }
 
-    /// Portrait: partner stacked above a row of (left opponent, table centre, right opponent).
-    private func portraitSeatsStack(spacing: CGFloat, seatBackSize: CGSize, centerSize: CGSize) -> some View {
+    /// Partner stacked above a fixed-width row of (left opponent, table centre, right
+    /// opponent) — each zone is given an explicit width from `GeometryReader` so the row
+    /// never needs to scroll or clip, even at large Dynamic Type sizes (A6/A7).
+    private func portraitSeatsStack(spacing: CGFloat, seatBackSize: CGSize, centerSize: CGSize, sideWidth: CGFloat) -> some View {
         VStack(spacing: spacing) {
             if let partner = seat(at: 2) {
                 PlayerZoneView(seat: partner, showColourName: showColourName, showPattern: showPattern,
                                cardBackSize: seatBackSize, openHandCardSize: Theme.CardSize.compactHand,
+                               maxFanWidth: sideWidth * 2 + centerSize.width * 2 + Theme.Space.s3,
                                reducedMotion: reducedMotion, isThinking: partner.id == vm.thinkingPlayerID,
                                thinkingDotCount: thinkingDotCount)
             }
-            // At large Dynamic Type sizes the three zones plus their name/badge labels no
-            // longer fit the screen width — wrap in a horizontal ScrollView so the right
-            // opponent stays reachable by swiping instead of clipping off-screen.
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .center, spacing: spacing) {
-                    if let left = seat(at: 1) { opponentZone(left, backSize: seatBackSize) }
-                    Spacer(minLength: 0)
-                    tableCenter(size: centerSize)
-                    Spacer(minLength: 0)
-                    if let right = seat(at: 3) { opponentZone(right, backSize: seatBackSize) }
-                }
-                .frame(maxWidth: .infinity)
-            }
-        }
-    }
-
-    /// Landscape: all four seats and the table centre share a single row, halving the
-    /// vertical footprint so nothing requires scrolling to reach on short landscape heights.
-    /// Wrapped horizontally for the same Dynamic Type overflow reason as the portrait row.
-    private func landscapeSeatsRow(spacing: CGFloat, seatBackSize: CGSize, centerSize: CGSize) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
             HStack(alignment: .center, spacing: spacing) {
-                if let left = seat(at: 1) { opponentZone(left, backSize: seatBackSize) }
-                Spacer(minLength: 0)
-                if let partner = seat(at: 2) {
-                    PlayerZoneView(seat: partner, showColourName: showColourName, showPattern: showPattern,
-                                   cardBackSize: seatBackSize, openHandCardSize: Theme.CardSize.landscapeHand,
-                                   reducedMotion: reducedMotion, isThinking: partner.id == vm.thinkingPlayerID,
-                                   thinkingDotCount: thinkingDotCount)
+                if let left = seat(at: 1) {
+                    opponentZone(left, backSize: seatBackSize, width: sideWidth)
+                } else {
+                    Color.clear.frame(width: sideWidth)
                 }
-                Spacer(minLength: 0)
                 tableCenter(size: centerSize)
-                Spacer(minLength: 0)
-                if let right = seat(at: 3) { opponentZone(right, backSize: seatBackSize) }
+                if let right = seat(at: 3) {
+                    opponentZone(right, backSize: seatBackSize, width: sideWidth)
+                } else {
+                    Color.clear.frame(width: sideWidth)
+                }
             }
-            .frame(maxWidth: .infinity)
         }
     }
 
@@ -192,12 +175,14 @@ struct GameTableView: View {
         )
     }
 
-    private func opponentZone(_ seat: PlayerSeatViewState, backSize: CGSize) -> some View {
+    private func opponentZone(_ seat: PlayerSeatViewState, backSize: CGSize, width: CGFloat) -> some View {
         PlayerZoneView(
-            seat: seat, cardBackSize: backSize, reducedMotion: reducedMotion,
+            seat: seat, cardBackSize: backSize, maxFanWidth: width - Theme.Space.s2 * 2,
+            reducedMotion: reducedMotion,
             isThinking: seat.id == vm.thinkingPlayerID, thinkingDotCount: thinkingDotCount,
             onCatchSolo: seat.id == vs.catchableSoloPlayerID ? { vm.callOut(seat.id) } : nil
         )
+        .frame(width: width)
     }
 
     private func invalidTooltip(_ hint: String, handCardSize: CGSize) -> some View {
@@ -210,10 +195,6 @@ struct GameTableView: View {
         }
         .transition(.opacity)
         .allowsHitTesting(false)
-    }
-
-    private var tableBackground: Color {
-        scheme == .dark ? Theme.Palette.tableDark : Theme.Palette.tableLight
     }
 
     // MARK: Helpers
