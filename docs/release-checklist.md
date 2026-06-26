@@ -419,10 +419,19 @@ suit symbols, portrait lock, layout clipping fixes, animation polish).
 - [x] Accessibility re-verified post-redesign (`docs/accessibility-plan.md` §11)
 
 ### Tests
-- [ ] `swift test --package-path .` green (WildPairsCore unaffected — UI-only phase)
-- [ ] `xcodebuild build` succeeds for the `WildPairs` scheme on the iPhone 17 Pro simulator
-- [ ] Manual zero-edge-clipping pass: iPhone SE → 17 Pro Max, iPad mini → 13", Dynamic Type XS → AX5
-- [ ] `swiftui-quality-review`, `ux-review`, `accessibility-audit` skills pass
+- [x] `swift test --package-path .` green — 219/219 (WildPairsCore unaffected — UI-only phase)
+- [x] `xcodebuild build` succeeds for the `WildPairs` scheme on the iPhone 17 Pro simulator
+- [x] `WildPairsUITests` full suite green (18/18) on iPhone 17 Pro; 17/18 on iPad Air 13" in a
+      full-suite run with 1 confirmed-flaky retest pass (KI-035, not a regression)
+- [~] Edge-clipping pass done on iPhone 17 Pro + iPad Air 13" via UI test + `simctl` screenshot
+      (caught and fixed a real HandView clipping bug, KI-034) — iPhone SE, 17 Pro Max, and
+      iPad mini were **not** separately verified this pass; Dynamic Type was checked via the
+      existing `testDynamicTypeAX3LayoutSurvives` UI test (AX3 only, not the full XS→AX5 sweep)
+- [x] `accessibility-audit` skill pass — see §11 above
+- [x] `swiftui-quality-review` — NEEDS WORK verdict (0 Critical, 2 Major: SE-width floor
+      unverified on-device, card text not Dynamic-Type-scaling/pre-existing KI-030) — neither
+      blocking nor a Phase 9 regression
+- [x] `ux-review` — READY verdict (all 10 dimensions ≥2, 0 Critical/Major findings)
 
 ### Documentation
 - [x] `docs/design-system.md` to be updated with felt palette, elevation, motion, button styles, suit symbol spec (Part B3)
@@ -430,7 +439,13 @@ suit symbols, portrait lock, layout clipping fixes, animation polish).
 - [x] This file's Phase 9 section kept current as work landed (see source-of-truth note above)
 
 ### Quality gates
-- [ ] `./scripts/quality_full.sh`, `check_no_network_usage.sh`, `check_permissions_minimal.sh`, `check_privacy_manifest.sh` all green
+- [x] `check_permissions_minimal.sh`, `check_privacy_manifest.sh`, `check_project_capabilities.sh` all green
+- [~] `check_no_network_usage.sh` exits FAIL on one pre-existing documented false positive
+      ("tracking" in `SettingsView`'s empty-stats copy — see `docs/permission-audit.md`
+      2026-06-22 entry); zero genuine network-usage findings
+- [x] `quality_full.sh` — `swift test` (219/219), Xcode build, and `WildPairsUITests` all green
+      on re-run after fixing the two bugs found in KI-034; one flaky failure (KI-035) on iPad
+      Air confirmed non-reproducible in isolation
 
 ### Sign-off
 - [ ] ios-architect / ux-lead confirm the gate criteria in the Phase 9 plan are met
