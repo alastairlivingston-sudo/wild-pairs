@@ -61,6 +61,13 @@ struct HandView: View {
             }
         }
         .frame(height: cardSize.height + Theme.Space.s3 * 2)
+        // `GeometryReader` has no view identity of its own, so an `.accessibilityLabel` applied
+        // directly to it "leaks" down and overwrites each card's own label instead of labelling
+        // a single container (regression found via the UI test suite — every hand card was
+        // reporting "Your hand, N cards" instead of its real label). `.accessibilityElement
+        // (children: .contain)` is the documented fix: it gives this container its own summary
+        // label while keeping every card individually reachable with its own label/hint.
+        .accessibilityElement(children: .contain)
         .accessibilityLabel("Your hand, \(hand.count) cards")
     }
 
