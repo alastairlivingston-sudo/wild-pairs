@@ -69,7 +69,7 @@ public final class GamePresenter {
     /// the local player must make / the game is not in play. Deterministic: AI RNG is derived
     /// from the game seed and action count, exactly like the engine's per-action RNG.
     public func nextAutomaticAction() -> GameAction? {
-        guard state.phase == .playing else { return nil }
+        guard state.phase == .playing || state.phase == .teamPass else { return nil }
 
         var rng = derivedRNG()
 
@@ -86,7 +86,12 @@ public final class GamePresenter {
                                                validTargets: targets,
                                                difficulty: player.difficulty, rng: &rng)
             return .selectTarget(targetPlayerID: target, playerID: pid)
-        case .teamPass, .drawFourChallenge:
+        case .teamPass(let pid):
+            guard let player = aiPlayer(pid) else { return nil }
+            let card = AIPlayer.selectTeamPassCard(observation: observation(for: pid),
+                                                   difficulty: player.difficulty, rng: &rng)
+            return .submitTeamPass(playerID: pid, card: card)
+        case .drawFourChallenge:
             return nil
         case .none:
             break
@@ -119,6 +124,11 @@ public final class GamePresenter {
     }
     @discardableResult public func chooseTarget(_ targetID: UUID) -> [GameEffect] {
         dispatch(.selectTarget(targetPlayerID: targetID, playerID: localPlayerID))
+    }
+    /// Submits the local player's Side-to-Side Team Pass choice — `card` from their hand to
+    /// give to their partner, or nil to decline.
+    @discardableResult public func passTeamCard(_ card: Card?) -> [GameEffect] {
+        dispatch(.submitTeamPass(playerID: localPlayerID, card: card))
     }
     @discardableResult public func callSolo() -> [GameEffect] {
         dispatch(.callSolo(playerID: localPlayerID))

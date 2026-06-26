@@ -46,6 +46,38 @@ public enum AIPlayer {
         }
     }
 
+    /// Side-to-Side Teams only: picks a card from `myHand` to pass to the partner, or nil
+    /// to decline. Easy mimics its "random valid move" philosophy (a coin flip on whether
+    /// to pass at all, then a random card). Medium and up always attempt to pass, choosing
+    /// the card whose colour is least represented in their own hand — i.e. their hardest
+    /// card to use themselves, since giving it up costs the least optionality. Wild cards
+    /// are never offered: they're too flexible to give away if any colour card is available.
+    public static func selectTeamPassCard(
+        observation: AIObservation,
+        difficulty: Difficulty,
+        rng: inout SeededRNG
+    ) -> Card? {
+        guard !observation.myHand.isEmpty else { return nil }
+        switch difficulty {
+        case .easy:
+            guard Bool.random(using: &rng) else { return nil }
+            return observation.myHand.randomElement(using: &rng)
+        case .medium, .hard, .expert, .master:
+            let nonWild = observation.myHand.filter { !$0.isWild }
+            let candidates = nonWild.isEmpty ? observation.myHand : nonWild
+            var colourCounts: [CardColour: Int] = [:]
+            for card in observation.myHand {
+                guard let colour = card.colour else { continue }
+                colourCounts[colour, default: 0] += 1
+            }
+            return candidates.min { lhs, rhs in
+                let lhsCount = lhs.colour.map { colourCounts[$0, default: 0] } ?? Int.max
+                let rhsCount = rhs.colour.map { colourCounts[$0, default: 0] } ?? Int.max
+                return lhsCount < rhsCount
+            }
+        }
+    }
+
     public static func thinkDelay(for difficulty: Difficulty) -> TimeInterval {
         switch difficulty {
         case .easy:   return 0.3

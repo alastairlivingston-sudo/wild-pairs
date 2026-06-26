@@ -88,10 +88,10 @@ There is no playable build on Windows (Xcode is Mac-only), so I "played" the gam
 
 ## Gaps (documented, deferred to Phase 5+)
 
-### G1 — Side-to-Side Team Pass is not implemented
-`handleTeamPass` is a no-op, and `GameAction.teamPass(playerID:)` carries no card to pass. Implementing the round-start card exchange (`game-rules.md` §Side-to-Side) requires a model change (the action must carry the chosen card, and the engine needs a pre-round "team pass" phase that pairs both teammates' selections). **Until this lands, Side-to-Side Teams is mechanically identical to Standard Teams.** Deferred — needs a small model change best done alongside the Phase 5 UI that drives it.
+### G1 — Side-to-Side Team Pass — RESOLVED (Phase 7)
+Implemented per the proposed model below. `GameAction.submitTeamPass(playerID:card:)` carries the chosen card (nil = decline); `GamePhase.teamPass` is entered after dealing whenever `teamPassEnabled`, collecting one submission per player in seat order before swapping cards within any team where both members opted in (a unilateral decline only cancels that team's swap). AI difficulty Medium+ never offers a wild card when a non-wild alternative exists; Easy randomises whether it passes at all. UI: `TeamPassPickerView` (a card-grid sheet + decline button), wired through `GameViewModel.passTeamCard`. Tests: `WildPairsTests/UnitTests/TeamPassTests.swift` (8 tests, including a 1,000-game Side-to-Side batch) plus two XCUITests exercising the picker end-to-end.
 
-**Proposed model:** `case teamPass(card: Card, playerID: UUID)`; a `GamePhase.teamPass` entered after dealing when `teamPassEnabled`; collect one card per player, then swap within each team simultaneously, then transition to `.playing`.
+**Model used:** `case submitTeamPass(playerID: UUID, card: Card?)`; a `GamePhase.teamPass` entered after dealing when `teamPassEnabled`; collect one card per player, then swap within each team simultaneously, then transition to `.playing`.
 
 ### G2 — Draw Four challenge not implemented
 `challengeDrawFour` returns the state unchanged. Not an MVP-facing feature; the "Draw Four Anytime" house rule (`drawFourChallengeable`) covers the relevant config. Low priority.
@@ -153,10 +153,10 @@ A Skip Two played by the human in clockwise order skips the Left Opponent **and*
 | B3 | Draw Four blocked in All-Wild | Bug | Fixed |
 | B4 | Solo! penalty unenforceable | Bug | Fixed |
 | B5 | AI never calls Solo! | Bug | Fixed |
-| G1 | Side-to-Side Team Pass | Gap | Deferred (needs model change) |
+| G1 | Side-to-Side Team Pass | Gap | Fixed (Phase 7) |
 | G2 | Draw Four challenge | Gap | Deferred |
 | G3 | Draw stacking | Gap | Deferred |
-| G4 | `maxTurnsPerRound` engine enforcement | Gap | Documented |
+| G4 | `maxTurnsPerRound` engine enforcement | Gap | Fixed (Phase 7, GameViewModel) |
 | G5 | Unused rule flags | Gap | Documented |
 | U1 | Single-round default | UX | Recommendation |
 | U2 | Team Play feels like a trap | UX | Recommendation |

@@ -71,6 +71,51 @@ struct TargetPickerView: View {
     }
 }
 
+// Side-to-Side Teams "Team Pass" (game-rules.md §Side-to-Side Teams): each player privately
+// picks one card from their hand to give their partner, or declines. Selections stay
+// private until both teammates have submitted — this view only ever shows the local
+// player's own hand, never the partner's choice.
+struct TeamPassPickerView: View {
+    let hand: [Card]
+    let onChoose: (Card?) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: Theme.Space.s4) {
+            Text("Team Pass").font(.title).fontWeight(.semibold)
+            Text("Choose a card to give your partner, or decline.")
+                .font(.subheadline).foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Theme.Space.s3) {
+                    ForEach(hand) { card in
+                        Button {
+                            onChoose(card)
+                            dismiss()
+                        } label: {
+                            CardView(card: card, size: Theme.CardSize.regularHand)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("teampass-card-\(card.id)")
+                    }
+                }
+                .padding(.horizontal, Theme.Space.s2)
+            }
+
+            Button("Decline — keep my hand") {
+                onChoose(nil)
+                dismiss()
+            }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("teampass-decline")
+        }
+        .padding(Theme.Space.s5)
+        .presentationDetents([.height(320)])
+        .interactiveDismissDisabled()
+    }
+}
+
 // The single guidance line above the hand (§ux tone of voice).
 struct PromptBanner: View {
     let prompt: PromptKind
@@ -95,6 +140,7 @@ struct PromptBanner: View {
         case .waitingFor(let name):      return "\(name) is thinking…"
         case .chooseColour:              return "Choose a new colour."
         case .chooseTarget:              return "Choose a player."
+        case .chooseTeamPass:            return "Team Pass — choose a card to give your partner, or decline."
         case .mustDraw:                  return "Your turn — no matching card. Draw one."
         case .roundOver(let team):       return "\(team) wins this round!"
         case .roundOverByTimeout(let team): return "Time's up — \(team) wins this round on lowest score."

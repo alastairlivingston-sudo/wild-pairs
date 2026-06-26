@@ -152,8 +152,16 @@ public enum GameSimulator {
             let targetID = AIPlayer.selectTarget(observation: observation, validTargets: validTargets, difficulty: player.difficulty, rng: &rng)
             return GameEngine.reduce(state: state, action: .selectTarget(targetPlayerID: targetID, playerID: playerID))
 
-        case .teamPass, .drawFourChallenge:
-            // These pending decisions are resolved by advancing past them in simulation
+        case .teamPass(let playerID):
+            guard let player = state.players.first(where: { $0.id == playerID }) else {
+                return (state, [])
+            }
+            let observation = AIObservation(from: state, for: playerID)
+            let card = AIPlayer.selectTeamPassCard(observation: observation, difficulty: player.difficulty, rng: &rng)
+            return GameEngine.reduce(state: state, action: .submitTeamPass(playerID: playerID, card: card))
+
+        case .drawFourChallenge:
+            // Resolved by advancing past it in simulation — no challenge logic implemented yet (G2).
             var s = state
             s.pendingDecision = nil
             return (s, [])

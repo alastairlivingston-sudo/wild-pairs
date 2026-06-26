@@ -76,6 +76,9 @@ public enum PromptKind: Equatable, Sendable {
     case waitingFor(playerName: String)
     case chooseColour
     case chooseTarget
+    /// Side-to-Side Teams only: the local player must submit a card to pass to their
+    /// partner, or decline.
+    case chooseTeamPass
     case mustDraw
     case roundOver(winningTeamName: String)
     /// Round timer fallback fired (`WinReason.roundTimerExpired`) — nobody emptied their
@@ -108,6 +111,9 @@ public struct GameViewState: Equatable, Sendable {
     public let awaitingLocalColourChoice: Bool
     /// Non-empty when the engine is waiting for the local player to pick a target.
     public let localTargetChoices: [UUID]
+    /// True when the engine is waiting for the local player to submit their Side-to-Side
+    /// Team Pass choice (a card to give their partner, or decline).
+    public let awaitingLocalTeamPass: Bool
     /// A seat the local player can legally call out for a missed Solo!, if any.
     public let catchableSoloPlayerID: UUID?
     /// Whether the local player's team won, once `winState` is set (nil while still playing).
@@ -172,6 +178,11 @@ public struct GameViewState: Equatable, Sendable {
             self.localTargetChoices = targets
         } else {
             self.localTargetChoices = []
+        }
+        if case .teamPass(let pid) = state.pendingDecision, pid == localPlayerID {
+            self.awaitingLocalTeamPass = true
+        } else {
+            self.awaitingLocalTeamPass = false
         }
 
         // A non-local seat the local player could catch for a missed Solo!
@@ -253,6 +264,9 @@ public struct GameViewState: Equatable, Sendable {
         }
         if case .targetChoice(let pid, _) = state.pendingDecision {
             return pid == localPlayerID ? .chooseTarget : .waitingFor(playerName: name(of: pid, in: state))
+        }
+        if case .teamPass(let pid) = state.pendingDecision {
+            return pid == localPlayerID ? .chooseTeamPass : .waitingFor(playerName: name(of: pid, in: state))
         }
         if isLocalTurn {
             return hasLegalPlay ? .yourTurn(hint: matchHint(state: state)) : .mustDraw

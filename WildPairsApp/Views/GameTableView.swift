@@ -75,7 +75,7 @@ struct GameTableView: View {
 
                     if let hint = vm.lastInvalidHint { invalidTooltip(hint, handCardSize: handCardSize) }
 
-                    if vs.phase != .playing {
+                    if vs.phase == .roundEnded || vs.phase == .gameEnded {
                         RoundEndView(vs: vs, settings: settings, onNext: vm.beginNextRound, onExit: onExit)
                     }
                 }
@@ -101,6 +101,9 @@ struct GameTableView: View {
         }
         .sheet(isPresented: targetSheetBinding) {
             TargetPickerView(candidates: targetCandidates, onChoose: vm.chooseTarget)
+        }
+        .sheet(isPresented: teamPassSheetBinding) {
+            TeamPassPickerView(hand: vs.localHand.map(\.card), onChoose: vm.passTeamCard)
         }
         .sheet(isPresented: $showPause) {
             PauseMenuView(settings: settings, onResume: { showPause = false; vm.resume() },
@@ -228,5 +231,8 @@ struct GameTableView: View {
     }
     private var targetSheetBinding: Binding<Bool> {
         Binding(get: { !vs.localTargetChoices.isEmpty }, set: { _ in })
+    }
+    private var teamPassSheetBinding: Binding<Bool> {
+        Binding(get: { vs.awaitingLocalTeamPass }, set: { _ in })
     }
 }

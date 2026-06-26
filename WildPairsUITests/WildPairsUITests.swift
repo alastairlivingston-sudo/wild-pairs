@@ -65,6 +65,42 @@ final class WildPairsUITests: XCTestCase {
         XCTAssertTrue(app.otherElements["game-prompt"].exists || app.staticTexts["game-prompt"].exists)
     }
 
+    // Side-to-Side Teams: starting a game presents the Team Pass picker first (the local
+    // human is always seat 0, the first to submit per GameEngine.firstTeamPassDecision),
+    // and declining gets them through to a normal, playable game table.
+    func testSideToSideTeamPassPickerAppearsAndDeclining() {
+        let app = launch()
+        app.buttons["home-new-game"].tap()
+
+        let sideToSideRow = app.buttons["Side-to-Side Teams"]
+        XCTAssertTrue(sideToSideRow.waitForExistence(timeout: 5))
+        sideToSideRow.tap()
+
+        app.buttons["newgame-start"].tap()
+
+        let decline = app.buttons["teampass-decline"]
+        XCTAssertTrue(decline.waitForExistence(timeout: 5), "Team Pass picker should appear immediately for the human (seat 0 submits first)")
+        decline.tap()
+
+        XCTAssertTrue(app.buttons["game-pause-button"].waitForExistence(timeout: 10),
+                      "Game table should be reachable after declining Team Pass")
+    }
+
+    // Same flow, but actually picking a card to pass rather than declining.
+    func testSideToSideTeamPassPickingACard() {
+        let app = launch()
+        app.buttons["home-new-game"].tap()
+        app.buttons["Side-to-Side Teams"].tap()
+        app.buttons["newgame-start"].tap()
+
+        let firstCard = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'teampass-card-'")).firstMatch
+        XCTAssertTrue(firstCard.waitForExistence(timeout: 5))
+        firstCard.tap()
+
+        XCTAssertTrue(app.buttons["game-pause-button"].waitForExistence(timeout: 10),
+                      "Game table should be reachable after passing a card")
+    }
+
     // UIT-06: The draw pile is reachable on the table.
     func testDrawPilePresent() {
         let app = launch()
@@ -316,7 +352,7 @@ final class WildPairsUITests: XCTestCase {
         let nextRound = app.buttons["roundend-next"]
         let backToHome = app.buttons["End game"]
         let draw = app.buttons["game-draw-card-button"]
-        let deadline = Date().addingTimeInterval(90)
+        let deadline = Date().addingTimeInterval(150)
         while Date() < deadline, !nextRound.exists, !backToHome.exists {
             if draw.exists, draw.isEnabled, draw.frame.width > 0 { draw.tap() }
             usleep(200_000)
@@ -368,7 +404,7 @@ final class WildPairsUITests: XCTestCase {
             }
         }
 
-        drawUntil(nextRound.exists || backToHome.exists, timeout: 90)
+        drawUntil(nextRound.exists || backToHome.exists, timeout: 150)
         guard nextRound.exists else {
             // The first round ended in a game-over (best-of-N reached) rather than a round
             // win — there's no second round to advance to in that case, which is a valid

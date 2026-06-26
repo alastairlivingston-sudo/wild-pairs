@@ -76,8 +76,11 @@ public enum GameAction: Codable, Equatable, Sendable {
 
     // MARK: Team Actions
 
-    /// The specified player invokes team pass, allowing their partner to play a card this turn.
-    case teamPass(playerID: UUID)
+    /// The specified player submits their Side-to-Side Team Pass choice — `card` is the
+    /// card from their hand to exchange with their partner, or nil to decline. Each player
+    /// submits independently and privately; the engine performs the simultaneous swap once
+    /// both teammates have submitted (game-rules.md §Side-to-Side Teams).
+    case submitTeamPass(playerID: UUID, card: Card?)
 
     // MARK: Solo Call
 

@@ -84,6 +84,7 @@ final class GameViewModel: ObservableObject {
     func drawCard()                       { apply { presenter.draw() } }
     func chooseColour(_ c: CardColour)     { apply { presenter.chooseColour(c) } }
     func chooseTarget(_ id: UUID)          { apply { presenter.chooseTarget(id) } }
+    func passTeamCard(_ card: Card?)       { apply { presenter.passTeamCard(card) } }
     func callSolo()                        { haptics.soloCall(); sound.play(.soloCall); apply { presenter.callSolo() } }
     func callOut(_ id: UUID)               { apply { presenter.callOut(id) } }
 
@@ -121,9 +122,26 @@ final class GameViewModel: ObservableObject {
         handle(effects)
         viewState = presenter.viewState
         checkRoundEnd()
+        enforceTurnCapIfNeeded()
         scheduleAITurnsIfNeeded()
         scheduleRoundTimerIfNeeded()
         scheduleMoveTimerIfNeeded()
+    }
+
+    /// Defensive turn cap (game-rules.md §Error Handling, playtest-review.md G4): the pure
+    /// engine can't loop on its own (every action makes progress), so `GameSimulator`'s
+    /// 300-turn cap is a belt-and-suspenders safety net rather than expected behaviour — but
+    /// the ViewModel should enforce `RuleProfile.maxTurnsPerRound` too, in case something
+    /// upstream (a future house rule, a bug) causes a round to run unexpectedly long. Reuses
+    /// the round timer's existing lowest-score-wins fallback rather than inventing a new one.
+    private func enforceTurnCapIfNeeded() {
+        guard presenter.state.phase == .playing,
+              turnsThisRound >= presenter.state.ruleProfile.maxTurnsPerRound else { return }
+        let effects = presenter.roundTimerExpired()
+        roundDeadline = nil
+        handle(effects)
+        viewState = presenter.viewState
+        checkRoundEnd()
     }
 
     private func scheduleAITurnsIfNeeded() {
@@ -144,6 +162,7 @@ final class GameViewModel: ObservableObject {
                 self.handle(effects)
                 self.viewState = self.presenter.viewState
                 self.checkRoundEnd()
+                self.enforceTurnCapIfNeeded()
             }
             self.scheduleMoveTimerIfNeeded()
         }
@@ -191,6 +210,7 @@ final class GameViewModel: ObservableObject {
             self.handle(effects)
             self.viewState = self.presenter.viewState
             self.checkRoundEnd()
+            self.enforceTurnCapIfNeeded()
             self.scheduleAITurnsIfNeeded()
             self.scheduleMoveTimerIfNeeded()
         }
