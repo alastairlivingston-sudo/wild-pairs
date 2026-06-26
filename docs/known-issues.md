@@ -15,6 +15,7 @@ Status: `open` / `in-progress` / `resolved` / `wontfix` / `deferred`
 | ID | Severity | Phase found | Status | Description | Workaround |
 |---|---|---|---|---|---|
 | KI-030 | medium | Phase 9 | open | design-system.md §3's "AX3+ activates large card mode automatically" is not wired to `dynamicTypeSize` anywhere in code — large card mode is currently a manual Settings toggle only | User can manually enable "Large cards" in Settings at large Dynamic Type sizes; not auto-detected |
+| KI-035 | low | Phase 9 | open | `testRoundEndCelebrationRenders` (WildPairsUITests) failed once in a full-suite `quality_full.sh` run on the iPad Air 13" destination (150s draw-loop budget not reached) but passed cleanly in ~52s when re-run in isolation on the same destination — consistent with RNG-dependent round length / simulator contention when running back-to-back with the other 17 UI tests, not a Phase 9 layout/logic regression (no code change made) | Re-run the single test in isolation if it fails in a full-suite run; consider raising the 150s budget or seeding a shorter test-only round if this recurs |
 
 ---
 
