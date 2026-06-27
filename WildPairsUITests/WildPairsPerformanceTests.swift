@@ -21,8 +21,19 @@ final class WildPairsPerformanceTests: XCTestCase {
     /// between iterations), so each call must start from a known state — end any game
     /// already in progress from a prior iteration before starting a fresh one.
     private func returnToHomeIfNeeded(_ app: XCUIApplication) {
+        // `playSeveralRounds` deliberately leaves the round-end overlay showing once it has
+        // seen `count` rounds (it breaks before tapping "Next round") — the next `measure`
+        // iteration starts from that overlay, not the live table, so exit via its own button
+        // rather than the pause menu (the overlay is modal and swallows the pause tap).
+        let roundEndExit = app.buttons["End game"]
+        if roundEndExit.exists {
+            roundEndExit.tap()
+            XCTAssertTrue(app.buttons["home-new-game"].waitForExistence(timeout: 5))
+            return
+        }
         guard app.buttons["game-pause-button"].exists else { return }
         app.buttons["game-pause-button"].tap()
+        XCTAssertTrue(app.buttons["pause-end-game"].waitForExistence(timeout: 3))
         app.buttons["pause-end-game"].tap()
         let confirmEndGame = app.alerts.buttons["End game"]
         if confirmEndGame.waitForExistence(timeout: 2) { confirmEndGame.tap() }

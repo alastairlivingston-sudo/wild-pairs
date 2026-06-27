@@ -38,6 +38,7 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut, value: game == nil)
+        .environment(\.reducedVisualEffects, settings.userSettings.reducedVisualEffects)
         .fullScreenCover(isPresented: showOnboardingBinding) {
             OnboardingView(onDismiss: dismissOnboarding)
         }

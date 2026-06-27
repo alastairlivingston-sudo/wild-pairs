@@ -33,6 +33,7 @@ struct PauseMenuView: View {
                     .listRowBackground(Color.black.opacity(0.25))
                 }
                 .scrollContentBackground(.hidden)
+                .tint(Theme.Palette.accent)
             }
             .navigationTitle("Paused")
             .navigationBarTitleDisplayMode(.inline)
@@ -66,6 +67,12 @@ struct RoundEndView: View {
         return false
     }
     private var didWin: Bool { vs.localTeamWon ?? false }
+    private var winningTeamName: String? {
+        switch vs.prompt {
+        case .roundOver(let name), .roundOverByTimeout(let name), .gameOver(let name): return name
+        default: return nil
+        }
+    }
 
     private var headline: String {
         if didWin { return isGameOver ? "Your team wins the game!" : "Your team wins this round!" }
@@ -85,9 +92,21 @@ struct RoundEndView: View {
                 ConfettiView().allowsHitTesting(false)
             }
             VStack(spacing: Theme.Space.s5) {
-                Image(systemName: didWin ? "trophy.fill" : "hand.thumbsdown.fill")
-                    .font(.system(size: 56))
-                    .foregroundStyle(didWin ? Theme.Palette.warning : .secondary)
+                if didWin {
+                    Circle()
+                        .fill(Theme.Palette.accent)
+                        .frame(width: 84, height: 84)
+                        .overlay(
+                            Image(systemName: "trophy.fill")
+                                .font(.system(size: 40))
+                                .foregroundStyle(Theme.Palette.onAccent)
+                        )
+                        .shadow(color: reducedMotion ? .clear : Theme.Palette.accent.opacity(0.5), radius: 18)
+                } else {
+                    Image(systemName: "hand.thumbsdown.fill")
+                        .font(.system(size: 56))
+                        .foregroundStyle(.secondary)
+                }
                 Text(headline).font(.largeTitle).fontWeight(.bold).multilineTextAlignment(.center)
                 if let subheadline {
                     Text(subheadline).font(.subheadline).foregroundStyle(.secondary)
@@ -98,6 +117,13 @@ struct RoundEndView: View {
                     ForEach(vs.scoreboard) { row in
                         HStack {
                             Text(row.displayName)
+                            if row.displayName == winningTeamName {
+                                Text("WON")
+                                    .font(.caption2).fontWeight(.bold)
+                                    .padding(.horizontal, Theme.Space.s2).padding(.vertical, 2)
+                                    .background(Capsule().fill(Theme.Palette.accent))
+                                    .foregroundStyle(Theme.Palette.onAccent)
+                            }
                             Spacer()
                             Text("\(row.score)").fontWeight(.semibold).monospacedDigit()
                         }
@@ -105,7 +131,7 @@ struct RoundEndView: View {
                 }
                 .padding(Theme.Space.s4)
                 .frame(maxWidth: 320)
-                .background(RoundedRectangle(cornerRadius: Theme.Radius.r3).fill(Color.black.opacity(0.3)))
+                .background(RoundedRectangle(cornerRadius: Theme.Radius.r3).fill(Theme.Palette.surface.opacity(0.4)))
 
                 VStack(spacing: Theme.Space.s3) {
                     if !isGameOver {
@@ -125,7 +151,7 @@ struct RoundEndView: View {
             .padding(Theme.Space.s6)
             .background(
                 RoundedRectangle(cornerRadius: Theme.Radius.r4).fill(Theme.Felt.base(.dark))
-                    .shadow(color: didWin ? Theme.Palette.warning.opacity(0.4) : .clear, radius: 24)
+                    .shadow(color: (didWin && !reducedMotion) ? Theme.Palette.accent.opacity(0.4) : .clear, radius: 24)
             )
             .padding(Theme.Space.s5)
             .shadow(color: .black.opacity(0.2), radius: 16, y: 4)
@@ -151,7 +177,7 @@ private struct ConfettiView: View {
     private let pieces: [Piece] = (0..<24).map { _ in
         Piece(
             xFraction: .random(in: 0...1),
-            colour: [Theme.Palette.warning, Theme.Palette.success, Theme.Palette.accent, .pink]
+            colour: [Theme.Palette.teamA, Theme.Palette.teamB, Color(hex: 0x2E7BFF), Color(hex: 0xFFB01F), Theme.Palette.accent]
                 .randomElement()!,
             delay: .random(in: 0...0.3),
             rotation: .random(in: 0...360)

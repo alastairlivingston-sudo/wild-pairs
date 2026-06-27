@@ -620,6 +620,36 @@ introduced by Phase 9) — see `docs/known-issues.md`.
 
 ---
 
+## 11a. Phase 10 Neon Arcade overhaul — accessibility re-verification (2026-06-26)
+
+Re-audited after the palette swap (gold→teal, neon card faces), the center-pill score header
+replacing the toolbar, opponent fanned-backs replaced with avatar+count, the new
+`NeonSegmented` control on New Game, and the round-end trophy/WON badge restyle. Scope:
+`Theme.swift`, `CardView.swift`, `GameTableView.swift`, `HandView.swift`, `HomeView.swift`,
+`NewGameFlowView.swift`, `PauseMenuView.swift`, `PlayerZoneView.swift`, `SettingsView.swift`,
+`TableCenterView.swift`, `WildPairsApp.swift`. Presentational-only phase — no `WildPairsCore`
+changes, no new game-event types to announce.
+
+| Check | Result | Notes |
+|---|---|---|
+| Every interactive element has an explicit `accessibilityLabel` | PASS | `NeonSegmented` option buttons inherit a descriptive label from their visible `Text` (e.g. "Standard Teams") plus `.accessibilityAddTraits(.isSelected)` on the active one; score-bar pause button keeps its explicit `"Pause"` label and `game-pause-button` identifier; avatar seats are absorbed into `PlayerZoneView`'s existing combined-label container (unchanged) so the avatar swap doesn't introduce a new unlabelled element |
+| Game events announced via VoiceOver live region | PASS | No new event types; `GameViewModel.announce(_:)` call sites untouched by this phase |
+| Colour-blind mode (`showColourName` / `CardPatternFill`) | PASS | Verified live on-device: `CardPatternFill`'s dot-grid/line patterns render with good contrast over the new bright neon fills (e.g. amber `0xFFB01F`); colour-name text labels ("AMBER", "CRIMSON") still show under each card. New score-bar team dots and the round-end "WON" badge are never the *sole* indicator — both sit next to text ("Team A 0", the team's name) that conveys the same information |
+| Dynamic Type XS→AX5, no clipping | PASS | Verified live at AX5 (`xcrun simctl ui … content_size accessibility-extra-extra-extra-large`): score bar's round chip and team-score pill shrink/truncate via `lineLimit(1)` + `minimumScaleFactor(0.5)` rather than wrapping to a second row; `NeonSegmented` labels use `lineLimit(1)` + `minimumScaleFactor(0.7)`; the hand remains fully reachable via the pre-existing scroll fallback (confirmed by manually scrolling to the bottom of the table at AX5 — all cards legible, none clipped) |
+| Reduced Motion fallback present for every animation | PASS (1 gap found + fixed) | Audited every shadow/glow touched in this phase: `PrimaryButtonStyle`'s new accent glow, `CardView`'s suit-coloured playable/selected glow, `PlayerZoneView.avatarSeat`'s thinking-glow, `RoundEndView`'s trophy-disc and win-panel glow, and the confetti palette swap — all gated on `reducedMotion`/`reducedVisualEffects`. Gap found: `PrimaryButtonStyle`'s glow originally checked only `accessibilityReduceMotion` (the system setting), not the app's own `UserSettings.reducedVisualEffects` toggle, so views with no direct line to `AppSettings` (e.g. `NewGameFlowView`'s "Start Game" button) could not respect it. Fixed by adding a `reducedVisualEffects` `EnvironmentKey` set once at `RootView` and read via `@Environment` in the button style |
+| Tap targets ≥44×44pt | PASS (1 regression found + fixed) | New score-bar pause button was originally `.frame(width: 28, height: 28)` — below the minimum. Fixed with an outer `.frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())` while keeping the visible circle at 28×28. `NeonSegmented` option buttons are ~32pt tall (caption font + `Theme.Space.s2` padding) — not a regression, matches the system `Picker(.segmented)` height it replaces, and the full-width flex layout gives a wide (if not tall) hit area |
+| VoiceOver focus order / no orphaned elements | PASS | Reordering the opponent zone (avatar above, name below, vs. the old name-above-fan layout) does not change VoiceOver's reading order: `PlayerZoneView` sets an explicit `.accessibilityLabel` on its `.combine`d container, which fully overrides the auto-generated combined text, so the visual subview order is invisible to VoiceOver. Score-bar's `Circle` team-colour dots have no label/trait and are not separately focusable (correct — they're decorative, the adjacent `Text` already says "Team A 0") |
+| `accessibilityElement` grouping for compound views | PASS | `PlayerZoneView`'s `.combine` + explicit label strategy unchanged; `NeonSegmented` doesn't need explicit grouping since each option is its own `Button` |
+| `accessibilityHint` for non-obvious interactions | PASS | Pause button and `NeonSegmented` options don't need hints — both are self-evident from label + (for segments) the built-in "selected" trait announcement |
+
+**Blocking issues:** none. **Fixes applied during this audit:** pause-button tap target
+enlarged to 44×44pt; `PrimaryButtonStyle` glow now also respects `UserSettings.reducedVisualEffects`
+via a new `\.reducedVisualEffects` environment key, not just the system Reduce Motion setting.
+**Carried-forward gap:** none new; AX3+ auto large-card-mode gap from Phase 9 remains open (see
+`docs/known-issues.md`), unaffected by this phase.
+
+---
+
 ## 11. Accessibility Testing Checklist
 
 This checklist must be completed before each phase gate (feature complete, beta, release candidate).
