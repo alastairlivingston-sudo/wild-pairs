@@ -788,14 +788,19 @@ public struct GameEngine {
     /// point costs. Used both for the losing-team score on a hand-emptying win and for
     /// determining the lowest-score winner when the round timer expires.
     private static func pointValue(for hand: [Card]) -> Int {
-        hand.reduce(0) { total, card in
-            switch card.type {
-            case .number(let v): return total + v
-            case .skip, .reverse, .drawTwo, .skipTwo, .targetedDraw,
-                 .forcedSwap, .teamPlay: return total + 20
-            case .discardAll: return total + 20
-            case .drawFour, .changeColour: return total + 50
-            }
+        hand.reduce(0) { $0 + pointValue(for: $1) }
+    }
+
+    /// Public per-card point value (game-rules.md scoring table: number = face value, action
+    /// = 20, wild = 50). Exposed for the presentation layer's live "points at risk" display —
+    /// a raw sum with no difficulty multiplier, since that's just live card values, not a score.
+    public static func pointValue(for card: Card) -> Int {
+        switch card.type {
+        case .number(let v): return v
+        case .skip, .reverse, .drawTwo, .skipTwo, .targetedDraw,
+             .forcedSwap, .teamPlay: return 20
+        case .discardAll: return 20
+        case .drawFour, .changeColour: return 50
         }
     }
 

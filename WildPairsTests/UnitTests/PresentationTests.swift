@@ -138,6 +138,22 @@ struct GameViewStateTests {
         let localSeat = vs.seats.first { $0.seatPosition == 0 }
         #expect(localSeat?.visiblePartnerHand == nil)
     }
+
+    @Test("Points at risk is the raw card-value sum of the local team's hands only, no multiplier")
+    func testLocalTeamPointsAtRisk() {
+        // Local (seat 0, Team A): 5 + skip(20) = 25. Partner (seat 2, Team A): 3 + drawFour(50) = 53.
+        // Opponents (Team B) must never affect this value.
+        let s = GameStateBuilder()
+            .withPlayers()
+            .withCurrentColour(.crimson)
+            .withHand(forPlayer: 0, cards: [CardFactory.number(5, .crimson), CardFactory.skip(.jade)])
+            .withHand(forPlayer: 1, cards: [CardFactory.number(9, .amber)])
+            .withHand(forPlayer: 2, cards: [CardFactory.number(3, .cobalt), CardFactory.drawFour()])
+            .withHand(forPlayer: 3, cards: [CardFactory.number(9, .amber)])
+            .build()
+        let vs = GameViewState(from: s, localPlayerID: s.players[0].id)
+        #expect(vs.localTeamPointsAtRisk == 25 + 53)
+    }
 }
 
 @Suite("GamePresenter orchestration")

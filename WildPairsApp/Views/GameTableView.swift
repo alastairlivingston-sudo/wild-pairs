@@ -68,6 +68,7 @@ struct GameTableView: View {
                                         .padding(.horizontal, Theme.Space.s4)
                                 }
                                 bottomControls
+                                pointsAtRiskPill
                                 HandView(hand: vs.localHand, cardSize: handCardSize,
                                          showColourName: showColourName, showPattern: showPattern,
                                          reducedMotion: reducedMotion, onPlay: vm.play)
@@ -165,6 +166,18 @@ struct GameTableView: View {
             .accessibilityIdentifier("game-solo-button")
             .accessibilityHint("You have one card remaining. Call Solo to avoid a penalty.")
         }
+    }
+
+    /// Live "points at risk" (Phase 11 E) — the raw card-value sum of the local player's own
+    /// team's hands, shown only for that team since it's derived purely from already-visible
+    /// hands (the local player's own + the open partner hand) and never leaks opponent info.
+    private var pointsAtRiskPill: some View {
+        Text("Team at risk: \(vs.localTeamPointsAtRisk) pts")
+            .font(.caption).fontWeight(.semibold)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, Theme.Space.s3).padding(.vertical, Theme.Space.s1)
+            .background(Capsule().fill(.white.opacity(0.06)))
+            .accessibilityLabel("Your team would lose \(vs.localTeamPointsAtRisk) points if you lost the round now.")
     }
 
     /// Partner stacked above a fixed-width row of (left opponent, table centre, right

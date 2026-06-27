@@ -120,6 +120,13 @@ public struct GameViewState: Equatable, Sendable {
     /// Lets the UI choose "Your team wins…" vs "Opponents win…" framing (ux-spec.md §10).
     public let localTeamWon: Bool?
 
+    /// Live raw card-value sum (game-rules.md scoring table, no difficulty multiplier) across
+    /// the local player's own team's hands — "what we'd lose if the round ended now." Only ever
+    /// derived from the local team's own hands (one of which is the local player's own, fully
+    /// known hand; the other is the open partner hand already visible in the UI), so it never
+    /// leaks hidden opponent-hand information.
+    public let localTeamPointsAtRisk: Int
+
     // MARK: Derivation
 
     public init(from state: GameState, localPlayerID: UUID) {
@@ -193,6 +200,11 @@ public struct GameViewState: Equatable, Sendable {
             : nil
 
         self.localTeamWon = state.winState.map { $0.winningTeam == localTeam }
+
+        self.localTeamPointsAtRisk = state.players
+            .filter { $0.teamID == localTeam }
+            .flatMap(\.hand)
+            .reduce(0) { $0 + GameEngine.pointValue(for: $1) }
 
         // Prompt
         self.prompt = GameViewState.prompt(
