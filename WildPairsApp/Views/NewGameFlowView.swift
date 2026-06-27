@@ -17,35 +17,37 @@ struct NewGameFlowView: View {
     var body: some View {
         ZStack {
             TableBackground()
-            // No ScrollView (Phase 11 C): the three segmented controls + Start button always
-            // fit a portrait screen, so a fixed VStack with the button pinned to the bottom
-            // reads as a complete, intentional layout instead of leaving dead space below an
-            // accidentally-short scroll view.
-            VStack(alignment: .leading, spacing: 0) {
-                Text("New game")
-                    .font(.largeTitle.weight(.bold))
-                    .padding(.top, Theme.Space.s5)
-                    .padding(.bottom, Theme.Space.s5)
+            // The Start button lives outside the ScrollView so it's always visible without
+            // scrolling at normal Dynamic Type sizes (Phase 11 C: no dead space below it) —
+            // but the controls above it still scroll, so at huge accessibility text sizes
+            // (AX3+) nothing becomes unreachable (regression caught by
+            // testDynamicTypeAX3LayoutSurvives).
+            VStack(spacing: 0) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: Theme.Space.s4) {
+                        Text("New game")
+                            .font(.largeTitle.weight(.bold))
+                            .padding(.top, Theme.Space.s5)
+                            .padding(.bottom, Theme.Space.s1)
 
-                VStack(alignment: .leading, spacing: Theme.Space.s4) {
-                    NeonSegmented(title: "Mode", options: [
-                        (GameMode.standardTeams, "Standard Teams"),
-                        (GameMode.allWild, "All-Wild Teams"),
-                        (GameMode.sideToSide, "Side-to-Side Teams")
-                    ], selection: $mode, blurb: modeBlurb)
+                        NeonSegmented(title: "Mode", options: [
+                            (GameMode.standardTeams, "Standard Teams"),
+                            (GameMode.allWild, "All-Wild Teams"),
+                            (GameMode.sideToSide, "Side-to-Side Teams")
+                        ], selection: $mode, blurb: modeBlurb)
 
-                    NeonSegmented(title: "Difficulty", options: Difficulty.allCases.map {
-                        ($0, $0.rawValue.capitalized)
-                    }, selection: $difficulty, blurb: difficultyBlurb)
+                        NeonSegmented(title: "Difficulty", options: Difficulty.allCases.map {
+                            ($0, $0.rawValue.capitalized)
+                        }, selection: $difficulty, blurb: difficultyBlurb)
 
-                    NeonSegmented(title: "Card set", options: [
-                        (CardSet.beginner, "Beginner"),
-                        (CardSet.standard, "Standard"),
-                        (CardSet.advanced, "Advanced")
-                    ], selection: $cardSet, blurb: cardSetBlurb)
+                        NeonSegmented(title: "Card set", options: [
+                            (CardSet.beginner, "Beginner"),
+                            (CardSet.standard, "Standard"),
+                            (CardSet.advanced, "Advanced")
+                        ], selection: $cardSet, blurb: cardSetBlurb)
+                    }
+                    .padding(.horizontal, Theme.Space.s4)
                 }
-
-                Spacer(minLength: Theme.Space.s5)
 
                 Button {
                     onStart(.standardFourPlayer(mode: mode, difficulty: difficulty, cardSet: cardSet,
@@ -55,9 +57,9 @@ struct NewGameFlowView: View {
                 }
                 .buttonStyle(.wpPrimary)
                 .accessibilityIdentifier("newgame-start")
+                .padding(.horizontal, Theme.Space.s4)
                 .padding(.bottom, Theme.Space.s4)
             }
-            .padding(.horizontal, Theme.Space.s4)
             // iPad: keep the controls from stretching edge-to-edge at regular width.
             .frame(maxWidth: 480)
         }
