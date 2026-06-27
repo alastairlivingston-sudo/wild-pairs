@@ -5,6 +5,22 @@ import WildPairsCore
 // Design tokens from docs/design-system.md. Single source for colours, spacing, radius,
 // elevation, and animation so views never hard-code visual values.
 
+// MARK: - Reduced visual effects environment
+
+/// Mirrors `UserSettings.reducedVisualEffects` into the environment so chrome that has no
+/// direct line to `AppSettings` (button styles, decorative glows) can still respect it —
+/// set once at the app root, read anywhere via `@Environment(\.reducedVisualEffects)`.
+private struct ReducedVisualEffectsKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var reducedVisualEffects: Bool {
+        get { self[ReducedVisualEffectsKey.self] }
+        set { self[ReducedVisualEffectsKey.self] = newValue }
+    }
+}
+
 enum Theme {
 
     // MARK: Spacing (§4)
@@ -24,6 +40,8 @@ enum Theme {
         static let r2: CGFloat = 8
         static let r3: CGFloat = 12
         static let r4: CGFloat = 16
+        /// Card face corner radius (neon-final.html spec: 14, up from the general r3=12).
+        static let card: CGFloat = 14
     }
 
     // MARK: Card dimensions (§6) — 2:3 ratio. Portrait-only; no landscape variants.
@@ -32,6 +50,12 @@ enum Theme {
         static let regularHand = CGSize(width: 80, height: 120)
         static let selected = CGSize(width: 100, height: 150)
         static let opponentBack = CGSize(width: 44, height: 66)
+        /// Partner's open hand row (neon-final.html spec: ~28px overlapped row) — far smaller
+        /// than `compactHand` so the partner panel reads as a glanceable strip, not a second hand.
+        static let partnerHand = CGSize(width: 30, height: 45)
+        /// Table-centre draw pile back — smaller than the discard so the discard reads as the
+        /// focal point (spec: discard 50px, draw-back 32px, ratio preserved here).
+        static let tableDraw = CGSize(width: 38, height: 57)
     }
 
     // MARK: Elevation (§11) — one elevation level per element, never stacked.
@@ -60,7 +84,10 @@ enum Theme {
 
     // MARK: UI colours (§7) + Felt palette (premium dark felt table surface)
     enum Palette {
-        static let accent = Color(hex: 0xD9B872) // warm gold accent over felt
+        static let accent = Color(hex: 0x36E0C8) // neon teal accent
+        static let onAccent = Color(hex: 0x04130F) // text/icon on accent
+        static let teamA = Color(hex: 0x16E08A) // jade
+        static let teamB = Color(hex: 0xFF2E63) // crimson
         static let success = Color(hex: 0x4CAF6D)
         static let warning = Color(hex: 0xE8A23D)
         static let error = Color(hex: 0xE5564B)
@@ -69,16 +96,16 @@ enum Theme {
         // Table surface — the only non-system UI colour (light/dark variants).
         static let tableLight = Color(red: 0xF5/255, green: 0xF0/255, blue: 0xE8/255)
         static let tableDark = Color(red: 0x1C/255, green: 0x25/255, blue: 0x26/255)
-        static let cream = Color(hex: 0xF3ECD9)
+        static let cream = Color(hex: 0xEEF0FF) // neon ink
     }
 
-    // MARK: Felt — deep teal/green table texture tokens (premium dark mood, dark-first)
+    // MARK: Felt — neon field tokens (premium dark mood, dark-first)
     enum Felt {
-        static let baseDark = Color(hex: 0x0B2C26)
-        static let baseDarkHighlight = Color(hex: 0x163F35)
-        static let baseLight = Color(hex: 0x1F5C4B)
-        static let baseLightHighlight = Color(hex: 0x2C7A63)
-        static let vignette = Color.black.opacity(0.55)
+        static let baseDark = Color(hex: 0x0D0820)
+        static let baseDarkHighlight = Color(hex: 0x1A1242)
+        static let baseLight = Color(hex: 0x0D0820)
+        static let baseLightHighlight = Color(hex: 0x1A1242)
+        static let vignette = Color.black.opacity(0.6)
         static let gold = Palette.accent
         static let cream = Palette.cream
 
@@ -90,16 +117,22 @@ enum Theme {
 // MARK: - Button styles (§9)
 
 struct PrimaryButtonStyle: ButtonStyle {
+    var glow: Bool = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.reducedVisualEffects) private var reducedVisualEffects
+
     func makeBody(configuration: Configuration) -> some View {
+        let glowEnabled = glow && !reduceMotion && !reducedVisualEffects
         configuration.label
             .font(.body.weight(.semibold))
             .frame(minHeight: 50)
             .frame(maxWidth: .infinity)
-            .foregroundStyle(Color(hex: 0x0B2C26))
+            .foregroundStyle(Theme.Palette.onAccent)
             .background(
                 RoundedRectangle(cornerRadius: Theme.Radius.r2)
                     .fill(Theme.Palette.accent.opacity(configuration.isPressed ? 0.8 : 1))
             )
+            .shadow(color: glowEnabled ? Theme.Palette.accent.opacity(0.5) : .clear, radius: 14)
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
     }
 }
@@ -155,6 +188,49 @@ extension ButtonStyle where Self == DestructiveButtonStyle {
     static var wpDestructive: DestructiveButtonStyle { DestructiveButtonStyle() }
 }
 
+// MARK: - Neon segmented control (Phase 10) — uppercase tracked label, surface track,
+// equal-width teal-filled pill on the selected option. Replaces `Form`/`Picker` on the
+// New Game screen.
+
+struct NeonSegmented<T: Hashable>: View {
+    let title: String
+    let options: [(value: T, label: String)]
+    @Binding var selection: T
+    var blurb: String? = nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.s2) {
+            Text(title.uppercased())
+                .font(.caption2).fontWeight(.bold).tracking(1)
+                .foregroundStyle(.secondary)
+            HStack(spacing: Theme.Space.s1) {
+                ForEach(options, id: \.value) { option in
+                    let isSelected = option.value == selection
+                    Button { selection = option.value } label: {
+                        Text(option.label)
+                            .font(.caption).fontWeight(.bold)
+                            .lineLimit(1).minimumScaleFactor(0.7)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, Theme.Space.s2)
+                            .foregroundStyle(isSelected ? Theme.Palette.onAccent : Theme.Palette.cream.opacity(0.65))
+                            .background(
+                                RoundedRectangle(cornerRadius: Theme.Radius.r2)
+                                    .fill(isSelected ? Theme.Palette.accent : .clear)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+                }
+            }
+            .padding(Theme.Space.s1)
+            .background(RoundedRectangle(cornerRadius: Theme.Radius.r3).fill(Theme.Palette.surface.opacity(0.4)))
+            if let blurb {
+                Text(blurb).font(.footnote).foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
 // MARK: - Bespoke suit symbols (§10) — Flame/Wave/Leaf/Sun drawn as Path shapes, no SF Symbols.
 
 struct SuitSymbolShape: Shape {
@@ -162,10 +238,10 @@ struct SuitSymbolShape: Shape {
 
     func path(in rect: CGRect) -> Path {
         switch colour {
-        case .crimson: return flame(in: rect)
-        case .cobalt: return wave(in: rect)
-        case .jade: return leaf(in: rect)
-        case .amber: return sun(in: rect)
+        case .crimson: return flame(in: rect)      // Fire
+        case .cobalt: return wave(in: rect)         // Rain
+        case .jade: return crystal(in: rect)        // Earth
+        case .amber: return swirl(in: rect)         // Wind
         }
     }
 
@@ -216,36 +292,41 @@ struct SuitSymbolShape: Shape {
         return path
     }
 
-    private func leaf(in rect: CGRect) -> Path {
+    /// Earth: a faceted crystal/mountain — a hexagonal gem outline with internal facet lines.
+    private func crystal(in rect: CGRect) -> Path {
         var path = Path()
         let w = rect.width, h = rect.height
-        path.move(to: CGPoint(x: rect.minX + w * 0.5, y: rect.minY))
-        path.addCurve(to: CGPoint(x: rect.minX + w * 0.5, y: rect.minY + h),
-                      control1: CGPoint(x: rect.minX + w, y: rect.minY + h * 0.3),
-                      control2: CGPoint(x: rect.minX + w, y: rect.minY + h * 0.75))
-        path.addCurve(to: CGPoint(x: rect.minX + w * 0.5, y: rect.minY),
-                      control1: CGPoint(x: rect.minX, y: rect.minY + h * 0.75),
-                      control2: CGPoint(x: rect.minX, y: rect.minY + h * 0.3))
+        let top = CGPoint(x: rect.minX + w * 0.5, y: rect.minY)
+        let upperLeft = CGPoint(x: rect.minX, y: rect.minY + h * 0.36)
+        let upperRight = CGPoint(x: rect.minX + w, y: rect.minY + h * 0.36)
+        let lowerLeft = CGPoint(x: rect.minX + w * 0.22, y: rect.minY + h * 0.7)
+        let lowerRight = CGPoint(x: rect.minX + w * 0.78, y: rect.minY + h * 0.7)
+        let bottom = CGPoint(x: rect.minX + w * 0.5, y: rect.minY + h)
+        path.move(to: top)
+        path.addLine(to: upperRight)
+        path.addLine(to: lowerRight)
+        path.addLine(to: bottom)
+        path.addLine(to: lowerLeft)
+        path.addLine(to: upperLeft)
         path.closeSubpath()
-        // central vein
-        path.move(to: CGPoint(x: rect.minX + w * 0.5, y: rect.minY + h * 0.12))
-        path.addLine(to: CGPoint(x: rect.minX + w * 0.5, y: rect.minY + h * 0.92))
+        // facet lines
+        path.move(to: top); path.addLine(to: bottom)
+        path.move(to: upperLeft); path.addLine(to: lowerRight)
+        path.move(to: upperRight); path.addLine(to: lowerLeft)
         return path
     }
 
-    private func sun(in rect: CGRect) -> Path {
+    /// Wind: a gust/swirl — three concentric arcs sweeping outward, like a breeze curling.
+    private func swirl(in rect: CGRect) -> Path {
         var path = Path()
         let center = CGPoint(x: rect.midX, y: rect.midY)
-        let coreRadius = min(rect.width, rect.height) * 0.26
-        path.addEllipse(in: CGRect(x: center.x - coreRadius, y: center.y - coreRadius,
-                                    width: coreRadius * 2, height: coreRadius * 2))
-        let rayInner = coreRadius * 1.35
-        let rayOuter = min(rect.width, rect.height) * 0.5
-        for i in 0..<8 {
-            let angle = Double(i) / 8 * 2 * .pi
-            let dx = cos(angle), dy = sin(angle)
-            path.move(to: CGPoint(x: center.x + dx * rayInner, y: center.y + dy * rayInner))
-            path.addLine(to: CGPoint(x: center.x + dx * rayOuter, y: center.y + dy * rayOuter))
+        let maxRadius = min(rect.width, rect.height) * 0.46
+        for i in 0..<3 {
+            let radius = maxRadius * (0.45 + 0.28 * Double(i))
+            let startAngle = Angle(degrees: -130 + Double(i) * 12)
+            let endAngle = Angle(degrees: 110 - Double(i) * 18)
+            path.addArc(center: center, radius: radius, startAngle: startAngle,
+                        endAngle: endAngle, clockwise: false)
         }
         return path
     }
@@ -265,23 +346,25 @@ struct SuitSymbol: View {
 // MARK: - Game colour → SwiftUI Color (§7, light/dark adjusted)
 
 extension CardColour {
-    /// The card face colour. Lightened ~10% in dark mode per the design system.
+    /// The card face base colour — elemental retheme (Fire/Rain/Earth/Wind, Phase 11 D):
+    /// red→orange, deep-blue→cyan, green→stone, gold→grey, all scheme-independent (dark-first).
     func fillColor(_ scheme: ColorScheme) -> Color {
-        switch (self, scheme) {
-        case (.crimson, .dark): return Color(hex: 0xE74C3C)
-        case (.crimson, _):     return Color(hex: 0xC0392B)
-        case (.cobalt, .dark):  return Color(hex: 0x2E86C1)
-        case (.cobalt, _):      return Color(hex: 0x2471A3)
-        case (.jade, .dark):    return Color(hex: 0x27AE60)
-        case (.jade, _):        return Color(hex: 0x1E8449)
-        case (.amber, .dark):   return Color(hex: 0xF1C40F)
-        case (.amber, _):       return Color(hex: 0xD4AC0D)
+        switch self {
+        case .crimson: return Color(hex: 0xE8431F)  // Fire: red-orange
+        case .cobalt:  return Color(hex: 0x1B5FD9)  // Rain: deep blue
+        case .jade:    return Color(hex: 0x2F8F5B)  // Earth: green-stone
+        case .amber:   return Color(hex: 0xC9A227)  // Wind: gold-grey
         }
     }
 
-    /// Lighter variant of `fillColor` used for the top-down gradient highlight on card faces.
+    /// Brighter top-of-gradient stop for the card face, explicit neon highlight (not a white blend).
     func highlightColor(_ scheme: ColorScheme) -> Color {
-        fillColor(scheme).opacity(0.78).blended(toward: .white, amount: 0.22)
+        switch self {
+        case .crimson: return Color(hex: 0xFF8A3D)  // Fire: orange
+        case .cobalt:  return Color(hex: 0x4FD2F0)  // Rain: cyan
+        case .jade:    return Color(hex: 0x8FAE99)  // Earth: stone grey-green
+        case .amber:   return Color(hex: 0xD8C77E)  // Wind: pale gold-grey
+        }
     }
 
     /// SF-symbol name kept only as a VoiceOver/legacy fallback; visuals use `SuitSymbol`.
@@ -289,19 +372,19 @@ extension CardColour {
         switch self {
         case .crimson: return "flame.fill"
         case .cobalt:  return "water.waves"
-        case .jade:    return "leaf.fill"
-        case .amber:   return "sun.max.fill"
+        case .jade:    return "mountain.2.fill"
+        case .amber:   return "wind"
         }
     }
 
-    /// Plain-English symbol name for VoiceOver (CLAUDE.md colour table): "Flame"/"Wave"/
-    /// "Leaf"/"Sun", as opposed to `symbolName`'s SF Symbol identifier.
+    /// Plain-English symbol name for VoiceOver (elemental retheme, Phase 11 D): "Flame"/"Wave"/
+    /// "Crystal"/"Gust", as opposed to `symbolName`'s SF Symbol identifier.
     var symbolDisplayName: String {
         switch self {
         case .crimson: return "Flame"
         case .cobalt:  return "Wave"
-        case .jade:    return "Leaf"
-        case .amber:   return "Sun"
+        case .jade:    return "Crystal"
+        case .amber:   return "Gust"
         }
     }
 }

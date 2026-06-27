@@ -14,7 +14,7 @@ struct PlayerZoneView: View {
     /// room than a solid CardBackView does, so this must not reuse the tiny cardBackSize —
     /// at that size CardView's internal content overflows its frame and corrupts the
     /// enclosing VStack's layout (the name/badge row above silently fails to render).
-    var openHandCardSize: CGSize = Theme.CardSize.compactHand
+    var openHandCardSize: CGSize = Theme.CardSize.partnerHand
     /// Maximum width the card fan may occupy before it must overlap more tightly (A6) —
     /// callers pass the seat's allotted slice of the table so the fan never clips.
     var maxFanWidth: CGFloat? = nil
@@ -27,15 +27,19 @@ struct PlayerZoneView: View {
     /// soft glow that pulses on a ~2s period; static border instead under Reduced Motion).
     @State private var glowPulse = false
 
+    private var isOpponentAvatar: Bool { seat.visiblePartnerHand == nil }
+
     var body: some View {
         VStack(spacing: Theme.Space.s1) {
-            HStack(spacing: Theme.Space.s2) {
-                Text(seat.name)
-                    .font(.subheadline).fontWeight(.semibold)
-                    .foregroundStyle(seat.isCurrentPlayer ? Theme.Palette.accent : .secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                countBadge
+            if !isOpponentAvatar {
+                HStack(spacing: Theme.Space.s2) {
+                    Text(seat.name)
+                        .font(.subheadline).fontWeight(.semibold)
+                        .foregroundStyle(seat.isCurrentPlayer ? Theme.Palette.accent : .secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                    countBadge
+                }
             }
 
             if isThinking {
@@ -45,7 +49,12 @@ struct PlayerZoneView: View {
             if let partnerHand = seat.visiblePartnerHand {
                 openHandFan(partnerHand)
             } else {
-                backsFan
+                avatarSeat
+                Text(seat.name)
+                    .font(.caption).fontWeight(.semibold)
+                    .foregroundStyle(seat.isCurrentPlayer ? Theme.Palette.accent : .secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
             }
 
             statusBadges
@@ -95,11 +104,14 @@ struct PlayerZoneView: View {
     private var canCatchSolo: Bool { seat.needsSoloCall && onCatchSolo != nil }
     private var catchSoloHint: String { canCatchSolo ? "Double tap to call them out" : "" }
 
+    /// Solid teal chip (neon-final.html spec: `background:accent;color:onAccent`) for the
+    /// partner's visible card count.
     private var countBadge: some View {
         Text("\(seat.handCount)")
             .font(.caption).fontWeight(.bold).monospacedDigit()
             .padding(.horizontal, Theme.Space.s2).padding(.vertical, 2)
-            .background(Capsule().fill(Theme.Palette.accent.opacity(0.15)))
+            .foregroundStyle(Theme.Palette.onAccent)
+            .background(Capsule().fill(Theme.Palette.accent))
     }
 
     /// Width-aware overlap so a fan of `count` cards at `cardWidth` never exceeds
@@ -131,6 +143,35 @@ struct PlayerZoneView: View {
                height: cardBackSize.height)
     }
 
+    /// Opponent avatar + count badge, replacing the repetitive fanned card-backs (Phase 10
+    /// Neon Arcade): a single glanceable circle reads faster than counting overlapping backs.
+    private var avatarSeat: some View {
+        ZStack(alignment: .bottomTrailing) {
+            Circle()
+                .fill(Theme.Palette.surface.opacity(0.5))
+                .overlay(
+                    Circle().strokeBorder(
+                        (seat.isCurrentPlayer || isThinking) ? Theme.Palette.accent : .white.opacity(0.22),
+                        lineWidth: (seat.isCurrentPlayer || isThinking) ? 2 : 1.5)
+                )
+                .frame(width: 54, height: 54)
+                .overlay(
+                    Text(seat.name.first.map(String.init) ?? "?")
+                        .font(.title3).fontWeight(.bold)
+                        .foregroundStyle(Theme.Palette.cream)
+                )
+                .shadow(color: (isThinking && !reducedMotion) ? Theme.Palette.accent.opacity(0.5) : .clear, radius: 10)
+
+            Text("\(seat.handCount)")
+                .font(.caption2).fontWeight(.bold).monospacedDigit()
+                .padding(.horizontal, Theme.Space.s1).padding(.vertical, 1)
+                .background(Capsule().fill(Theme.Palette.accent))
+                .foregroundStyle(Theme.Palette.onAccent)
+                .offset(x: 4, y: 4)
+        }
+        .frame(width: 54 + Theme.Space.s2, height: 54 + Theme.Space.s2)
+    }
+
     /// Partner's hand, face-up — partner hands are open by design (game-rules.md Team
     /// Communication Rules). Not tappable: only the local player's own hand is playable.
     private func openHandFan(_ hand: [Card]) -> some View {
@@ -142,7 +183,7 @@ struct PlayerZoneView: View {
             } else {
                 ForEach(Array(hand.enumerated()), id: \.element.id) { index, card in
                     CardView(card: card, size: openHandCardSize, showColourName: showColourName,
-                             showPattern: showPattern)
+                             showPattern: showPattern, reducedMotion: reducedMotion)
                         .offset(x: CGFloat(index) * step)
                         .transition(reducedMotion ? .identity : .scale(scale: 0.5).combined(with: .opacity))
                 }

@@ -76,11 +76,12 @@ struct HandView: View {
         return cardSize.width + step * CGFloat(hand.count - 1)
     }
 
-    /// The per-card horizontal advance: full card width + gap when everything fits, shrinking
-    /// (overlapping) only as far as needed to keep the whole fan inside `available`.
+    /// The per-card horizontal advance: a ~44% overlap (neon-final.html spec) when everything
+    /// fits, shrinking (overlapping further) only as far as needed to keep the whole fan
+    /// inside `available`.
     private func fanStep(available: CGFloat) -> CGFloat {
         guard hand.count > 1 else { return cardSize.width }
-        let comfortable = cardSize.width + Theme.Space.s2
+        let comfortable = cardSize.width * 0.56
         let neededForComfortable = cardSize.width + comfortable * CGFloat(hand.count - 1)
         if neededForComfortable <= available { return comfortable }
         let step = (available - cardSize.width) / CGFloat(hand.count - 1)
@@ -90,8 +91,8 @@ struct HandView: View {
     private func card(_ item: CardViewModel) -> some View {
         CardView(card: item.card, size: cardSize,
                  isPlayable: item.isPlayable, showColourName: showColourName,
-                 showPattern: showPattern, announcePlayability: true)
-            .offset(y: item.isPlayable ? -Theme.Space.s3 : 0)
+                 showPattern: showPattern, announcePlayability: true, reducedMotion: reducedMotion)
+            .offset(y: item.isPlayable ? -cardSize.height * 0.18 : 0)
             .modifier(ShakeEffect(animatableData: shakingCardID == item.id ? 1 : 0))
             .onTapGesture { tap(item) }
             .animation(Theme.Motion.cardPlay, value: item.isPlayable)

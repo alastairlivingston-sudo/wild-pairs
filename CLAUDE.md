@@ -78,10 +78,18 @@ View → GameAction intent → GameViewModel → GameEngine.reduce(state, action
 ### Card colours (original — not UNO colours)
 | Internal name | Display name | Symbol | Colour-blind pattern |
 |---|---|---|---|
-| `crimson` | Crimson | Flame | Diagonal hatching |
-| `cobalt` | Cobalt | Wave | Horizontal lines |
-| `jade` | Jade | Leaf | Vertical lines |
-| `amber` | Amber | Sun | Dots |
+| `crimson` | Fire | Flame | Diagonal hatching |
+| `cobalt` | Rain | Wave | Horizontal lines |
+| `jade` | Earth | Crystal | Vertical lines |
+| `amber` | Wind | Gust | Dots |
+
+Phase 11 display-only retheme: the **internal** vocabulary above (`CardColour` case names,
+Codable raw values, this table's "Internal name" column) is the canonical engine vocabulary and
+never changes — save files, tests, and AI heuristics key off it. Only the **Display name**/
+**Symbol** columns are user-facing and were retitled Fire/Rain/Earth/Wind (was
+Crimson/Cobalt/Jade/Amber) to read as real elemental cards. `CardColour.displayName` is the
+single source of truth for the display name; everywhere else (VoiceOver, UI copy) reads through
+it, so no other code needed to change.
 
 ### One-card-left mechanic
 - **"Solo!"** — player must call "Solo!" when they play down to one card

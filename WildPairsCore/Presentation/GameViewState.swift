@@ -298,13 +298,18 @@ public struct GameViewState: Equatable, Sendable {
 
 // MARK: - Display names for colours
 
+// Display-only retheme (Phase 11 D): the engine's internal vocabulary — case names, Codable
+// raw values, CLAUDE.md "Canonical Design Vocabulary" — stays crimson/cobalt/jade/amber for
+// save/test stability. Only what players see (and VoiceOver reads, since it reads
+// `displayName`) changes to the elemental names: crimson→Fire, cobalt→Rain, jade→Earth,
+// amber→Wind.
 extension CardColour {
     public var displayName: String {
         switch self {
-        case .crimson: return "Crimson"
-        case .cobalt:  return "Cobalt"
-        case .jade:    return "Jade"
-        case .amber:   return "Amber"
+        case .crimson: return "Fire"
+        case .cobalt:  return "Rain"
+        case .jade:    return "Earth"
+        case .amber:   return "Wind"
         }
     }
 }

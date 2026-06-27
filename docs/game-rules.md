@@ -194,11 +194,11 @@ Each player's turn proceeds in this exact order:
 | Property | Value |
 |---|---|
 | Available in | Beginner, Standard, Advanced |
-| Colour | Crimson, Cobalt, Jade, or Amber |
+| Colour | Fire, Rain, Earth, or Wind |
 | Matching rule | Play if colour matches current colour OR number matches top card's number |
 | Effect | None — the card changes the active colour to its own colour |
 | Solo!/penalty interaction | Normal — going to 1 card requires Solo! call |
-| VoiceOver label | "Crimson Five" / "Jade Zero" / etc. |
+| VoiceOver label | "Fire Five" / "Earth Zero" / etc. |
 | In-app rules text | "Play this card if the top card shares its colour or number. No special effect." |
 
 Number cards 0–9 exist in each of the four colours, giving 40 number cards in a full set (ten per colour: one 0 and one each of 1–9 per colour in Standard and Advanced; adjusted counts per card set configuration).
@@ -208,11 +208,11 @@ Number cards 0–9 exist in each of the four colours, giving 40 number cards in 
 | Property | Value |
 |---|---|
 | Available in | Beginner, Standard, Advanced |
-| Colour | Crimson, Cobalt, Jade, or Amber |
+| Colour | Fire, Rain, Earth, or Wind |
 | Matching rule | Play if colour matches OR top card is also a Skip |
 | Effect | The next player in turn order loses their turn entirely |
 | Solo!/penalty interaction | Normal |
-| VoiceOver label | "Crimson Skip" |
+| VoiceOver label | "Fire Skip" |
 | In-app rules text | "The next player loses their turn." |
 
 When a Skip is played, the skipped player's turn is silently consumed. The turn then advances to the player after the skipped player.
@@ -222,11 +222,11 @@ When a Skip is played, the skipped player's turn is silently consumed. The turn 
 | Property | Value |
 |---|---|
 | Available in | Beginner, Standard, Advanced |
-| Colour | Crimson, Cobalt, Jade, or Amber |
+| Colour | Fire, Rain, Earth, or Wind |
 | Matching rule | Play if colour matches OR top card is also a Reverse |
 | Effect | Turn direction flips (clockwise becomes counter-clockwise, and vice versa) |
 | Solo!/penalty interaction | Normal |
-| VoiceOver label | "Jade Reverse" |
+| VoiceOver label | "Earth Reverse" |
 | In-app rules text | "Turn direction reverses. If play was going clockwise, it now goes counter-clockwise, and vice versa." |
 
 With four players, Reverse effectively changes who plays next. If it was Human → Left → Partner → Right, after Reverse it becomes Human → Right → Partner → Left.
@@ -243,18 +243,18 @@ With four players, Reverse effectively changes who plays next. If it was Human �
 | VoiceOver label | "Change Colour — choose new colour" |
 | In-app rules text | "Play on any card. Choose the new colour for the next player to match." |
 
-Change Colour cards have no base colour. After playing, the player selects Crimson, Cobalt, Jade, or Amber; that becomes the required colour for the next player.
+Change Colour cards have no base colour. After playing, the player selects Fire, Rain, Earth, or Wind; that becomes the required colour for the next player.
 
 ### Draw Two
 
 | Property | Value |
 |---|---|
 | Available in | Standard, Advanced |
-| Colour | Crimson, Cobalt, Jade, or Amber |
+| Colour | Fire, Rain, Earth, or Wind |
 | Matching rule | Play if colour matches OR top card is also a Draw Two |
 | Effect | The next player draws 2 cards and loses their turn |
 | Solo!/penalty interaction | Normal for the player playing it; the targeted player may fall below Solo! threshold after drawing — Solo! check applies to the targeted player at that moment |
-| VoiceOver label | "Amber Draw Two" |
+| VoiceOver label | "Wind Draw Two" |
 | In-app rules text | "The next player draws 2 cards and loses their turn." |
 
 If draw stacking is enabled (house rule), the next player may play their own Draw Two (or Draw Four) to pass the cumulative penalty further down the chain.
@@ -290,11 +290,11 @@ Note: The player chooses the colour to discard after playing the card, not befor
 | Property | Value |
 |---|---|
 | Available in | Advanced |
-| Colour | Crimson, Cobalt, Jade, or Amber |
+| Colour | Fire, Rain, Earth, or Wind |
 | Matching rule | Play if colour matches OR top card is also a Targeted Draw |
 | Effect | The playing player chooses any single opponent; that opponent draws 2 cards |
 | Solo!/penalty interaction | Normal; the targeted opponent's Solo! status is checked after they draw (if they were at Solo! before drawing, they are no longer) |
-| VoiceOver label | "Jade Targeted Draw — choose an opponent" |
+| VoiceOver label | "Earth Targeted Draw — choose an opponent" |
 | In-app rules text | "Choose any opponent. That player draws 2 cards. (Does not skip their turn.)" |
 
 Unlike Draw Two, Targeted Draw does **not** skip the targeted player's turn. The targeted player draws 2 cards and then takes their turn normally. This is the canonical rule; any test or document asserting a skip for Targeted Draw is incorrect and must be corrected.
@@ -304,11 +304,11 @@ Unlike Draw Two, Targeted Draw does **not** skip the targeted player's turn. The
 | Property | Value |
 |---|---|
 | Available in | Advanced |
-| Colour | Crimson, Cobalt, Jade, or Amber |
+| Colour | Fire, Rain, Earth, or Wind |
 | Matching rule | Play if colour matches OR top card is also a Forced Swap |
 | Effect | The playing player chooses any other player (teammate or opponent). Both players swap their entire hands simultaneously |
 | Solo!/penalty interaction | Both players' Solo! status is re-evaluated after the swap. If either player now holds exactly 1 card and did not hold 1 card before, they must call Solo! |
-| VoiceOver label | "Crimson Forced Swap — choose any player" |
+| VoiceOver label | "Fire Forced Swap — choose any player" |
 | In-app rules text | "Choose any other player. You and that player swap your entire hands." |
 
 A player may swap with their own partner. This can be a strategic move (giving the partner a better hand, or taking a partner's near-empty hand to go out faster).
@@ -318,11 +318,11 @@ A player may swap with their own partner. This can be a strategic move (giving t
 | Property | Value |
 |---|---|
 | Available in | Advanced |
-| Colour | Crimson, Cobalt, Jade, or Amber |
+| Colour | Fire, Rain, Earth, or Wind |
 | Matching rule | Play if colour matches OR top card is also a Skip Two |
 | Effect | The next two players in turn order each lose their turn |
 | Solo!/penalty interaction | Normal |
-| VoiceOver label | "Cobalt Skip Two" |
+| VoiceOver label | "Rain Skip Two" |
 | In-app rules text | "The next two players each lose their turn." |
 
 With four players, Skip Two effectively means both players on the opposing team (or, if direction has reversed, both players on your own team and partner — plan carefully).
@@ -332,11 +332,11 @@ With four players, Skip Two effectively means both players on the opposing team 
 | Property | Value |
 |---|---|
 | Available in | Advanced |
-| Colour | Crimson, Cobalt, Jade, or Amber |
+| Colour | Fire, Rain, Earth, or Wind |
 | Matching rule | Play if colour matches OR top card is also a Team Play |
 | Effect | Default rule: Both the playing player and their partner each immediately draw 1 card from the draw pile as a bonus draw. (Optional house rule variant: the partner may immediately play one card from their hand.) |
 | Solo!/penalty interaction | Both players' Solo! status is re-evaluated after any draws or plays triggered by Team Play |
-| VoiceOver label | "Amber Team Play" |
+| VoiceOver label | "Wind Team Play" |
 | In-app rules text | "You and your partner each draw 1 card from the draw pile. (With the house rule variant, your partner may immediately play one card instead.)" |
 
 Team Play is double-edged: it gives both teammates more cards (potentially valuable), but may push either player above the Solo! threshold unexpectedly.
@@ -629,16 +629,16 @@ If after reshuffling the draw pile is still empty (extremely rare — only if al
 |---|---|
 | Active colour | The colour that the next player must match (or use a wild to override). Set by the most recently played non-wild card, or chosen by the most recent wild-card player. |
 | All-Wild mode | The game mode where every card is legally playable on every turn. |
-| Amber | One of the four card colours. Symbol: Sun. |
-| Cobalt | One of the four card colours. Symbol: Wave. |
-| Crimson | One of the four card colours. Symbol: Flame. |
+| Wind | One of the four card colours. Symbol: Gust. |
+| Rain | One of the four card colours. Symbol: Wave. |
+| Fire | One of the four card colours. Symbol: Flame. |
 | Current top | The top-most face-up card on the discard pile, used to determine what may be played next. |
 | Discard pile | The face-up pile of cards that have been played. |
 | Draw pile | The face-down pile of remaining cards not yet in play. |
 | Forced Swap | Action card: both the playing player and a chosen player exchange entire hands. |
 | Go out | To play the last card from one's hand, resulting in an empty hand. |
 | House rule | An optional rule variant that modifies the standard game rules, configurable in app settings. |
-| Jade | One of the four card colours. Symbol: Leaf. |
+| Earth | One of the four card colours. Symbol: Crystal. |
 | Round | A single game from dealing to one team emptying both hands. A full game session may span multiple rounds. |
 | Side-to-Side mode | The game mode that adds an optional team pass phase at round start. |
 | Skip | Action card: the next player loses their turn. |
