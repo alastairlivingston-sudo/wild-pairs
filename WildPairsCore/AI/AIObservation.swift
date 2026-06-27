@@ -36,6 +36,11 @@ public struct AIObservation: Sendable {
     /// The type of the most recently played card, if still relevant (e.g., pending draw).
     public let currentCardType: CardType?
 
+    /// Accumulated draw stack the active player must answer (Phase 11 F) — nil if none is
+    /// pending. Mirrors `GameState.pendingDrawCount`/`pendingDrawType`.
+    public let pendingDrawCount: Int?
+    public let pendingDrawType: CardType?
+
     /// The number of cards each player currently holds.
     /// Keys are player IDs. Values are hand sizes only — not hand contents.
     public let cardCounts: [UUID: Int]
@@ -132,6 +137,8 @@ public struct AIObservation: Sendable {
         self.discardPile = state.deck.discardPile
         self.currentColour = state.currentColour
         self.currentCardType = state.currentCardType
+        self.pendingDrawCount = state.pendingDrawCount
+        self.pendingDrawType = state.pendingDrawType
         self.cardCounts = Dictionary(
             uniqueKeysWithValues: state.players.map { ($0.id, $0.handCount) }
         )

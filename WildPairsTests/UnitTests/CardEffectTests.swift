@@ -77,11 +77,12 @@ struct CardEffectTests {
 
     // MARK: Draw Two
 
-    @Test("Draw Two gives target player 2 cards and skips their turn")
+    @Test("Draw Two gives target player 2 cards and skips their turn (stacking disabled, legacy rule)")
     func testDrawTwoAppliesPenaltyAndSkips() {
         let card = CardFactory.drawTwo(.crimson)
         let state = GameStateBuilder()
             .withPlayers()
+            .withRuleProfile({ var p = RuleProfile.standardTeams(); p.stackDrawCards = false; return p }())
             .withCurrentColour(.crimson)
             .withTopDiscard(CardFactory.number(5, .crimson))
             .withHand(forPlayer: 0, cards: [card])
@@ -116,11 +117,12 @@ struct CardEffectTests {
         }
     }
 
-    @Test("Selecting colour after Draw Four deals 4 cards to next player and skips them")
+    @Test("Selecting colour after Draw Four deals 4 cards to next player and skips them (stacking disabled, legacy rule)")
     func testDrawFourPenaltyAfterColourSelect() {
         let card = CardFactory.drawFour()
         let state = GameStateBuilder()
             .withPlayers()
+            .withRuleProfile({ var p = RuleProfile.standardTeams(); p.stackDrawCards = false; return p }())
             .withCurrentColour(.cobalt)
             .withTopDiscard(CardFactory.number(3, .cobalt))
             .withHand(forPlayer: 0, cards: [card])

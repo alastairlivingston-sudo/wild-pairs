@@ -449,3 +449,184 @@ suit symbols, portrait lock, layout clipping fixes, animation polish).
 
 ### Sign-off
 - [ ] ios-architect / ux-lead confirm the gate criteria in the Phase 9 plan are met
+
+---
+
+## Phase 10 — Neon Arcade UX Overhaul
+
+Gate doc: this section. Full scope in `docs/phase-10-plan.md` and
+`docs/phase-10-implementation-plan.md`. Locked direction: Neon Arcade — center-pill score
+header, straight-row hand, avatar+count opponents. Presentational only — `WildPairsCore`
+untouched.
+
+### Completed work
+- [x] `Theme.swift` neon token swap: `accent` gold→teal (`0x36E0C8`), new `onAccent`/`teamA`/`teamB`
+      tokens, `cream`→ink (`0xEEF0FF`), `Theme.Felt` field recoloured to indigo/violet
+      (`0x0D0820`/`0x1A1242`), `CardColour.fillColor`/`highlightColor` made bright and
+      scheme-independent
+- [x] New `\.reducedVisualEffects` environment key (set at `RootView`) so chrome with no direct
+      line to `AppSettings` (button styles, decorative glows) still respects the setting
+- [x] `CardView` suit-coloured glow on playable/selected cards (gated on `reducedMotion`),
+      teal playable ring, `#Preview` added for the neon face set
+- [x] `GameTableView` score header replaced with a single-row centre pill (round chip · team
+      dots+scores · pause), toolbar hidden; table layout rebalanced for the smaller avatar
+      side-columns; partner fan width clamped to the actual screen width (fixed a real
+      overflow bug found during verification — see Known Issues note below)
+- [x] `PlayerZoneView` opponents now show an avatar (initial + count badge + thinking-glow
+      ring) instead of a fanned card-back row; partner stays an open mini-fan
+- [x] `HandView`/`TableCenterView`/`PlayerZoneView` all thread `reducedMotion` into every
+      `CardView` call (hand, partner, discard) — closing a gap where the glow could bypass
+      Reduced Visual Effects
+- [x] `RoundEndView` win trophy is now a teal disc + onAccent glyph, scoreboard panel
+      restyled to a neon surface with a "WON" badge on the winning row, confetti palette
+      swapped to teamA/teamB/cobalt/amber/accent
+- [x] `NewGameFlowView` rebuilt on a new reusable `NeonSegmented<T>` control (in `Theme.swift`)
+      replacing the system `Form`/`Picker`, preserving `newgame-start` and all blurbs
+- [x] `HomeView`/`SettingsView`/`PauseMenuView` verified and tinted teal throughout (toggles,
+      links, list rows); `HomeView` wordmark gained a soft accent glow (gated on reduced motion)
+- [x] Accessibility/motion sweep: audited every glow/shadow added this phase; fixed one real
+      tap-target regression (score-bar pause button, 28×28pt → 44×44pt) and one reduced-motion
+      gap (`PrimaryButtonStyle` glow now also respects `UserSettings.reducedVisualEffects`,
+      not just system Reduce Motion) — see `docs/accessibility-plan.md` §11a
+
+### Tests
+- [x] `swift test --package-path .` green (`WildPairsCore` untouched by this phase)
+- [x] `xcodebuild build` succeeds for the `WildPairs` scheme on iPhone 17 Pro and iPad Air 13"
+- [x] `WildPairsUITests` full suite green (18/18) on **both** iPhone 17 Pro and iPad Air 13"
+      after fixing a real pre-existing test-helper bug (see Known Issues below) — re-run twice
+      on each destination with 0 failures
+- [x] `accessibility-audit` skill pass — see `docs/accessibility-plan.md` §11a (no Critical/
+      blocking findings; 2 regressions found and fixed during the audit itself)
+- [x] `swiftui-quality-review` — APPROVED (1 Major found and fixed during review — pause
+      button tap target; 2 Minor noted, not blocking)
+- [x] `ux-review` — READY verdict (all 10 dimensions ≥2, 1 Minor finding, 0 Critical/Major)
+- [x] Manual verification: AX5 Dynamic Type (no clipping, hand reachable via scroll fallback)
+      and colour-blind mode + pattern fills (verified live on neon faces) both confirmed on
+      iPhone 17 Pro via simulator
+
+### Documentation
+- [x] `docs/accessibility-plan.md` §11a added (Phase 10 re-verification)
+- [x] `docs/permission-audit.md` — new disposition entry for the `.tracking(1)` false positive
+- [x] This file's Phase 10 section added
+
+### Quality gates
+- [x] `check_permissions_minimal.sh`, `check_privacy_manifest.sh`, `check_project_capabilities.sh`
+      all green
+- [~] `check_no_network_usage.sh` exits FAIL on two pre-existing/false-positive "tracking"
+      keyword matches (`SettingsView` empty-stats copy, carried from Phase 5/7; and
+      `Theme.swift`'s new `.tracking(1)` SwiftUI letter-spacing modifier) — both documented in
+      `docs/permission-audit.md`; zero genuine network-usage findings
+- [x] `quality_full.sh` — full pass after fixing the UI-test-helper bug below; only the
+      documented false positive above remains
+- [x] Brand grep (`grep -r "UNO\|Mattel\|mattel\|uno" docs/ WildPairsCore/ WildPairsApp/`) —
+      clean of genuine matches (only meta-documentation about the gate itself, and one
+      pre-existing substring false positive in `DecisionViews.swift`'s "unobtrusive")
+
+### Known Issues found and fixed this phase (not logged to known-issues.md — both resolved
+within the phase, no open follow-up needed)
+- Partner-hand fan overflow: clamping `maxFanWidth` to the side/centre-column sum alone wasn't
+  enough once the table-centre cards were (briefly) enlarged — fixed by keeping `centerSize` at
+  `compactHand` and clamping against the *actual* `geo.size.width`, verified with a temporary
+  on-screen width probe and pixel-level screenshot inspection (root cause and fix detailed in
+  session transcript, not a doc-worthy recurring risk)
+- `WildPairsPerformanceTests.testMemoryAcrossMultipleRounds` failed identically on both iPhone
+  and iPad in the first full-suite run: `returnToHomeIfNeeded()` only knew how to exit via the
+  pause menu, but `playSeveralRounds()` deliberately leaves the round-end overlay showing once
+  it has seen `count` rounds — the modal overlay swallows the pause-button tap, so the helper
+  never found `pause-end-game`. Pre-existing test-infrastructure bug, unrelated to any Phase 10
+  view change (no `WildPairsCore` or production-view code involved). Fixed by having the helper
+  exit via the round-end overlay's own "End game" button when it's already showing. Verified in
+  isolation (passed, 725s, no memory growth trend) and in two full-suite re-runs on both
+  destinations (18/18 each)
+
+### Sign-off
+- [ ] ios-architect / ux-lead confirm the gate criteria in the Phase 10 plan are met
+
+---
+
+## Phase 11 — Design Parity, Elemental Retheme, Live Scoring, Stacking, Rule Audit
+
+Gate doc: this section. Full scope in the approved Phase 11 plan (sub-phases A–G, executed in
+the user's requested order).
+
+### Completed work
+- **A — Design parity with `neon-final.html`:** hand overlap now matches the spec's ~44%
+  straight-row overlap (`HandView.fanStep`); card radius bumped to 14pt with a gloss highlight;
+  table-centre colour pill fills with the actual suit colour + glow (was a dark pill with a
+  coloured stroke); discard/draw-pile/direction layout reordered to match the spec's vertical
+  composition; partner's open hand shrunk to a 30px row with a solid teal count chip (caught
+  and fixed a real overflow bug via simulator screenshot where `GameTableView` still passed the
+  old `compactHand` size to the call site).
+- **B — Premium polish:** per-card deal-in fade/scale stagger (`Theme.Motion.dealStagger`) on
+  both the initial deal and mid-round draws; press-scale added to `SecondaryButtonStyle`
+  (`PrimaryButtonStyle` already had it); wild colour picker's four element tiles gained a
+  gradient fill, suit-coloured glow, and press-scale. Haptics/sound for play/draw/illegal-card/
+  Solo/win and round-end confetti/trophy were already wired from earlier phases — verified, not
+  re-implemented.
+- **C — Screen real estate:** New Game screen's `ScrollView` now wraps only the segmented
+  controls; the Start button lives outside it so it's always visible without scrolling at
+  normal Dynamic Type sizes, while the controls above remain scrollable at AX3+ (a first pass
+  removed the `ScrollView` entirely and broke `testDynamicTypeAX3LayoutSurvives` — caught and
+  fixed before commit).
+- **D — Elemental card retheme (display-only):** `CardColour` case names/raw values unchanged;
+  `displayName` now reads Fire/Rain/Earth/Wind (was Crimson/Cobalt/Jade/Amber); new
+  Crystal/Gust suit symbols for Earth/Wind; richer elemental gradients; both corner indices
+  shown at regular card sizes. Docs (`design-system.md`, `game-rules.md`) and `CLAUDE.md`
+  updated with the internal↔display alias mapping.
+- **E — Live "points at risk":** `GameEngine.pointValue(for: Card)` exposed publicly;
+  `GameViewState.localTeamPointsAtRisk` derives a raw card-value sum (no multiplier) across the
+  local player's own team's hands; shown as a pill above the hand, never computed for the
+  opposing team.
+- **F — Draw-card stacking (core rule, default ON):** `GameState.pendingDrawCount`/
+  `pendingDrawType` (optional, forward-compat); `RuleProfile.stackDrawCards` flipped to `true`
+  in all three mode factories; a Draw Two/Four now accumulates a stack instead of resolving
+  immediately (+2→+2/+4, +4→+4 only, +2 blocked on +4); AI stacks when holding a legal card,
+  else draws the full stack (never soft-locks); Settings gained a "Draw stacking" toggle.
+- **G — Rule audit vs UNO conventions:** implemented the previously-missing opening-card effect
+  (Skip skips seat 0, Reverse starts counter-clockwise, Draw Two makes seat 0 draw 2 and skips
+  them); verified `mustPlayAfterDraw`, draw-pile reshuffle, and Targeted Draw's no-skip rule
+  were already correct; documented the Draw-Four challenge scaffold as explicitly out of scope.
+  Findings recorded in `docs/game-rules.md`.
+
+### Tests
+- [x] `swift test --package-path .` — 230 tests in 25 suites, all green, including new
+      `StackingTests` (5) and `StartingCardTests` (5) and a `localTeamPointsAtRisk` assertion
+      in `GameViewStateTests`
+- [x] `xcodebuild build` succeeds for the `WildPairs` scheme on iPhone 17 and iPad Air 11" (M4)
+      — iPhone 15 / iPad Air (5th gen) simulators are not installed on this machine; these are
+      the closest available substitutes
+- [x] `WildPairsUITests` — full suite run found 2 failures: `testRoundEndCelebrationRenders`
+      (pre-existing flake, KI-035, unrelated to this phase) and `testDynamicTypeAX3LayoutSurvives`
+      (a real regression from sub-phase C's first-pass `ScrollView` removal — fixed by keeping
+      the controls scrollable while pinning the Start button outside the scroll content, and
+      updating the test to scroll for the colour-blind toggle the same way it already does for
+      the Start button). Re-run in isolation after the fix: green.
+- [x] Simulator screenshot verification: Home, New game, In-game table (colour pill, elemental
+      cards, partner panel, stacking draw-pile badge) all visually compared against
+      `neon-final.html`
+
+### Documentation
+- [x] `docs/game-rules.md` — Draw Stacking and Opening/Starting Card sections added, House
+      Rules Catalogue and `RuleProfile` factory-defaults table updated for stacking's new
+      default, Rule Audit Findings recorded, colour vocabulary updated to Fire/Rain/Earth/Wind
+- [x] `docs/design-system.md` — colour/symbol vocabulary and suit-symbol shape descriptions
+      updated for the elemental retheme
+- [x] `CLAUDE.md` — internal↔display colour-name alias note added to the Canonical Design
+      Vocabulary table
+- [x] `docs/permission-audit.md` — new disposition entry confirming the two pre-existing
+      "tracking" false positives recur unchanged, no new network/permission surface
+- [x] This file's Phase 11 section added
+
+### Quality gates
+- [x] `check_permissions_minimal.sh`, `check_privacy_manifest.sh`, `check_project_capabilities.sh`
+      all green
+- [~] `check_no_network_usage.sh` exits FAIL on the same two pre-existing/false-positive
+      "tracking" matches noted in Phase 10 (unchanged) — zero genuine network-usage findings
+- [x] Brand grep (`grep -ri "uno\|mattel" docs/ WildPairsCore/ WildPairsApp/`) — clean of
+      user-visible matches; only internal architecture-doc/code-comment references to "UNO
+      convention" for engineering context (consistent with the pre-existing "Uno-style point
+      value" comment in `GameEngine.swift`, predating this phase) and meta-documentation about
+      the gate itself
+
+### Sign-off
+- [ ] ios-architect / game-engine-engineer / ux-lead confirm the gate criteria above are met

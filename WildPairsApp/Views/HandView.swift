@@ -43,7 +43,7 @@ struct HandView: View {
                 // past the reader's own bounds and clip the trailing card off-screen.
                 ZStack(alignment: .leading) {
                     ForEach(Array(hand.enumerated()), id: \.element.id) { index, item in
-                        card(item)
+                        card(item, index: index)
                             .offset(x: CGFloat(index) * step)
                             .zIndex(item.isPlayable ? Double(index) + 100 : Double(index))
                     }
@@ -53,7 +53,7 @@ struct HandView: View {
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: Theme.Space.s2) {
-                        ForEach(hand) { item in card(item) }
+                        ForEach(Array(hand.enumerated()), id: \.element.id) { index, item in card(item, index: index) }
                     }
                     .padding(.horizontal, Theme.Space.s4)
                     .padding(.vertical, Theme.Space.s3)
@@ -76,28 +76,32 @@ struct HandView: View {
         return cardSize.width + step * CGFloat(hand.count - 1)
     }
 
-    /// The per-card horizontal advance: full card width + gap when everything fits, shrinking
-    /// (overlapping) only as far as needed to keep the whole fan inside `available`.
+    /// The per-card horizontal advance: a ~44% overlap (neon-final.html spec) when everything
+    /// fits, shrinking (overlapping further) only as far as needed to keep the whole fan
+    /// inside `available`.
     private func fanStep(available: CGFloat) -> CGFloat {
         guard hand.count > 1 else { return cardSize.width }
-        let comfortable = cardSize.width + Theme.Space.s2
+        let comfortable = cardSize.width * 0.56
         let neededForComfortable = cardSize.width + comfortable * CGFloat(hand.count - 1)
         if neededForComfortable <= available { return comfortable }
         let step = (available - cardSize.width) / CGFloat(hand.count - 1)
         return max(step, 1)
     }
 
-    private func card(_ item: CardViewModel) -> some View {
+    private func card(_ item: CardViewModel, index: Int) -> some View {
         CardView(card: item.card, size: cardSize,
                  isPlayable: item.isPlayable, showColourName: showColourName,
-                 showPattern: showPattern, announcePlayability: true)
-            .offset(y: item.isPlayable ? -Theme.Space.s3 : 0)
+                 showPattern: showPattern, announcePlayability: true, reducedMotion: reducedMotion)
+            .offset(y: item.isPlayable ? -cardSize.height * 0.18 : 0)
             .modifier(ShakeEffect(animatableData: shakingCardID == item.id ? 1 : 0))
             .onTapGesture { tap(item) }
             .animation(Theme.Motion.cardPlay, value: item.isPlayable)
             // A9: a played card scales/fades away and a drawn card scales/fades in, instead
             // of snapping — skipped under Reduced Motion (A12).
             .transition(reducedMotion ? .identity : .scale(scale: 0.5).combined(with: .opacity))
+            // Deal-in stagger (Phase 11 B): each new card (a fresh deal, or one drawn mid-round)
+            // fades/scales in with a per-index delay instead of every card popping at once.
+            .modifier(DealStaggerModifier(index: index, reducedMotion: reducedMotion))
     }
 
     private func tap(_ item: CardViewModel) {
@@ -106,6 +110,27 @@ struct HandView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { shakingCardID = nil }
         }
         onPlay(item)
+    }
+}
+
+/// Fades/scales a card in with a per-index delay (`Theme.Motion.dealStagger`) on appearance —
+/// covers both the initial round deal (every card appears at once, staggered) and a single
+/// drawn card joining the hand mid-round.
+private struct DealStaggerModifier: ViewModifier {
+    let index: Int
+    let reducedMotion: Bool
+    @State private var visible = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(visible ? 1 : 0)
+            .scaleEffect(visible ? 1 : 0.6)
+            .onAppear {
+                guard !reducedMotion else { visible = true; return }
+                withAnimation(Theme.Motion.deal.delay(Double(index) * Theme.Motion.dealStagger)) {
+                    visible = true
+                }
+            }
     }
 }
 

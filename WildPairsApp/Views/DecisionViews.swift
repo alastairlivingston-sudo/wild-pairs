@@ -17,7 +17,11 @@ struct ColourPickerView: View {
                     ForEach(CardColour.allCases, id: \.self) { colour in
                         Button { onChoose(colour) } label: {
                             ZStack {
-                                RoundedRectangle(cornerRadius: Theme.Radius.r3).fill(colour.fillColor(.dark))
+                                RoundedRectangle(cornerRadius: Theme.Radius.r3)
+                                    .fill(
+                                        LinearGradient(colors: [colour.highlightColor(.dark), colour.fillColor(.dark)],
+                                                       startPoint: .top, endPoint: .bottom)
+                                    )
                                 if showPattern {
                                     CardPatternFill(colour: colour).clipShape(RoundedRectangle(cornerRadius: Theme.Radius.r3))
                                 }
@@ -30,8 +34,9 @@ struct ColourPickerView: View {
                             }
                             // ux-spec.md §5 "Choose a new colour": each swatch minimum 100×100pt.
                             .frame(minWidth: 100, minHeight: 100)
+                            .shadow(color: colour.fillColor(.dark).opacity(0.5), radius: 14)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(ElementTileButtonStyle())
                         .accessibilityLabel("\(colour.displayName), \(colour.symbolDisplayName) symbol, button")
                         .accessibilityIdentifier("colour-pick-\(colour.rawValue)")
                     }
@@ -155,6 +160,7 @@ struct PromptBanner: View {
         case .chooseTarget:              return "Choose a player."
         case .chooseTeamPass:            return "Team Pass — choose a card to give your partner, or decline."
         case .mustDraw:                  return "Your turn — no matching card. Draw one."
+        case .stackOrDraw(let count):     return "Stack a Draw Two or Draw Four, or draw \(count)."
         case .roundOver(let team):       return "\(team) wins this round!"
         case .roundOverByTimeout(let team): return "Time's up — \(team) wins this round on lowest score."
         case .gameOver(let team):        return "\(team) wins the game!"

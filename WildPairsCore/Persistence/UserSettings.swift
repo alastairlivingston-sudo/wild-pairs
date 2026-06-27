@@ -15,6 +15,10 @@ public struct UserSettings: Codable, Equatable, Sendable {
     // Gameplay
     public var animationSpeed: AnimationSpeed
     public var confirmEndGame: Bool
+    /// Draw stacking (Phase 11 F): a Draw Two/Four can be answered with another Draw Two/Four
+    /// instead of drawing, accumulating the penalty. Core rule, on by default; this toggle is
+    /// the house-rule escape hatch. Applied to `RuleProfile.stackDrawCards` at new-game time.
+    public var stackingEnabled: Bool
 
     // Accessibility
     public var hapticsEnabled: Bool
@@ -36,7 +40,8 @@ public struct UserSettings: Codable, Equatable, Sendable {
         colourBlindMode: Bool = false,
         patternFills: Bool = false,
         largeCards: Bool = false,
-        hasSeenOnboarding: Bool = false
+        hasSeenOnboarding: Bool = false,
+        stackingEnabled: Bool = true
     ) {
         self.animationSpeed = animationSpeed
         self.confirmEndGame = confirmEndGame
@@ -47,6 +52,7 @@ public struct UserSettings: Codable, Equatable, Sendable {
         self.patternFills = patternFills
         self.largeCards = largeCards
         self.hasSeenOnboarding = hasSeenOnboarding
+        self.stackingEnabled = stackingEnabled
     }
 
     // Custom decode so settings files saved before a new field was added still load —
@@ -63,5 +69,6 @@ public struct UserSettings: Codable, Equatable, Sendable {
         patternFills = try c.decodeIfPresent(Bool.self, forKey: .patternFills) ?? false
         largeCards = try c.decodeIfPresent(Bool.self, forKey: .largeCards) ?? false
         hasSeenOnboarding = try c.decodeIfPresent(Bool.self, forKey: .hasSeenOnboarding) ?? false
+        stackingEnabled = try c.decodeIfPresent(Bool.self, forKey: .stackingEnabled) ?? true
     }
 }

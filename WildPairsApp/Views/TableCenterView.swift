@@ -10,6 +10,9 @@ struct TableCenterView: View {
     let topDiscard: Card?
     let currentColour: CardColour
     let drawPileCount: Int
+    /// Draw stacking (Phase 11 F): when non-nil, the badge shows "Stack N" instead of the
+    /// plain pile count, so the looming penalty is visible even when it isn't your turn.
+    var pendingDrawCount: Int? = nil
     let turnDirection: TurnDirection
     let canDraw: Bool
     let showColourName: Bool
@@ -24,14 +27,20 @@ struct TableCenterView: View {
     @State private var colourPulse = false
     @State private var arrowAngle: Double?
 
+    /// Draw pile back — smaller than the discard so the discard reads as the focal element
+    /// (neon-final.html spec: discard 50px, draw-back 32px).
+    private var drawCardSize: CGSize { Theme.CardSize.tableDraw }
+
     var body: some View {
+        // Spec layout: colour pill above the row; discard on top; draw-back + direction
+        // arrow beside it below the discard.
         VStack(spacing: Theme.Space.s2) {
             colourIndicator
+            discardPile
             HStack(spacing: Theme.Space.s3) {
                 drawPile
-                discardPile
+                directionArrow
             }
-            directionArrow
         }
         .onChange(of: currentColour) { _, _ in pulseColour() }
         .onChange(of: turnDirection) { _, _ in rotateArrow() }
@@ -42,30 +51,37 @@ struct TableCenterView: View {
         Button(action: onDraw) {
             ZStack {
                 // Real stacked-deck illusion: two faint offset backs beneath the top card.
-                CardBackView(size: cardSize).offset(x: 3, y: 3).opacity(0.5)
-                CardBackView(size: cardSize).offset(x: 1.5, y: 1.5).opacity(0.75)
-                CardBackView(size: cardSize)
-                Text("\(drawPileCount)")
-                    .font(.caption.bold()).monospacedDigit()
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, Theme.Space.s2).padding(.vertical, 3)
-                    .background(Capsule().fill(Color.black.opacity(0.55)))
+                CardBackView(size: drawCardSize).offset(x: 3, y: 3).opacity(0.5)
+                CardBackView(size: drawCardSize).offset(x: 1.5, y: 1.5).opacity(0.75)
+                CardBackView(size: drawCardSize)
+                Text(badgeText)
+                    .font(.caption2.bold()).monospacedDigit()
+                    .foregroundStyle(pendingDrawCount != nil ? Theme.Palette.onAccent : .white)
+                    .padding(.horizontal, Theme.Space.s1).padding(.vertical, 2)
+                    .background(Capsule().fill(pendingDrawCount != nil ? Theme.Palette.warning : Color.black.opacity(0.55)))
                     .overlay(Capsule().strokeBorder(Theme.Palette.accent.opacity(0.6), lineWidth: 1))
-                    .offset(y: cardSize.height * 0.42)
+                    .offset(y: drawCardSize.height * 0.42)
             }
         }
         .buttonStyle(.plain)
         .disabled(!canDraw)
         .opacity(canDraw ? 1 : 0.5)
-        .frame(minHeight: 64)
-        .accessibilityLabel("Draw pile, \(drawPileCount) cards")
+        .frame(minHeight: 50)
+        .accessibilityLabel(pendingDrawCount.map { "Draw pile. Stack pending: \($0) cards" }
+            ?? "Draw pile, \(drawPileCount) cards")
         .accessibilityHint(canDraw ? "Double tap to draw a card" : "")
         .accessibilityIdentifier("game-draw-card-button")
     }
 
+    private var badgeText: String {
+        guard let pendingDrawCount else { return "\(drawPileCount)" }
+        return "+\(pendingDrawCount)"
+    }
+
     @ViewBuilder private var discardPile: some View {
         if let top = topDiscard {
-            CardView(card: top, size: cardSize, showColourName: showColourName, showPattern: showPattern)
+            CardView(card: top, size: cardSize, showColourName: showColourName, showPattern: showPattern,
+                     reducedMotion: reducedMotion)
                 .scaleEffect(colourPulse ? 1.08 : 1.0)
                 .accessibilityLabel("Discard pile. Top card: \(discardCardLabel(top)). Current colour: \(currentColour.displayName).")
         } else {
@@ -75,27 +91,30 @@ struct TableCenterView: View {
         }
     }
 
-    /// Felt-inset chip — always shows colour + bespoke symbol + name, on-screen and never
-    /// clipped (this was the element cut off at the right edge before A1's portrait lock).
+    /// Filled with the actual suit colour + glow (neon-final.html spec), not a dark pill with
+    /// a coloured stroke — the chip itself reads as the colour, with high-contrast ink on top.
     private var colourIndicator: some View {
         HStack(spacing: Theme.Space.s2) {
             SuitSymbol(colour: currentColour, lineWidth: 2)
-                .frame(width: 18, height: 18)
-                .foregroundStyle(currentColour.fillColor(scheme))
+                .frame(width: 16, height: 16)
+                .foregroundStyle(colourInk)
             Text(currentColour.displayName)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(colourInk)
                 .lineLimit(1)
         }
         .padding(.horizontal, Theme.Space.s3).padding(.vertical, Theme.Space.s2)
-        .background(
-            Capsule()
-                .fill(Color.black.opacity(0.35))
-                .overlay(Capsule().strokeBorder(currentColour.fillColor(scheme), lineWidth: 1.5))
-        )
+        .background(Capsule().fill(currentColour.fillColor(scheme)))
+        .shadow(color: currentColour.fillColor(scheme).opacity(reducedMotion ? 0 : 0.4), radius: 16)
         .scaleEffect(colourPulse ? 1.08 : 1.0)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Current colour: \(currentColour.displayName)")
+    }
+
+    /// High-contrast ink for the filled colour chip — amber's pale fill needs dark ink while
+    /// the other three suits stay legible with white.
+    private var colourInk: Color {
+        currentColour == .amber ? Color(hex: 0x3A2A02) : .white
     }
 
     private func discardCardLabel(_ card: Card) -> String {

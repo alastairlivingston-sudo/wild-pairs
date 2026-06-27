@@ -58,10 +58,7 @@ public struct GameEngine {
             guard let player = state.players.first(where: { $0.id == playerID }),
                   state.currentPlayer?.id == playerID,
                   player.hand.contains(where: { $0.id == card.id }) else { return false }
-            if card.type == .drawFour {
-                return GameRules.drawFourIsLegal(hand: player.hand, state: state)
-            }
-            return GameRules.isLegal(card, in: state)
+            return GameRules.isCardLegal(card, hand: player.hand, state: state)
         case .drawCard(let playerID):
             return state.currentPlayer?.id == playerID
         default:
@@ -71,9 +68,7 @@ public struct GameEngine {
 
     public static func legalPlays(state: GameState, for playerID: UUID) -> [Card] {
         guard let player = state.players.first(where: { $0.id == playerID }) else { return [] }
-        return GameRules.legalPlays(hand: player.hand, state: state).filter { card in
-            card.type != .drawFour || GameRules.drawFourIsLegal(hand: player.hand, state: state)
-        }
+        return GameRules.legalPlaysConsideringDrawFour(hand: player.hand, state: state)
     }
 
     // MARK: - New game
@@ -108,14 +103,15 @@ public struct GameEngine {
         let startCard = flipStartCard(from: &deck, rng: &rng)
         deck.discard(startCard)
         let startColour = startCard.colour ?? .crimson
+        let startingEffect = applyStartingCardEffect(startCard, players: &players, deck: &deck, rng: &rng)
 
         let teamPassEnabled = config.ruleProfile.teamPassEnabled
 
         let state = GameState(
             schemaVersion: 1,
             players: players,
-            currentPlayerIndex: 0,
-            turnDirection: .clockwise,
+            currentPlayerIndex: startingEffect.currentPlayerIndex,
+            turnDirection: startingEffect.turnDirection,
             currentColour: startColour,
             currentCardType: startCard.type,
             pendingDecision: teamPassEnabled ? firstTeamPassDecision(for: players) : nil,
@@ -131,7 +127,7 @@ public struct GameEngine {
             eventLog: []
         )
 
-        let effects: [GameEffect] = [.animateCardShuffle, .triggerAutosave]
+        let effects: [GameEffect] = [.animateCardShuffle, .triggerAutosave] + startingEffect.effects
         return (state, effects)
     }
 
@@ -237,14 +233,23 @@ public struct GameEngine {
             effects.append(.animateReverse)
 
         case .drawTwo:
-            let targetIndex = GameRules.nextIndex(
-                from: playedByIndex, direction: s.turnDirection, playerCount: n)
-            let drawn = drawCards(count: 2, into: &s, rng: &rng)
-            s.players[targetIndex].hand.append(contentsOf: drawn)
-            // Skip the target player
-            s.currentPlayerIndex = GameRules.nextIndex(
-                from: playedByIndex, direction: s.turnDirection, playerCount: n, skipCount: 2)
-            effects.append(.animateCardDraw(toPlayerID: s.players[targetIndex].id, count: 2))
+            if s.ruleProfile.stackDrawCards {
+                // Accumulate the stack instead of drawing immediately; the next player must
+                // answer with another Draw Two/Four or draw the whole pending stack.
+                s.pendingDrawCount = (s.pendingDrawCount ?? 0) + 2
+                s.pendingDrawType = .drawTwo
+                s.currentPlayerIndex = GameRules.nextIndex(
+                    from: playedByIndex, direction: s.turnDirection, playerCount: n)
+            } else {
+                let targetIndex = GameRules.nextIndex(
+                    from: playedByIndex, direction: s.turnDirection, playerCount: n)
+                let drawn = drawCards(count: 2, into: &s, rng: &rng)
+                s.players[targetIndex].hand.append(contentsOf: drawn)
+                // Skip the target player
+                s.currentPlayerIndex = GameRules.nextIndex(
+                    from: playedByIndex, direction: s.turnDirection, playerCount: n, skipCount: 2)
+                effects.append(.animateCardDraw(toPlayerID: s.players[targetIndex].id, count: 2))
+            }
 
         case .drawFour:
             // Colour selection required — set pending decision
@@ -335,15 +340,22 @@ public struct GameEngine {
             switch topCard.type {
 
             case .drawFour:
-                let targetIndex = GameRules.nextIndex(
-                    from: playerIndex, direction: s.turnDirection, playerCount: s.players.count)
-                var rng = SeededRNG(seed: s.rngSeed &+ UInt64(s.actionCount))
-                let drawn = drawCards(count: 4, into: &s, rng: &rng)
-                s.players[targetIndex].hand.append(contentsOf: drawn)
-                s.currentPlayerIndex = GameRules.nextIndex(
-                    from: playerIndex, direction: s.turnDirection,
-                    playerCount: s.players.count, skipCount: 2)
-                effects.append(.animateCardDraw(toPlayerID: s.players[targetIndex].id, count: 4))
+                if s.ruleProfile.stackDrawCards {
+                    s.pendingDrawCount = (s.pendingDrawCount ?? 0) + 4
+                    s.pendingDrawType = .drawFour
+                    s.currentPlayerIndex = GameRules.nextIndex(
+                        from: playerIndex, direction: s.turnDirection, playerCount: s.players.count)
+                } else {
+                    let targetIndex = GameRules.nextIndex(
+                        from: playerIndex, direction: s.turnDirection, playerCount: s.players.count)
+                    var rng = SeededRNG(seed: s.rngSeed &+ UInt64(s.actionCount))
+                    let drawn = drawCards(count: 4, into: &s, rng: &rng)
+                    s.players[targetIndex].hand.append(contentsOf: drawn)
+                    s.currentPlayerIndex = GameRules.nextIndex(
+                        from: playerIndex, direction: s.turnDirection,
+                        playerCount: s.players.count, skipCount: 2)
+                    effects.append(.animateCardDraw(toPlayerID: s.players[targetIndex].id, count: 4))
+                }
 
             case .discardAll:
                 // Discard all cards of chosen colour from the player's hand
@@ -465,6 +477,21 @@ public struct GameEngine {
         var s = state
         var rng = SeededRNG(seed: s.rngSeed &+ UInt64(s.actionCount))
         s.actionCount += 1
+
+        // Draw stacking (Phase 11 F): a pending stack is absorbed in full — no draw-and-play,
+        // since these are penalty cards, not a normal turn draw — and the turn ends.
+        if let pendingCount = s.pendingDrawCount {
+            let drawn = drawCards(count: pendingCount, into: &s, rng: &rng)
+            s.players[playerIndex].hand.append(contentsOf: drawn)
+            s.pendingDrawCount = nil
+            s.pendingDrawType = nil
+            s.currentPlayerIndex = GameRules.nextIndex(
+                from: playerIndex, direction: s.turnDirection, playerCount: s.players.count)
+            return (s, [
+                .animateCardDraw(toPlayerID: playerID, count: pendingCount),
+                .triggerAutosave
+            ])
+        }
 
         guard let drawn = s.deck.draw(rng: &rng) else {
             // Nothing to draw — pass turn
@@ -673,11 +700,16 @@ public struct GameEngine {
         s.deck.discard(startCard)
         s.currentColour = startCard.colour ?? .crimson
         s.currentCardType = startCard.type
-        s.currentPlayerIndex = 0
-        s.turnDirection = .clockwise
+        var players = s.players
+        let startingEffect = applyStartingCardEffect(startCard, players: &players, deck: &s.deck, rng: &rng)
+        s.players = players
+        s.currentPlayerIndex = startingEffect.currentPlayerIndex
+        s.turnDirection = startingEffect.turnDirection
         s.winState = nil
         s.teamPassSelections = nil
         s.teamPassDeclined = nil
+        s.pendingDrawCount = nil
+        s.pendingDrawType = nil
         if s.ruleProfile.teamPassEnabled {
             s.pendingDecision = firstTeamPassDecision(for: s.players)
             s.phase = .teamPass
@@ -685,7 +717,7 @@ public struct GameEngine {
             s.pendingDecision = nil
             s.phase = .playing
         }
-        return (s, [.animateCardShuffle, .triggerAutosave])
+        return (s, [.animateCardShuffle, .triggerAutosave] + startingEffect.effects)
     }
 
     /// Seat-ordered first player who must submit a Team Pass choice.
@@ -788,14 +820,19 @@ public struct GameEngine {
     /// point costs. Used both for the losing-team score on a hand-emptying win and for
     /// determining the lowest-score winner when the round timer expires.
     private static func pointValue(for hand: [Card]) -> Int {
-        hand.reduce(0) { total, card in
-            switch card.type {
-            case .number(let v): return total + v
-            case .skip, .reverse, .drawTwo, .skipTwo, .targetedDraw,
-                 .forcedSwap, .teamPlay: return total + 20
-            case .discardAll: return total + 20
-            case .drawFour, .changeColour: return total + 50
-            }
+        hand.reduce(0) { $0 + pointValue(for: $1) }
+    }
+
+    /// Public per-card point value (game-rules.md scoring table: number = face value, action
+    /// = 20, wild = 50). Exposed for the presentation layer's live "points at risk" display —
+    /// a raw sum with no difficulty multiplier, since that's just live card values, not a score.
+    public static func pointValue(for card: Card) -> Int {
+        switch card.type {
+        case .number(let v): return v
+        case .skip, .reverse, .drawTwo, .skipTwo, .targetedDraw,
+             .forcedSwap, .teamPlay: return 20
+        case .discardAll: return 20
+        case .drawFour, .changeColour: return 50
         }
     }
 
@@ -818,6 +855,38 @@ public struct GameEngine {
         }
         deck.returnToDrawPileBottom(buriedWilds)
         return start ?? Card(type: .number(0), colour: .crimson)
+    }
+
+    /// Standard "first flipped card" handling (game-rules.md / UNO convention, Phase 11 G):
+    /// Skip skips the first player (seat 0); Reverse flips the starting direction; Draw Two
+    /// makes seat 0 draw 2 and skips them. Number/other action cards have no special effect.
+    /// Draw Four is already handled by `flipStartCard` burying wilds and re-flipping.
+    /// Internal (not private) so `StartingCardTests` can exercise it directly and
+    /// deterministically — `handleNewGame`/`handleBeginNewRound` shuffle a fresh deck via RNG,
+    /// which makes engineering a specific starting card through the public `reduce` API
+    /// impractically seed-dependent.
+    static func applyStartingCardEffect(
+        _ startCard: Card,
+        players: inout [Player],
+        deck: inout Deck,
+        rng: inout SeededRNG
+    ) -> (currentPlayerIndex: Int, turnDirection: TurnDirection, effects: [GameEffect]) {
+        let n = players.count
+        switch startCard.type {
+        case .skip:
+            let firstPlayerIndex = GameRules.nextIndex(from: 0, direction: .clockwise, playerCount: n)
+            return (firstPlayerIndex, .clockwise, [.animateSkip(playerID: players[0].id)])
+        case .reverse:
+            return (0, .counterClockwise, [.animateReverse])
+        case .drawTwo:
+            let drawn = (0..<2).compactMap { _ in deck.draw(rng: &rng) }
+            players[0].hand.append(contentsOf: drawn)
+            let firstPlayerIndex = GameRules.nextIndex(from: 0, direction: .clockwise, playerCount: n)
+            return (firstPlayerIndex, .clockwise,
+                    [.animateCardDraw(toPlayerID: players[0].id, count: 2)])
+        default:
+            return (0, .clockwise, [])
+        }
     }
 
     private static func drawCards(count: Int, into state: inout GameState, rng: inout SeededRNG) -> [Card] {

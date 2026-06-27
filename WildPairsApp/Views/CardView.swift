@@ -16,6 +16,7 @@ struct CardView: View {
     /// Only the local human's own hand should announce playability/"double tap to select" —
     /// partner's open hand and the discard pile's top card are informational, not actionable.
     var announcePlayability: Bool = false
+    var reducedMotion: Bool = false
 
     @Environment(\.colorScheme) private var scheme
 
@@ -28,20 +29,20 @@ struct CardView: View {
         card.colour?.highlightColor(scheme) ?? Color(hex: 0x44345E)
     }
     private var inkColor: Color { .white }
-    /// Only the larger sizes (selected/AX Dynamic Type) keep the second mirrored corner —
-    /// at compact/regular sizes it read as clutter (A3).
-    private var showSecondCorner: Bool { size.width >= Theme.CardSize.selected.width }
+    /// Real playing cards show both corner indices (neon-final.html spec: top-left + mirrored
+    /// bottom-right) at any size large enough to render them legibly.
+    private var showSecondCorner: Bool { size.width >= 46 }
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: Theme.Radius.r3)
+            RoundedRectangle(cornerRadius: Theme.Radius.card)
                 .fill(
                     LinearGradient(colors: [faceHighlight, faceColor],
                                    startPoint: .top, endPoint: .bottom)
                 )
             if showPattern, let colour = card.colour {
                 CardPatternFill(colour: colour)
-                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.r3))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
             }
             // Large faint suit watermark behind the centre glyph.
             if let colour = card.colour {
@@ -49,12 +50,20 @@ struct CardView: View {
                     .frame(width: size.width * 0.62, height: size.width * 0.62)
                     .opacity(0.16)
             }
-            RoundedRectangle(cornerRadius: Theme.Radius.r3)
+            RoundedRectangle(cornerRadius: Theme.Radius.card)
                 .strokeBorder(borderColor, lineWidth: isPlayable ? 3 : 1.5)
             // Inner light border for depth.
-            RoundedRectangle(cornerRadius: Theme.Radius.r3)
+            RoundedRectangle(cornerRadius: Theme.Radius.card)
                 .strokeBorder(.white.opacity(0.18), lineWidth: 1)
                 .padding(1.5)
+            // Gloss highlight (neon-final.html spec: `inset 0 0 12px white15`) — a soft sheen
+            // across the top half of the face, distinct from the depth border above.
+            RoundedRectangle(cornerRadius: Theme.Radius.card)
+                .fill(
+                    LinearGradient(colors: [.white.opacity(0.16), .clear],
+                                   startPoint: .top, endPoint: .center)
+                )
+                .blendMode(.plusLighter)
 
             VStack {
                 corner(alignment: .leading)
@@ -68,9 +77,8 @@ struct CardView: View {
             .padding(size.width * 0.08)
         }
         .frame(width: size.width, height: size.height)
-        .shadow(color: .black.opacity(isSelected ? 0.45 : 0.32),
-                radius: isSelected ? 10 : 4, x: 0, y: isSelected ? 4 : 2)
-        .scaleEffect(isSelected ? 1.05 : 1)
+        .shadow(color: shadowColor, radius: shadowRadius, x: 0, y: shadowY)
+        .scaleEffect((isSelected || isPlayable) ? 1.07 : 1)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint(announcePlayability ? (isPlayable ? "Double tap to select" : "Double tap for more information") : "")
@@ -104,10 +112,10 @@ struct CardView: View {
     @ViewBuilder private var centre: some View {
         VStack(spacing: Theme.Space.s1) {
             if case .number(let v) = card.type {
-                Text("\(v)").font(.system(size: size.height * 0.34, weight: .bold))
+                Text("\(v)").font(.system(size: size.height * 0.42, weight: .bold))
             } else {
                 if let symbol = card.type.centerSymbol {
-                    Image(systemName: symbol).font(.system(size: size.height * 0.22, weight: .semibold))
+                    Image(systemName: symbol).font(.system(size: size.height * 0.26, weight: .semibold))
                 }
                 Text(card.type.readableName)
                     .font(.system(size: max(9, size.height * 0.1), weight: .bold))
@@ -125,9 +133,16 @@ struct CardView: View {
     }
 
     private var borderColor: Color {
-        if isPlayable { return Theme.Palette.success }
+        if isPlayable { return Theme.Palette.accent }
         return .white.opacity(card.isWild ? 0.35 : 0.5)
     }
+
+    /// Suit-coloured glow on playable/selected cards; falls back to a subtle resting shadow
+    /// (and under Reduced Visual Effects, since glow is a pure decoration with no information).
+    private var hasGlow: Bool { (isPlayable || isSelected) && !reducedMotion }
+    private var shadowColor: Color { hasGlow ? faceHighlight.opacity(0.55) : .black.opacity(isSelected ? 0.45 : 0.32) }
+    private var shadowRadius: CGFloat { hasGlow ? (isSelected ? 14 : 10) : (isSelected ? 10 : 4) }
+    private var shadowY: CGFloat { hasGlow ? 0 : (isSelected ? 4 : 2) }
 
     // Follows the canonical pattern from accessibility-plan.md §2: colour + name, card
     // category, a one-sentence description for action/wild cards, then playability.
@@ -256,12 +271,13 @@ struct CardPatternFill: View {
 }
 
 extension CardColour {
+    /// Colour-blind pattern names, kept distinct per element (CLAUDE.md colour-blind table).
     var patternName: String {
         switch self {
-        case .crimson: return "diagonal hatching"
-        case .cobalt: return "horizontal lines"
-        case .jade: return "vertical lines"
-        case .amber: return "dot grid"
+        case .crimson: return "diagonal hatching"   // Fire
+        case .cobalt: return "horizontal lines"     // Rain
+        case .jade: return "vertical lines"         // Earth
+        case .amber: return "dot grid"              // Wind
         }
     }
 }
@@ -273,14 +289,14 @@ struct CardBackView: View {
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: Theme.Radius.r3)
+            RoundedRectangle(cornerRadius: Theme.Radius.card)
                 .fill(
-                    LinearGradient(colors: [Color(hex: 0x163F35), Color(hex: 0x0B2C26)],
+                    LinearGradient(colors: [Theme.Felt.baseDarkHighlight, Theme.Felt.baseDark],
                                    startPoint: .top, endPoint: .bottom)
                 )
-            RoundedRectangle(cornerRadius: Theme.Radius.r3)
+            RoundedRectangle(cornerRadius: Theme.Radius.card)
                 .strokeBorder(Theme.Palette.accent.opacity(0.5), lineWidth: 1.5)
-            RoundedRectangle(cornerRadius: Theme.Radius.r3 - 4)
+            RoundedRectangle(cornerRadius: Theme.Radius.card - 4)
                 .strokeBorder(Theme.Palette.accent.opacity(0.3), lineWidth: 1)
                 .padding(size.width * 0.12)
 
@@ -306,4 +322,20 @@ struct CardBackView: View {
         .shadow(color: .black.opacity(0.3), radius: 3, x: 0, y: 1.5)
         .accessibilityHidden(true)
     }
+}
+
+#Preview("Neon faces") {
+    let colours: [CardColour?] = [.crimson, .cobalt, .jade, .amber, nil]
+    ScrollView {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 90))], spacing: Theme.Space.s3) {
+            ForEach(Array(colours.enumerated()), id: \.offset) { _, colour in
+                CardView(card: Card(type: .number(7), colour: colour), isPlayable: true)
+                CardView(card: Card(type: .skip, colour: colour))
+                CardView(card: Card(type: .changeColour, colour: nil))
+            }
+        }
+        .padding()
+    }
+    .background(TableBackground())
+    .preferredColorScheme(.dark)
 }

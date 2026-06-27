@@ -38,39 +38,49 @@ struct GameTableView: View {
             GeometryReader { geo in
                 let spacing = Theme.Space.s3
                 let seatBackSize = Theme.CardSize.opponentBack
+                // Opponents are now a compact avatar (Step 4), not a wide fanned back-row —
+                // give the side columns just enough width for the avatar + label, and let the
+                // table centre (discard/draw) claim the room a back-fan used to need.
+                let avatarColumnWidth: CGFloat = 92
+                let sideWidth = min(avatarColumnWidth, (geo.size.width - spacing * 4) * 0.22)
                 let centerSize = Theme.CardSize.compactHand
-                let centerWidth = centerSize.width * 2 + Theme.Space.s3
-                let sideWidth = (geo.size.width - centerWidth - spacing * 4) / 2
 
                 ZStack {
                     TableBackground().ignoresSafeArea()
 
-                    ScrollView(.vertical, showsIndicators: false) {
-                        VStack(spacing: spacing) {
-                            portraitSeatsStack(spacing: spacing, seatBackSize: seatBackSize,
-                                                centerSize: centerSize, sideWidth: max(sideWidth, 80))
+                    VStack(spacing: 0) {
+                        scoreBar.padding(.top, spacing)
 
-                            Spacer(minLength: 0)
-                            if let roundRemaining = vm.roundTimeRemaining {
-                                RoundTimerBadge(remaining: roundRemaining, total: vm.roundTimeLimit)
+                        ScrollView(.vertical, showsIndicators: false) {
+                            VStack(spacing: spacing) {
+                                Spacer(minLength: 0)
+                                portraitSeatsStack(spacing: spacing, seatBackSize: seatBackSize,
+                                                    centerSize: centerSize, sideWidth: max(sideWidth, 80),
+                                                    tableWidth: geo.size.width)
+                                Spacer(minLength: 0)
+
+                                if let roundRemaining = vm.roundTimeRemaining {
+                                    RoundTimerBadge(remaining: roundRemaining, total: vm.roundTimeLimit)
+                                }
+                                PromptBanner(prompt: vs.prompt).padding(.horizontal, Theme.Space.s4)
+                                if let moveRemaining = vm.moveTimeRemaining {
+                                    MoveTimerBar(remaining: moveRemaining, total: vm.moveTimeLimit)
+                                        .padding(.horizontal, Theme.Space.s4)
+                                }
+                                bottomControls
+                                pointsAtRiskPill
+                                HandView(hand: vs.localHand, cardSize: handCardSize,
+                                         showColourName: showColourName, showPattern: showPattern,
+                                         reducedMotion: reducedMotion, onPlay: vm.play)
                             }
-                            PromptBanner(prompt: vs.prompt).padding(.horizontal, Theme.Space.s4)
-                            if let moveRemaining = vm.moveTimeRemaining {
-                                MoveTimerBar(remaining: moveRemaining, total: vm.moveTimeLimit)
-                                    .padding(.horizontal, Theme.Space.s4)
-                            }
-                            bottomControls
-                            HandView(hand: vs.localHand, cardSize: handCardSize,
-                                     showColourName: showColourName, showPattern: showPattern,
-                                     reducedMotion: reducedMotion, onPlay: vm.play)
+                            .padding(.vertical, spacing)
+                            .frame(minHeight: geo.size.height - 60)
                         }
-                        .padding(.vertical, spacing)
-                        .frame(minHeight: geo.size.height)
+                        // Loss desaturates the table gently underneath the overlay (ux-spec.md
+                        // §10 "Round loss feedback"); skipped under Reduced visual effects.
+                        .saturation(tableSaturation)
+                        .animation(.easeInOut(duration: 0.6), value: tableSaturation)
                     }
-                    // Loss desaturates the table gently underneath the overlay (ux-spec.md
-                    // §10 "Round loss feedback"); skipped under Reduced visual effects.
-                    .saturation(tableSaturation)
-                    .animation(.easeInOut(duration: 0.6), value: tableSaturation)
 
                     if let hint = vm.lastInvalidHint { invalidTooltip(hint, handCardSize: handCardSize) }
 
@@ -80,20 +90,7 @@ struct GameTableView: View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Text("Round \(vs.roundNumber)").font(.footnote).foregroundStyle(.secondary)
-                        .lineLimit(1).minimumScaleFactor(0.5)
-                }
-                ToolbarItem(placement: .principal) { scoreChip }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { showPause = true; vm.pause() } label: {
-                        Image(systemName: "pause.fill").font(.title3)
-                    }
-                    .accessibilityLabel("Pause")
-                    .accessibilityIdentifier("game-pause-button")
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
         }
         .sheet(isPresented: colourSheetBinding) {
             ColourPickerView(onChoose: vm.chooseColour, showPattern: showPattern)
@@ -115,14 +112,47 @@ struct GameTableView: View {
         .preferredColorScheme(.dark)
     }
 
-    private var scoreChip: some View {
-        HStack(spacing: Theme.Space.s2) {
-            ForEach(vs.scoreboard) { row in
-                Text("\(row.displayName) \(row.score)")
-                    .font(.caption).fontWeight(.semibold)
-                    .lineLimit(1).minimumScaleFactor(0.5)
+    /// Single-row pill — round chip, team scores, pause — that never wraps to a second
+    /// line, replacing the toolbar's two-row layout at small widths (A6/A7).
+    private var scoreBar: some View {
+        HStack(spacing: Theme.Space.s3) {
+            Text("Round \(vs.roundNumber)")
+                .font(.caption).fontWeight(.semibold).foregroundStyle(.secondary)
+                .lineLimit(1).minimumScaleFactor(0.5)
+                .padding(.horizontal, Theme.Space.s2).padding(.vertical, Theme.Space.s1)
+                .background(Capsule().fill(.white.opacity(0.08)))
+
+            Spacer(minLength: Theme.Space.s2)
+
+            HStack(spacing: Theme.Space.s2) {
+                ForEach(Array(vs.scoreboard.enumerated()), id: \.element.id) { index, row in
+                    HStack(spacing: Theme.Space.s1) {
+                        Circle()
+                            .fill(index == 0 ? Theme.Palette.teamA : Theme.Palette.teamB)
+                            .frame(width: 8, height: 8)
+                        Text("\(row.displayName) \(row.score)")
+                            .font(.caption).fontWeight(.semibold)
+                            .lineLimit(1).minimumScaleFactor(0.5)
+                    }
+                }
             }
+            .padding(.horizontal, Theme.Space.s3).padding(.vertical, Theme.Space.s1)
+            .background(Capsule().fill(.white.opacity(0.08)))
+
+            Spacer(minLength: Theme.Space.s2)
+
+            Button { showPause = true; vm.pause() } label: {
+                Image(systemName: "pause.fill").font(.footnote)
+                    .frame(width: 28, height: 28)
+                    .background(Circle().fill(.white.opacity(0.08)))
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("Pause")
+            .accessibilityIdentifier("game-pause-button")
         }
+        .lineLimit(1)
+        .padding(.horizontal, Theme.Space.s4)
     }
 
     @ViewBuilder private var bottomControls: some View {
@@ -138,15 +168,33 @@ struct GameTableView: View {
         }
     }
 
+    /// Live "points at risk" (Phase 11 E) — the raw card-value sum of the local player's own
+    /// team's hands, shown only for that team since it's derived purely from already-visible
+    /// hands (the local player's own + the open partner hand) and never leaks opponent info.
+    private var pointsAtRiskPill: some View {
+        Text("Team at risk: \(vs.localTeamPointsAtRisk) pts")
+            .font(.caption).fontWeight(.semibold)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, Theme.Space.s3).padding(.vertical, Theme.Space.s1)
+            .background(Capsule().fill(.white.opacity(0.06)))
+            .accessibilityLabel("Your team would lose \(vs.localTeamPointsAtRisk) points if you lost the round now.")
+    }
+
     /// Partner stacked above a fixed-width row of (left opponent, table centre, right
     /// opponent) — each zone is given an explicit width from `GeometryReader` so the row
     /// never needs to scroll or clip, even at large Dynamic Type sizes (A6/A7).
-    private func portraitSeatsStack(spacing: CGFloat, seatBackSize: CGSize, centerSize: CGSize, sideWidth: CGFloat) -> some View {
-        VStack(spacing: spacing) {
+    private func portraitSeatsStack(spacing: CGFloat, seatBackSize: CGSize, centerSize: CGSize, sideWidth: CGFloat,
+                                     tableWidth: CGFloat) -> some View {
+        // The naive sum (both side columns + both centre cards) can exceed the table's actual
+        // width once spacing is added back in — clamp to what's really on screen so the
+        // partner's fan never clips off the right edge (A6).
+        let partnerMaxWidth = min(sideWidth * 2 + centerSize.width * 2 + Theme.Space.s3,
+                                   tableWidth - Theme.Space.s4 * 2)
+        return VStack(spacing: spacing) {
             if let partner = seat(at: 2) {
                 PlayerZoneView(seat: partner, showColourName: showColourName, showPattern: showPattern,
-                               cardBackSize: seatBackSize, openHandCardSize: Theme.CardSize.compactHand,
-                               maxFanWidth: sideWidth * 2 + centerSize.width * 2 + Theme.Space.s3,
+                               cardBackSize: seatBackSize, openHandCardSize: Theme.CardSize.partnerHand,
+                               maxFanWidth: partnerMaxWidth,
                                reducedMotion: reducedMotion, isThinking: partner.id == vm.thinkingPlayerID,
                                thinkingDotCount: thinkingDotCount)
             }
@@ -169,7 +217,8 @@ struct GameTableView: View {
     private func tableCenter(size: CGSize) -> some View {
         TableCenterView(
             topDiscard: vs.topDiscard, currentColour: vs.currentColour,
-            drawPileCount: vs.drawPileCount, turnDirection: vs.turnDirection,
+            drawPileCount: vs.drawPileCount, pendingDrawCount: vs.pendingDrawCount,
+            turnDirection: vs.turnDirection,
             canDraw: vs.isLocalPlayerTurn, showColourName: showColourName, showPattern: showPattern,
             reducedMotion: reducedMotion, cardSize: size, onDraw: vm.drawCard
         )

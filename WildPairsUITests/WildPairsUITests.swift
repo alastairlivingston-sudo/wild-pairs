@@ -258,8 +258,15 @@ final class WildPairsUITests: XCTestCase {
         XCTAssertTrue(app.buttons["home-settings"].isHittable, "Settings button clipped at AX3 on Home")
 
         app.buttons["home-settings"].tap()
-        XCTAssertTrue(app.switches["settings-colourblind-toggle"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.switches["settings-colourblind-toggle"].isHittable, "Colour-blind toggle not reachable at AX3")
+        // At AX3 the Form's rows are much taller, so a setting further down (the Phase 11
+        // "Draw stacking" toggle added a row above this one) can sit below the fold — scroll
+        // to it, as a real user would, matching the New Game Start button pattern below.
+        let colourBlindToggle = app.switches["settings-colourblind-toggle"]
+        for _ in 0..<6 where !colourBlindToggle.exists {
+            app.swipeUp()
+        }
+        XCTAssertTrue(colourBlindToggle.waitForExistence(timeout: 5))
+        XCTAssertTrue(colourBlindToggle.isHittable, "Colour-blind toggle not reachable at AX3")
         app.navigationBars.buttons.element(boundBy: 0).tap()
 
         app.buttons["home-new-game"].tap()

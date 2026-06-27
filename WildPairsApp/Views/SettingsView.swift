@@ -19,6 +19,9 @@ struct SettingsView: View {
                         Text("Off").tag(AnimationSpeed.off)
                     }
                     Toggle("Confirm end game", isOn: s.confirmEndGame)
+                    Toggle("Draw stacking", isOn: s.stackingEnabled)
+                        .accessibilityIdentifier("settings-stacking-toggle")
+                        .accessibilityHint("When on, a Draw Two or Draw Four can be answered with another instead of drawing.")
                 }
                 .listRowBackground(Color.black.opacity(0.25))
 
@@ -36,7 +39,6 @@ struct SettingsView: View {
                     Toggle("Large cards", isOn: s.largeCards)
                 }
                 .listRowBackground(Color.black.opacity(0.25))
-                .tint(Theme.Palette.accent)
 
                 Section {
                     Button("Reset statistics") { confirmResetStats = true }
@@ -49,6 +51,7 @@ struct SettingsView: View {
                 .listRowBackground(Color.black.opacity(0.25))
             }
             .scrollContentBackground(.hidden)
+            .tint(Theme.Palette.accent)
         }
         .navigationTitle("Settings")
         .preferredColorScheme(.dark)
