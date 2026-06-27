@@ -103,14 +103,15 @@ public struct GameEngine {
         let startCard = flipStartCard(from: &deck, rng: &rng)
         deck.discard(startCard)
         let startColour = startCard.colour ?? .crimson
+        let startingEffect = applyStartingCardEffect(startCard, players: &players, deck: &deck, rng: &rng)
 
         let teamPassEnabled = config.ruleProfile.teamPassEnabled
 
         let state = GameState(
             schemaVersion: 1,
             players: players,
-            currentPlayerIndex: 0,
-            turnDirection: .clockwise,
+            currentPlayerIndex: startingEffect.currentPlayerIndex,
+            turnDirection: startingEffect.turnDirection,
             currentColour: startColour,
             currentCardType: startCard.type,
             pendingDecision: teamPassEnabled ? firstTeamPassDecision(for: players) : nil,
@@ -126,7 +127,7 @@ public struct GameEngine {
             eventLog: []
         )
 
-        let effects: [GameEffect] = [.animateCardShuffle, .triggerAutosave]
+        let effects: [GameEffect] = [.animateCardShuffle, .triggerAutosave] + startingEffect.effects
         return (state, effects)
     }
 
@@ -699,8 +700,11 @@ public struct GameEngine {
         s.deck.discard(startCard)
         s.currentColour = startCard.colour ?? .crimson
         s.currentCardType = startCard.type
-        s.currentPlayerIndex = 0
-        s.turnDirection = .clockwise
+        var players = s.players
+        let startingEffect = applyStartingCardEffect(startCard, players: &players, deck: &s.deck, rng: &rng)
+        s.players = players
+        s.currentPlayerIndex = startingEffect.currentPlayerIndex
+        s.turnDirection = startingEffect.turnDirection
         s.winState = nil
         s.teamPassSelections = nil
         s.teamPassDeclined = nil
@@ -713,7 +717,7 @@ public struct GameEngine {
             s.pendingDecision = nil
             s.phase = .playing
         }
-        return (s, [.animateCardShuffle, .triggerAutosave])
+        return (s, [.animateCardShuffle, .triggerAutosave] + startingEffect.effects)
     }
 
     /// Seat-ordered first player who must submit a Team Pass choice.
@@ -851,6 +855,38 @@ public struct GameEngine {
         }
         deck.returnToDrawPileBottom(buriedWilds)
         return start ?? Card(type: .number(0), colour: .crimson)
+    }
+
+    /// Standard "first flipped card" handling (game-rules.md / UNO convention, Phase 11 G):
+    /// Skip skips the first player (seat 0); Reverse flips the starting direction; Draw Two
+    /// makes seat 0 draw 2 and skips them. Number/other action cards have no special effect.
+    /// Draw Four is already handled by `flipStartCard` burying wilds and re-flipping.
+    /// Internal (not private) so `StartingCardTests` can exercise it directly and
+    /// deterministically — `handleNewGame`/`handleBeginNewRound` shuffle a fresh deck via RNG,
+    /// which makes engineering a specific starting card through the public `reduce` API
+    /// impractically seed-dependent.
+    static func applyStartingCardEffect(
+        _ startCard: Card,
+        players: inout [Player],
+        deck: inout Deck,
+        rng: inout SeededRNG
+    ) -> (currentPlayerIndex: Int, turnDirection: TurnDirection, effects: [GameEffect]) {
+        let n = players.count
+        switch startCard.type {
+        case .skip:
+            let firstPlayerIndex = GameRules.nextIndex(from: 0, direction: .clockwise, playerCount: n)
+            return (firstPlayerIndex, .clockwise, [.animateSkip(playerID: players[0].id)])
+        case .reverse:
+            return (0, .counterClockwise, [.animateReverse])
+        case .drawTwo:
+            let drawn = (0..<2).compactMap { _ in deck.draw(rng: &rng) }
+            players[0].hand.append(contentsOf: drawn)
+            let firstPlayerIndex = GameRules.nextIndex(from: 0, direction: .clockwise, playerCount: n)
+            return (firstPlayerIndex, .clockwise,
+                    [.animateCardDraw(toPlayerID: players[0].id, count: 2)])
+        default:
+            return (0, .clockwise, [])
+        }
     }
 
     private static func drawCards(count: Int, into state: inout GameState, rng: inout SeededRNG) -> [Card] {
