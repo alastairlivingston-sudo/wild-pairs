@@ -43,7 +43,7 @@ struct HandView: View {
                 // past the reader's own bounds and clip the trailing card off-screen.
                 ZStack(alignment: .leading) {
                     ForEach(Array(hand.enumerated()), id: \.element.id) { index, item in
-                        card(item)
+                        card(item, index: index)
                             .offset(x: CGFloat(index) * step)
                             .zIndex(item.isPlayable ? Double(index) + 100 : Double(index))
                     }
@@ -53,7 +53,7 @@ struct HandView: View {
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: Theme.Space.s2) {
-                        ForEach(hand) { item in card(item) }
+                        ForEach(Array(hand.enumerated()), id: \.element.id) { index, item in card(item, index: index) }
                     }
                     .padding(.horizontal, Theme.Space.s4)
                     .padding(.vertical, Theme.Space.s3)
@@ -88,7 +88,7 @@ struct HandView: View {
         return max(step, 1)
     }
 
-    private func card(_ item: CardViewModel) -> some View {
+    private func card(_ item: CardViewModel, index: Int) -> some View {
         CardView(card: item.card, size: cardSize,
                  isPlayable: item.isPlayable, showColourName: showColourName,
                  showPattern: showPattern, announcePlayability: true, reducedMotion: reducedMotion)
@@ -99,6 +99,9 @@ struct HandView: View {
             // A9: a played card scales/fades away and a drawn card scales/fades in, instead
             // of snapping — skipped under Reduced Motion (A12).
             .transition(reducedMotion ? .identity : .scale(scale: 0.5).combined(with: .opacity))
+            // Deal-in stagger (Phase 11 B): each new card (a fresh deal, or one drawn mid-round)
+            // fades/scales in with a per-index delay instead of every card popping at once.
+            .modifier(DealStaggerModifier(index: index, reducedMotion: reducedMotion))
     }
 
     private func tap(_ item: CardViewModel) {
@@ -107,6 +110,27 @@ struct HandView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { shakingCardID = nil }
         }
         onPlay(item)
+    }
+}
+
+/// Fades/scales a card in with a per-index delay (`Theme.Motion.dealStagger`) on appearance —
+/// covers both the initial round deal (every card appears at once, staggered) and a single
+/// drawn card joining the hand mid-round.
+private struct DealStaggerModifier: ViewModifier {
+    let index: Int
+    let reducedMotion: Bool
+    @State private var visible = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(visible ? 1 : 0)
+            .scaleEffect(visible ? 1 : 0.6)
+            .onAppear {
+                guard !reducedMotion else { visible = true; return }
+                withAnimation(Theme.Motion.deal.delay(Double(index) * Theme.Motion.dealStagger)) {
+                    visible = true
+                }
+            }
     }
 }
 

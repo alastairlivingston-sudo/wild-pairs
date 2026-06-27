@@ -149,6 +149,7 @@ struct SecondaryButtonStyle: ButtonStyle {
                     .strokeBorder(Theme.Palette.accent, lineWidth: 1.5)
                     .opacity(configuration.isPressed ? 0.6 : 1)
             )
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
     }
 }
 
@@ -186,6 +187,16 @@ extension ButtonStyle where Self == GhostButtonStyle {
 }
 extension ButtonStyle where Self == DestructiveButtonStyle {
     static var wpDestructive: DestructiveButtonStyle { DestructiveButtonStyle() }
+}
+
+/// Press-scale for the elemental colour-picker tiles (Phase 11 B) — same press feedback
+/// language as the pill buttons, applied to a square swatch instead.
+struct ElementTileButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.94 : 1)
+            .animation(Theme.Motion.micro, value: configuration.isPressed)
+    }
 }
 
 // MARK: - Neon segmented control (Phase 10) — uppercase tracked label, surface track,
