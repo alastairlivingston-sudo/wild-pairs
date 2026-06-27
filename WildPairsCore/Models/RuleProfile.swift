@@ -88,7 +88,7 @@ public struct RuleProfile: Codable, Equatable, Sendable {
     public static func standardTeams() -> RuleProfile {
         RuleProfile(
             winCondition: .singleOut, targetScore: 0,
-            mustPlayAfterDraw: true, drawUntilPlayable: false, stackDrawCards: false,
+            mustPlayAfterDraw: true, drawUntilPlayable: false, stackDrawCards: true,
             drawFourChallengeable: false, changeColourRequiresPlay: false,
             discardAllEnabled: false, targetedDrawEnabled: false,
             forcedSwapEnabled: false, skipTwoEnabled: false, teamPlayEnabled: false,
@@ -103,7 +103,7 @@ public struct RuleProfile: Codable, Equatable, Sendable {
     public static func allWild() -> RuleProfile {
         RuleProfile(
             winCondition: .singleOut, targetScore: 0,
-            mustPlayAfterDraw: true, drawUntilPlayable: false, stackDrawCards: false,
+            mustPlayAfterDraw: true, drawUntilPlayable: false, stackDrawCards: true,
             drawFourChallengeable: false, changeColourRequiresPlay: false,
             discardAllEnabled: false, targetedDrawEnabled: false,
             forcedSwapEnabled: false, skipTwoEnabled: false, teamPlayEnabled: false,
@@ -118,7 +118,7 @@ public struct RuleProfile: Codable, Equatable, Sendable {
     public static func sideToSide() -> RuleProfile {
         RuleProfile(
             winCondition: .singleOut, targetScore: 0,
-            mustPlayAfterDraw: true, drawUntilPlayable: false, stackDrawCards: false,
+            mustPlayAfterDraw: true, drawUntilPlayable: false, stackDrawCards: true,
             drawFourChallengeable: false, changeColourRequiresPlay: false,
             discardAllEnabled: false, targetedDrawEnabled: false,
             forcedSwapEnabled: false, skipTwoEnabled: false, teamPlayEnabled: false,

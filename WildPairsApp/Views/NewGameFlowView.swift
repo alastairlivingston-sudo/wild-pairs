@@ -5,6 +5,9 @@ import WildPairsCore
 // canonical seat→team mapping and hands it back to start the game.
 
 struct NewGameFlowView: View {
+    /// Settings-screen house-rule toggle (Phase 11 F) — stacking is on by default at the
+    /// `RuleProfile` level; this lets a player opt out before starting a new game.
+    var stackingEnabled: Bool = true
     let onStart: (GameConfig) -> Void
 
     @State private var mode: GameMode = .standardTeams
@@ -45,7 +48,8 @@ struct NewGameFlowView: View {
                 Spacer(minLength: Theme.Space.s5)
 
                 Button {
-                    onStart(.standardFourPlayer(mode: mode, difficulty: difficulty, cardSet: cardSet))
+                    onStart(.standardFourPlayer(mode: mode, difficulty: difficulty, cardSet: cardSet,
+                                                 stackingEnabled: stackingEnabled))
                 } label: {
                     Text("Start Game")
                 }
@@ -90,7 +94,8 @@ struct NewGameFlowView: View {
 extension GameConfig {
     /// Canonical 1-human + 3-AI table (seats 0,2 = Team A; 1,3 = Team B).
     static func standardFourPlayer(
-        mode: GameMode, difficulty: Difficulty, cardSet: CardSet, seed: UInt64? = nil
+        mode: GameMode, difficulty: Difficulty, cardSet: CardSet, stackingEnabled: Bool = true,
+        seed: UInt64? = nil
     ) -> GameConfig {
         var profile: RuleProfile
         switch mode {
@@ -99,6 +104,7 @@ extension GameConfig {
         case .sideToSide:    profile = .sideToSide()
         }
         profile.cardSet = cardSet
+        profile.stackDrawCards = stackingEnabled
         return GameConfig(
             mode: mode,
             players: [

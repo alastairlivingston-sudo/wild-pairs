@@ -7,6 +7,7 @@ struct HomeView: View {
     let onContinue: () -> Void
 
     @State private var showNewGame = false
+    private var reducedMotion: Bool { settings.userSettings.reducedVisualEffects }
 
     var body: some View {
         NavigationStack {
@@ -64,7 +65,7 @@ struct HomeView: View {
                 }
             }
             .navigationDestination(isPresented: $showNewGame) {
-                NewGameFlowView { config in
+                NewGameFlowView(stackingEnabled: settings.userSettings.stackingEnabled) { config in
                     showNewGame = false
                     onStart(config)
                 }
@@ -84,7 +85,10 @@ struct HomeView: View {
             }
         }
         .padding(Theme.Space.s4)
-        .background(Circle().fill(Color.black.opacity(0.25)).frame(width: 110, height: 110))
+        .background(
+            Circle().fill(Theme.Palette.surface.opacity(0.5)).frame(width: 110, height: 110)
+                .shadow(color: reducedMotion ? .clear : Theme.Palette.accent.opacity(0.35), radius: 26)
+        )
         // Purely decorative — the "Wild Pairs" text immediately below already names the
         // app, so VoiceOver should skip these four shapes rather than read them individually.
         .accessibilityHidden(true)

@@ -125,6 +125,16 @@ public struct GameState: Codable, Equatable, Sendable {
     /// Non-nil when the engine is waiting for a player to make a choice before continuing.
     public var pendingDecision: PendingDecision?
 
+    // MARK: Draw Stacking (RuleProfile.stackDrawCards)
+
+    /// Accumulated draw penalty the current player must either stack onto (with a legal
+    /// Draw Two/Four) or absorb by drawing. Optional for save-forward-compat (mirrors
+    /// `teamPassSelections`) — nil means no stack is pending.
+    public var pendingDrawCount: Int?
+    /// The card type that opened the current stack (`.drawTwo` or `.drawFour`) — determines
+    /// which cards may legally extend it (`GameRules.isLegal`).
+    public var pendingDrawType: CardType?
+
     // MARK: Deck
 
     /// The draw and discard piles for the current round.
@@ -188,6 +198,7 @@ public struct GameState: Codable, Equatable, Sendable {
         case phase, mode, ruleProfile, roundNumber, teamScores
         case winState, teamPassSelections, teamPassDeclined
         case rngSeed, actionCount, eventLog
+        case pendingDrawCount, pendingDrawType
     }
 
     // Custom Equatable to exclude eventLog from equality checks
@@ -208,6 +219,8 @@ public struct GameState: Codable, Equatable, Sendable {
         lhs.winState == rhs.winState &&
         lhs.teamPassSelections == rhs.teamPassSelections &&
         lhs.teamPassDeclined == rhs.teamPassDeclined &&
+        lhs.pendingDrawCount == rhs.pendingDrawCount &&
+        lhs.pendingDrawType == rhs.pendingDrawType &&
         lhs.rngSeed == rhs.rngSeed &&
         lhs.actionCount == rhs.actionCount
         // eventLog intentionally excluded
@@ -246,6 +259,8 @@ public struct GameState: Codable, Equatable, Sendable {
         winState: WinState? = nil,
         teamPassSelections: [UUID: Card]? = nil,
         teamPassDeclined: Set<UUID>? = nil,
+        pendingDrawCount: Int? = nil,
+        pendingDrawType: CardType? = nil,
         rngSeed: UInt64 = 0,
         actionCount: Int = 0,
         eventLog: [GameEvent] = []
@@ -266,6 +281,8 @@ public struct GameState: Codable, Equatable, Sendable {
         self.winState = winState
         self.teamPassSelections = teamPassSelections
         self.teamPassDeclined = teamPassDeclined
+        self.pendingDrawCount = pendingDrawCount
+        self.pendingDrawType = pendingDrawType
         self.rngSeed = rngSeed
         self.actionCount = actionCount
         self.eventLog = eventLog

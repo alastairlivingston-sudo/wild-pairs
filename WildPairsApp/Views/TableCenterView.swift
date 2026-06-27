@@ -10,6 +10,9 @@ struct TableCenterView: View {
     let topDiscard: Card?
     let currentColour: CardColour
     let drawPileCount: Int
+    /// Draw stacking (Phase 11 F): when non-nil, the badge shows "Stack N" instead of the
+    /// plain pile count, so the looming penalty is visible even when it isn't your turn.
+    var pendingDrawCount: Int? = nil
     let turnDirection: TurnDirection
     let canDraw: Bool
     let showColourName: Bool
@@ -51,11 +54,11 @@ struct TableCenterView: View {
                 CardBackView(size: drawCardSize).offset(x: 3, y: 3).opacity(0.5)
                 CardBackView(size: drawCardSize).offset(x: 1.5, y: 1.5).opacity(0.75)
                 CardBackView(size: drawCardSize)
-                Text("\(drawPileCount)")
+                Text(badgeText)
                     .font(.caption2.bold()).monospacedDigit()
-                    .foregroundStyle(.white)
+                    .foregroundStyle(pendingDrawCount != nil ? Theme.Palette.onAccent : .white)
                     .padding(.horizontal, Theme.Space.s1).padding(.vertical, 2)
-                    .background(Capsule().fill(Color.black.opacity(0.55)))
+                    .background(Capsule().fill(pendingDrawCount != nil ? Theme.Palette.warning : Color.black.opacity(0.55)))
                     .overlay(Capsule().strokeBorder(Theme.Palette.accent.opacity(0.6), lineWidth: 1))
                     .offset(y: drawCardSize.height * 0.42)
             }
@@ -64,9 +67,15 @@ struct TableCenterView: View {
         .disabled(!canDraw)
         .opacity(canDraw ? 1 : 0.5)
         .frame(minHeight: 50)
-        .accessibilityLabel("Draw pile, \(drawPileCount) cards")
+        .accessibilityLabel(pendingDrawCount.map { "Draw pile. Stack pending: \($0) cards" }
+            ?? "Draw pile, \(drawPileCount) cards")
         .accessibilityHint(canDraw ? "Double tap to draw a card" : "")
         .accessibilityIdentifier("game-draw-card-button")
+    }
+
+    private var badgeText: String {
+        guard let pendingDrawCount else { return "\(drawPileCount)" }
+        return "+\(pendingDrawCount)"
     }
 
     @ViewBuilder private var discardPile: some View {

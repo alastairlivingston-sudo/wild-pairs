@@ -58,10 +58,7 @@ public struct GameEngine {
             guard let player = state.players.first(where: { $0.id == playerID }),
                   state.currentPlayer?.id == playerID,
                   player.hand.contains(where: { $0.id == card.id }) else { return false }
-            if card.type == .drawFour {
-                return GameRules.drawFourIsLegal(hand: player.hand, state: state)
-            }
-            return GameRules.isLegal(card, in: state)
+            return GameRules.isCardLegal(card, hand: player.hand, state: state)
         case .drawCard(let playerID):
             return state.currentPlayer?.id == playerID
         default:
@@ -71,9 +68,7 @@ public struct GameEngine {
 
     public static func legalPlays(state: GameState, for playerID: UUID) -> [Card] {
         guard let player = state.players.first(where: { $0.id == playerID }) else { return [] }
-        return GameRules.legalPlays(hand: player.hand, state: state).filter { card in
-            card.type != .drawFour || GameRules.drawFourIsLegal(hand: player.hand, state: state)
-        }
+        return GameRules.legalPlaysConsideringDrawFour(hand: player.hand, state: state)
     }
 
     // MARK: - New game
@@ -237,14 +232,23 @@ public struct GameEngine {
             effects.append(.animateReverse)
 
         case .drawTwo:
-            let targetIndex = GameRules.nextIndex(
-                from: playedByIndex, direction: s.turnDirection, playerCount: n)
-            let drawn = drawCards(count: 2, into: &s, rng: &rng)
-            s.players[targetIndex].hand.append(contentsOf: drawn)
-            // Skip the target player
-            s.currentPlayerIndex = GameRules.nextIndex(
-                from: playedByIndex, direction: s.turnDirection, playerCount: n, skipCount: 2)
-            effects.append(.animateCardDraw(toPlayerID: s.players[targetIndex].id, count: 2))
+            if s.ruleProfile.stackDrawCards {
+                // Accumulate the stack instead of drawing immediately; the next player must
+                // answer with another Draw Two/Four or draw the whole pending stack.
+                s.pendingDrawCount = (s.pendingDrawCount ?? 0) + 2
+                s.pendingDrawType = .drawTwo
+                s.currentPlayerIndex = GameRules.nextIndex(
+                    from: playedByIndex, direction: s.turnDirection, playerCount: n)
+            } else {
+                let targetIndex = GameRules.nextIndex(
+                    from: playedByIndex, direction: s.turnDirection, playerCount: n)
+                let drawn = drawCards(count: 2, into: &s, rng: &rng)
+                s.players[targetIndex].hand.append(contentsOf: drawn)
+                // Skip the target player
+                s.currentPlayerIndex = GameRules.nextIndex(
+                    from: playedByIndex, direction: s.turnDirection, playerCount: n, skipCount: 2)
+                effects.append(.animateCardDraw(toPlayerID: s.players[targetIndex].id, count: 2))
+            }
 
         case .drawFour:
             // Colour selection required — set pending decision
@@ -335,15 +339,22 @@ public struct GameEngine {
             switch topCard.type {
 
             case .drawFour:
-                let targetIndex = GameRules.nextIndex(
-                    from: playerIndex, direction: s.turnDirection, playerCount: s.players.count)
-                var rng = SeededRNG(seed: s.rngSeed &+ UInt64(s.actionCount))
-                let drawn = drawCards(count: 4, into: &s, rng: &rng)
-                s.players[targetIndex].hand.append(contentsOf: drawn)
-                s.currentPlayerIndex = GameRules.nextIndex(
-                    from: playerIndex, direction: s.turnDirection,
-                    playerCount: s.players.count, skipCount: 2)
-                effects.append(.animateCardDraw(toPlayerID: s.players[targetIndex].id, count: 4))
+                if s.ruleProfile.stackDrawCards {
+                    s.pendingDrawCount = (s.pendingDrawCount ?? 0) + 4
+                    s.pendingDrawType = .drawFour
+                    s.currentPlayerIndex = GameRules.nextIndex(
+                        from: playerIndex, direction: s.turnDirection, playerCount: s.players.count)
+                } else {
+                    let targetIndex = GameRules.nextIndex(
+                        from: playerIndex, direction: s.turnDirection, playerCount: s.players.count)
+                    var rng = SeededRNG(seed: s.rngSeed &+ UInt64(s.actionCount))
+                    let drawn = drawCards(count: 4, into: &s, rng: &rng)
+                    s.players[targetIndex].hand.append(contentsOf: drawn)
+                    s.currentPlayerIndex = GameRules.nextIndex(
+                        from: playerIndex, direction: s.turnDirection,
+                        playerCount: s.players.count, skipCount: 2)
+                    effects.append(.animateCardDraw(toPlayerID: s.players[targetIndex].id, count: 4))
+                }
 
             case .discardAll:
                 // Discard all cards of chosen colour from the player's hand
@@ -465,6 +476,21 @@ public struct GameEngine {
         var s = state
         var rng = SeededRNG(seed: s.rngSeed &+ UInt64(s.actionCount))
         s.actionCount += 1
+
+        // Draw stacking (Phase 11 F): a pending stack is absorbed in full — no draw-and-play,
+        // since these are penalty cards, not a normal turn draw — and the turn ends.
+        if let pendingCount = s.pendingDrawCount {
+            let drawn = drawCards(count: pendingCount, into: &s, rng: &rng)
+            s.players[playerIndex].hand.append(contentsOf: drawn)
+            s.pendingDrawCount = nil
+            s.pendingDrawType = nil
+            s.currentPlayerIndex = GameRules.nextIndex(
+                from: playerIndex, direction: s.turnDirection, playerCount: s.players.count)
+            return (s, [
+                .animateCardDraw(toPlayerID: playerID, count: pendingCount),
+                .triggerAutosave
+            ])
+        }
 
         guard let drawn = s.deck.draw(rng: &rng) else {
             // Nothing to draw — pass turn
@@ -678,6 +704,8 @@ public struct GameEngine {
         s.winState = nil
         s.teamPassSelections = nil
         s.teamPassDeclined = nil
+        s.pendingDrawCount = nil
+        s.pendingDrawType = nil
         if s.ruleProfile.teamPassEnabled {
             s.pendingDecision = firstTeamPassDecision(for: s.players)
             s.phase = .teamPass

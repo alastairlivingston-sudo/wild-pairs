@@ -14,6 +14,16 @@ public enum GameRules {
 
     /// True if `card` may legally be played in `state` by the active player.
     public static func isLegal(_ card: Card, in state: GameState) -> Bool {
+        // Draw stacking (Phase 11 F): a pending draw stack overrides every other legality
+        // rule, including All-Wild's "anything plays" — you must stack or draw, full stop.
+        if state.ruleProfile.stackDrawCards, let pendingType = state.pendingDrawType {
+            switch pendingType {
+            case .drawTwo: return card.type == .drawTwo || card.type == .drawFour
+            case .drawFour: return card.type == .drawFour
+            default: return false
+            }
+        }
+
         if state.mode == .allWild { return true }
 
         // Wild-type cards (no colour) are always playable.
@@ -41,6 +51,25 @@ public enum GameRules {
         }
 
         return false
+    }
+
+    // MARK: Combined legality (colour/type match + Draw-Four restriction + stacking)
+
+    /// The single source of truth for "can this card be played right now," combining
+    /// `isLegal`'s colour/type/stacking rules with the Draw Four "no colour match in hand"
+    /// restriction. The Draw Four restriction does **not** apply while answering a pending
+    /// draw stack — stacking a +4 onto a +2 is legal regardless of what colours are also in
+    /// hand, since it's a stack response, not a normal play.
+    public static func isCardLegal(_ card: Card, hand: [Card], state: GameState) -> Bool {
+        guard isLegal(card, in: state) else { return false }
+        guard card.type == .drawFour else { return true }
+        if state.ruleProfile.stackDrawCards, state.pendingDrawType != nil { return true }
+        return drawFourIsLegal(hand: hand, state: state)
+    }
+
+    /// Every card in `hand` legal to play right now (`isCardLegal` applied to each).
+    public static func legalPlaysConsideringDrawFour(hand: [Card], state: GameState) -> [Card] {
+        hand.filter { isCardLegal($0, hand: hand, state: state) }
     }
 
     // MARK: Draw-Four restriction

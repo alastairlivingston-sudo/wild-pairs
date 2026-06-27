@@ -92,7 +92,16 @@ public enum AIPlayer {
 
     /// Legal plays for the AI from its own hand, mirroring GameRules.isLegal / drawFourIsLegal.
     static func legalPlays(observation: AIObservation) -> [Card] {
-        observation.myHand.filter { card in
+        // Draw stacking (Phase 11 F): a pending stack overrides every other rule, including
+        // All-Wild and the Draw Four colour restriction — only a matching stack card plays.
+        if observation.ruleProfile.stackDrawCards, let pendingType = observation.pendingDrawType {
+            switch pendingType {
+            case .drawTwo: return observation.myHand.filter { $0.type == .drawTwo || $0.type == .drawFour }
+            case .drawFour: return observation.myHand.filter { $0.type == .drawFour }
+            default: return []
+            }
+        }
+        return observation.myHand.filter { card in
             if observation.mode == .allWild { return true }
             if card.type == .drawFour { return drawFourIsLegal(observation: observation) }
             if card.isWild { return true }

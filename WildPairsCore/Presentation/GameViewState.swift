@@ -80,6 +80,9 @@ public enum PromptKind: Equatable, Sendable {
     /// partner, or decline.
     case chooseTeamPass
     case mustDraw
+    /// Draw stacking (Phase 11 F): the local player must stack a matching Draw Two/Four or
+    /// draw the whole pending stack.
+    case stackOrDraw(count: Int)
     case roundOver(winningTeamName: String)
     /// Round timer fallback fired (`WinReason.roundTimerExpired`) — nobody emptied their
     /// hand, the round was decided by lowest card-point score instead of a normal go-out.
@@ -99,6 +102,9 @@ public struct GameViewState: Equatable, Sendable {
     public let currentColour: CardColour
     public let turnDirection: TurnDirection
     public let drawPileCount: Int
+    /// Draw stacking (Phase 11 F): the pending draw penalty the active player must answer,
+    /// surfaced for the draw-pile badge regardless of whose turn it is. Nil if none pending.
+    public let pendingDrawCount: Int?
     public let scoreboard: [ScoreRow]
     public let prompt: PromptKind
     public let phase: GamePhase
@@ -165,6 +171,7 @@ public struct GameViewState: Equatable, Sendable {
         self.currentColour = state.currentColour
         self.turnDirection = state.turnDirection
         self.drawPileCount = state.deck.drawPile.count
+        self.pendingDrawCount = state.ruleProfile.stackDrawCards ? state.pendingDrawCount : nil
         self.phase = state.phase
         self.roundNumber = state.roundNumber
 
@@ -218,9 +225,7 @@ public struct GameViewState: Equatable, Sendable {
     /// Legal plays for a player, including the Draw-Four restriction (mirrors GameEngine).
     static func localLegalPlays(state: GameState, playerID: UUID) -> [Card] {
         guard let player = state.players.first(where: { $0.id == playerID }) else { return [] }
-        return GameRules.legalPlays(hand: player.hand, state: state).filter { card in
-            card.type != .drawFour || GameRules.drawFourIsLegal(hand: player.hand, state: state)
-        }
+        return GameRules.legalPlaysConsideringDrawFour(hand: player.hand, state: state)
     }
 
     /// Stable display ordering: by colour (wilds last), then by a type rank, then number.
@@ -281,6 +286,9 @@ public struct GameViewState: Equatable, Sendable {
             return pid == localPlayerID ? .chooseTeamPass : .waitingFor(playerName: name(of: pid, in: state))
         }
         if isLocalTurn {
+            if let pendingCount = state.pendingDrawCount, state.ruleProfile.stackDrawCards {
+                return .stackOrDraw(count: pendingCount)
+            }
             return hasLegalPlay ? .yourTurn(hint: matchHint(state: state)) : .mustDraw
         }
         if let current = state.currentPlayer {

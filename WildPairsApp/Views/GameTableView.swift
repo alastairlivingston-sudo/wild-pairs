@@ -217,7 +217,8 @@ struct GameTableView: View {
     private func tableCenter(size: CGSize) -> some View {
         TableCenterView(
             topDiscard: vs.topDiscard, currentColour: vs.currentColour,
-            drawPileCount: vs.drawPileCount, turnDirection: vs.turnDirection,
+            drawPileCount: vs.drawPileCount, pendingDrawCount: vs.pendingDrawCount,
+            turnDirection: vs.turnDirection,
             canDraw: vs.isLocalPlayerTurn, showColourName: showColourName, showPattern: showPattern,
             reducedMotion: reducedMotion, cardSize: size, onDraw: vm.drawCard
         )

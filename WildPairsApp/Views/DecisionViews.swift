@@ -155,6 +155,7 @@ struct PromptBanner: View {
         case .chooseTarget:              return "Choose a player."
         case .chooseTeamPass:            return "Team Pass — choose a card to give your partner, or decline."
         case .mustDraw:                  return "Your turn — no matching card. Draw one."
+        case .stackOrDraw(let count):     return "Stack a Draw Two or Draw Four, or draw \(count)."
         case .roundOver(let team):       return "\(team) wins this round!"
         case .roundOverByTimeout(let team): return "Time's up — \(team) wins this round on lowest score."
         case .gameOver(let team):        return "\(team) wins the game!"
