@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Wild Pairs — Neon Arcade · final direction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0a0712;--panel:#14102a;--ink:#eef0ff;--mut:#9b9ac6;--line:#241c44;--accent:#36e0c8}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'Outfit',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  header.top{padding:26px 28px 16px;border-bottom:1px solid var(--line)}
+  header.top h1{margin:0;font-size:22px;font-weight:700}
+  header.top p{margin:7px 0 0;color:var(--mut);font-size:14px;max-width:840px;line-height:1.55}
+  .spec{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 0}
+  .spec span{font-size:12px;font-weight:600;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:5px 11px}
+  .spec span b{color:var(--accent)}
+  .row{display:flex;gap:26px;overflow-x:auto;padding:26px 28px 60px}
+  .col{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:10px}
+  .col .cap{font-size:12.5px;color:var(--mut);font-weight:600}
+
+  .phone{width:300px;height:636px;border-radius:46px;padding:10px;background:#04030a;
+    box-shadow:0 22px 56px rgba(0,0,0,.6), inset 0 0 0 2px #1b1640;position:relative}
+  .scr{width:100%;height:100%;border-radius:38px;overflow:hidden;position:relative;display:flex;flex-direction:column;
+    background:radial-gradient(120% 100% at 50% -10%, #1a1242 0%, #0d0820 60%, #05030f 100%);font-family:'Space Grotesk'}
+  .notch{position:absolute;top:13px;left:50%;transform:translateX(-50%);width:96px;height:26px;background:#04030a;border-radius:15px;z-index:60}
+  .statusbar{position:absolute;top:0;left:0;right:0;height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:12.5px;font-weight:700;z-index:55;color:var(--ink)}
+  .fill{flex:1;min-height:0}
+  .seat-name{font-size:11px;font-weight:700;opacity:.92;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:78px}
+  .chip{display:inline-flex;align-items:center;gap:4px;border-radius:999px;font-weight:700;font-size:11px;padding:2px 9px}
+  .card{position:relative;overflow:hidden;flex:0 0 auto}
+  .card .pip{position:absolute;display:flex;flex-direction:column;align-items:center;line-height:1;z-index:3}
+  .card .pip.tl{top:7%;left:9%}
+  .card .pip.br{bottom:7%;right:9%;transform:rotate(180deg)}
+  .card .pip .n{font-weight:700;font-family:'Space Grotesk'}
+  .card .ctr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;z-index:2}
+  .card .ctr .big{font-weight:700;font-family:'Space Grotesk';line-height:.9}
+  .card .ctr .lbl{font-weight:700;letter-spacing:.3px;text-transform:uppercase}
+  .card .wm{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:1;opacity:.18}
+  .pillbtn{border:none;border-radius:13px;font-weight:700;font-size:14px;padding:14px;width:100%;cursor:default}
+  ::-webkit-scrollbar{height:9px;width:9px}
+  ::-webkit-scrollbar-thumb{background:#322a5a;border-radius:8px}
+  ::-webkit-scrollbar-track{background:transparent}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Wild Pairs · Neon Arcade — final direction</h1>
+  <p>The locked composition across all five core screens. This is the spec the Phase 10 implementation will follow.</p>
+  <div class="spec">
+    <span>Theme: <b>Neon Arcade</b></span>
+    <span>Header: <b>Center pill</b></span>
+    <span>Your hand: <b>Straight row</b></span>
+    <span>Opponents: <b>Avatar + count</b></span>
+  </div>
+</header>
+<div class="row" id="row"></div>
+
+<script>
+var T={ ink:'#eef0ff', mut:'#9b9ac6', accent:'#36e0c8', onAccent:'#04130f', surface:'rgba(255,255,255,.06)',
+  suits:{crimson:['#ff2e63','#ff6b8e'],cobalt:['#2e7bff','#5fa8ff'],jade:['#16e08a','#5cffb4'],amber:['#ffb01f','#ffd45e']},
+  wildFace:'linear-gradient(160deg,#3a1a6a,#1a0c3a)', backFace:'linear-gradient(160deg,#231554,#120a30)', cardRpx:14, playRing:'#36e0c8' };
+var TEAM={A:'#16e08a', B:'#ff2e63'};
+
+function suit(c,opts){opts=opts||{};var col=T.suits[c]?T.suits[c][0]:'#fff';var sw=opts.stroke||2.4,sz=opts.size||'100%';
+  var s='<svg viewBox="0 0 24 24" width="'+sz+'" height="'+sz+'" style="display:block">';
+  if(c==='crimson'){s+='<path d="M12 2.4c2.7 3.4 4.6 5.4 4.6 8.9a4.6 4.6 0 0 1-2.2 4 3 3 0 0 0 .3-3.7c-.2 1.6-1.1 2.3-1.9 2.5.5-2.6-.6-4.6-2-7.4-1.4 1.9-2.4 3.6-2.4 5.9A4.6 4.6 0 0 0 12 17a4.6 4.6 0 0 0 4.6-4.6C16.6 8 14.6 5.7 12 2.4Z" fill="'+col+'"/>';}
+  else if(c==='cobalt'){s+='<g fill="none" stroke="'+col+'" stroke-width="'+sw+'" stroke-linecap="round"><path d="M3 9.5c2-2.6 4-2.6 6 0s4 2.6 6 0 4-2.6 6 0"/><path d="M3 15c2-2.6 4-2.6 6 0s4 2.6 6 0 4-2.6 6 0"/></g>';}
+  else if(c==='jade'){s+='<path d="M12 2.5C18.5 7 18.8 14 12 21.5 5.2 14 5.5 7 12 2.5Z" fill="'+col+'"/><path d="M12 5v13.5" stroke="rgba(0,0,0,.25)" stroke-width="1.3" stroke-linecap="round"/>';}
+  else{s+='<circle cx="12" cy="12" r="4.2" fill="'+col+'"/><g stroke="'+col+'" stroke-width="'+(sw+.2)+'" stroke-linecap="round">';
+    for(var i=0;i<8;i++){var a=i/8*Math.PI*2,x=Math.cos(a),y=Math.sin(a);s+='<line x1="'+(12+x*7).toFixed(2)+'" y1="'+(12+y*7).toFixed(2)+'" x2="'+(12+x*9.4).toFixed(2)+'" y2="'+(12+y*9.4).toFixed(2)+'"/>';}s+='</g>';}
+  return s+'</svg>';
+}
+var ACT={reverse:{lbl:'Reverse',gl:'⟲'},draw2:{lbl:'+2',gl:'+2'},wild:{lbl:'Wild',gl:'✦'}};
+function faceVar(c){return c==='wild'?T.wildFace:'linear-gradient(160deg, '+T.suits[c][1]+', '+T.suits[c][0]+')';}
+function inkFor(c){return c==='amber'?'#3a2a02':'#fff';}
+function buildCard(card,w){
+  var h=Math.round(w*1.46),c=card.colour,ink=inkFor(c),num=card.act?ACT[card.act]:null;
+  var glow=c!=='wild'?('box-shadow:0 4px 10px rgba(0,0,0,.6), 0 0 14px '+T.suits[c][1]+'66;'):'box-shadow:0 4px 10px rgba(0,0,0,.6);';
+  var s='<div class="card" style="width:'+w+'px;height:'+h+'px;border-radius:'+T.cardRpx+'px;border:1.5px solid rgba(255,255,255,.55);'+glow+'color:'+ink+'">';
+  s+='<div style="position:absolute;inset:0;background:'+faceVar(c)+';box-shadow:inset 0 0 12px rgba(255,255,255,.15)"></div>';
+  if(c!=='wild') s+='<div class="wm" style="width:62%;height:62%;left:19%;top:19%">'+suit(c)+'</div>';
+  if(w>=30) s+='<div class="pip tl">'+pip(card,w)+'</div>';
+  if(w>=46) s+='<div class="pip br">'+pip(card,w)+'</div>';
+  s+='<div class="ctr">';
+  if(num){s+='<div class="big" style="font-size:'+(w*0.46)+'px">'+num.gl+'</div><div class="lbl" style="font-size:'+(w*0.15)+'px">'+num.lbl+'</div>';}
+  else if(c==='wild'){s+='<div style="display:flex;gap:3px;flex-wrap:wrap;width:60%;justify-content:center">';['crimson','cobalt','jade','amber'].forEach(function(cc){s+='<div style="width:'+(w*0.22)+'px;height:'+(w*0.22)+'px">'+suit(cc)+'</div>';});s+='</div><div class="lbl" style="font-size:'+(w*0.15)+'px;margin-top:3px">Wild</div>';}
+  else{s+='<div class="big" style="font-size:'+(w*0.62)+'px">'+card.n+'</div>';}
+  return s+'</div></div>';
+}
+function pip(card,w){var c=card.colour,val=card.act?ACT[card.act].gl:(c==='wild'?'★':card.n);
+  var s='<div class="n" style="font-size:'+(w*0.235)+'px">'+val+'</div>';
+  if(c!=='wild') s+='<div style="width:'+Math.max(9,w*0.21)+'px;height:'+Math.max(9,w*0.21)+'px;margin-top:1px">'+suit(c)+'</div>';
+  return s;}
+function buildBack(w){var h=Math.round(w*1.46);
+  return '<div class="card" style="width:'+w+'px;height:'+h+'px;border-radius:'+T.cardRpx+'px;border:1.5px solid rgba(54,224,200,.45);box-shadow:0 3px 8px rgba(0,0,0,.5);color:'+T.accent+'"><div style="position:absolute;inset:0;background:'+T.backFace+'"></div><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><div style="font-weight:700;font-size:'+(w*0.34)+'px;letter-spacing:-1px">WP</div></div></div>';}
+
+var HAND=[ {colour:'crimson',n:7},{colour:'amber',act:'reverse'},{colour:'cobalt',n:5},{colour:'jade',n:9},{colour:'crimson',act:'draw2'},{colour:'wild',act:'wild'},{colour:'cobalt',n:2} ];
+var PARTNER=[ {colour:'cobalt',n:0},{colour:'amber',n:3},{colour:'crimson',n:8},{colour:'cobalt',n:9},{colour:'amber',n:4},{colour:'amber',n:8},{colour:'jade',n:6} ];
+
+function statusbar(){return '<div class="statusbar"><div>16:00</div><div style="display:flex;gap:6px;align-items:center"><span>···</span>'
+  +'<svg width="17" height="13" viewBox="0 0 16 12"><path d="M8 10.5a1.2 1.2 0 1 0 0-.01M3.5 6.5a6 6 0 0 1 9 0M1 4a9.5 9.5 0 0 1 14 0" fill="none" stroke="#eef0ff" stroke-width="1.4" stroke-linecap="round"/></svg>'
+  +'<svg width="23" height="13" viewBox="0 0 22 12"><rect x="1" y="1.5" width="18" height="9" rx="2.5" fill="none" stroke="#eef0ff" stroke-width="1.2"/><rect x="3" y="3.5" width="13" height="5" rx="1" fill="#eef0ff"/></svg></div></div>';}
+function shell(inner){return '<div class="phone"><div class="notch"></div><div class="scr">'+statusbar()+inner+'</div></div>';}
+function btn(label,kind){
+  if(kind==='primary') return '<button class="pillbtn" style="background:'+T.accent+';color:'+T.onAccent+';box-shadow:0 0 18px '+T.accent+'55">'+label+'</button>';
+  if(kind==='outline') return '<button class="pillbtn" style="background:transparent;color:'+T.accent+';border:1.6px solid '+T.accent+'">'+label+'</button>';
+  return '<button class="pillbtn" style="background:'+T.surface+';color:'+T.ink+';opacity:.9">'+label+'</button>';
+}
+
+/* HOME */
+function home(){
+  var s='<div class="fill" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 30px">';
+  s+='<div style="display:flex;gap:15px;padding:24px;border-radius:50%;background:rgba(255,255,255,.05);box-shadow:0 0 26px rgba(54,224,200,.25);margin-bottom:26px">';
+  ['crimson','cobalt','jade','amber'].forEach(function(c){s+='<div style="width:32px;height:32px">'+suit(c)+'</div>';});
+  s+='</div>';
+  s+='<div style="font-weight:700;font-size:44px;letter-spacing:-.5px">Wild Pairs</div>';
+  s+='<div style="color:'+T.mut+';font-size:13.5px;margin-top:6px">Offline 2-v-2 team card game</div>';
+  s+='<div style="height:38px"></div>';
+  s+='<div style="width:100%;max-width:250px;display:flex;flex-direction:column;gap:12px">';
+  s+=btn('Continue game','primary')+btn('New game','outline')+btn('Rules','ghost')+btn('Statistics','ghost')+btn('Settings','ghost');
+  s+='</div></div>';
+  return shell(s);
+}
+/* SETUP */
+function seg(title,opts,sel,blurb){
+  var s='<div style="color:'+T.mut+';font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:0 2px 8px">'+title+'</div>';
+  s+='<div style="display:flex;gap:6px;background:'+T.surface+';padding:4px;border-radius:13px">';
+  opts.forEach(function(o,i){var on=i===sel;s+='<div style="flex:1;text-align:center;padding:10px 4px;border-radius:9px;font-size:12px;font-weight:700;'+(on?('background:'+T.accent+';color:'+T.onAccent):('color:'+T.ink+';opacity:.65'))+'">'+o+'</div>';});
+  s+='</div>';
+  if(blurb) s+='<div style="color:'+T.mut+';font-size:12px;margin:8px 2px 0">'+blurb+'</div>';
+  return s;
+}
+function setup(){
+  var s='<div class="fill" style="display:flex;flex-direction:column;padding:54px 24px 24px">';
+  s+='<div style="font-weight:700;font-size:28px">New game</div><div style="height:20px"></div>';
+  s+=seg('Mode',['Standard','All-Wild','Side'],0,'Match by colour, number, or action type.');
+  s+='<div style="height:18px"></div>';
+  s+=seg('Difficulty',['Easy','Med','Hard','Expert'],2,'');
+  s+='<div style="height:18px"></div>';
+  s+=seg('Card set',['Beginner','Standard','Advanced'],1,'Beginner plus Draw Two and Draw Four.');
+  s+='<div class="fill"></div>'+btn('Start game','primary')+'</div>';
+  return shell(s);
+}
+/* PLAY — locked composition */
+function header(){
+  var s='<div style="position:absolute;top:50px;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:30">';
+  s+='<div style="background:'+T.surface+';border-radius:999px;padding:5px 10px;font-size:10.5px;font-weight:700">R2</div>';
+  s+='<div style="display:flex;align-items:center;gap:10px;background:'+T.surface+';border:1px solid rgba(255,255,255,.1);border-radius:999px;padding:6px 14px;white-space:nowrap">'
+    +'<span style="display:flex;align-items:center;gap:5px;font-weight:700;font-size:13px"><span style="width:9px;height:9px;border-radius:50%;background:'+TEAM.A+'"></span>A 0</span>'
+    +'<span style="opacity:.4">·</span>'
+    +'<span style="display:flex;align-items:center;gap:5px;font-weight:700;font-size:13px"><span style="width:9px;height:9px;border-radius:50%;background:'+TEAM.B+'"></span>B 640</span></div>';
+  s+='<div style="width:30px;height:30px;border-radius:50%;background:'+T.surface+';display:flex;align-items:center;justify-content:center"><svg width="13" height="13" viewBox="0 0 13 13"><rect x="2" y="1.5" width="3.2" height="10" rx="1" fill="#eef0ff"/><rect x="7.8" y="1.5" width="3.2" height="10" rx="1" fill="#eef0ff"/></svg></div></div>';
+  return s;
+}
+function avatarOpp(name,count,thinking){
+  var s='<div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:96px">';
+  s+='<div style="position:relative;width:58px;height:58px;border-radius:50%;background:'+T.surface+';border:2px solid '+(thinking?T.accent:'rgba(255,255,255,.22)')+';display:flex;align-items:center;justify-content:center;font-weight:700;font-size:22px;color:'+T.ink+';'+(thinking?'box-shadow:0 0 18px '+T.accent+'aa;':'')+'">'+name.charAt(0)
+    +'<div style="position:absolute;bottom:-5px;right:-5px;min-width:22px;height:22px;border-radius:999px;background:'+T.accent+';color:'+T.onAccent+';font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 6px;border:2px solid #0d0820">'+count+'</div></div>';
+  s+='<span class="seat-name">'+name+'</span>';
+  if(thinking) s+='<span style="font-size:10px;color:'+T.accent+';font-weight:700">thinking…</span>';
+  return s+'</div>';
+}
+function handRow(cards,w,sel){
+  var overlap=Math.round(w*0.44);
+  var s='<div style="display:flex;justify-content:center;align-items:flex-end;padding:18px 0 12px">';
+  cards.forEach(function(c,i){var selc=i===sel;
+    s+='<div style="margin-left:'+(i?-overlap:0)+'px;transform:translateY('+(selc?-22:0)+'px)'+(selc?' scale(1.07)':'')+';z-index:'+(selc?40:i)+';border-radius:'+w*0.1+'px;'+(selc?'outline:3px solid '+T.playRing+';outline-offset:1px;box-shadow:0 0 20px '+T.playRing+'cc;':'')+'">'+buildCard(c,w)+'</div>';});
+  return s+'</div>';
+}
+function play(){
+  var s=header();
+  s+='<div class="fill" style="display:flex;flex-direction:column;padding:88px 14px 20px">';
+  // partner
+  s+='<div style="background:'+T.surface+';border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:8px;margin-bottom:8px">';
+  s+='<div style="display:flex;align-items:center;justify-content:center;gap:7px;margin-bottom:4px"><span class="seat-name" style="max-width:140px">Partner</span><span class="chip" style="background:'+T.accent+';color:'+T.onAccent+'">7</span></div>';
+  s+='<div style="display:flex;justify-content:center">';
+  PARTNER.forEach(function(c,i){s+='<div style="margin-left:'+(i?-12:0)+'px">'+buildCard(c,28)+'</div>';});
+  s+='</div></div>';
+  // colour
+  s+='<div style="display:flex;justify-content:center;margin:2px 0 8px"><div style="display:flex;align-items:center;gap:8px;background:'+T.suits.amber[0]+';color:#3a2a02;border-radius:999px;padding:5px 15px;font-weight:700;font-size:13px;box-shadow:0 0 16px '+T.suits.amber[0]+'66"><span style="width:16px;height:16px">'+suit('amber')+'</span>Amber</div></div>';
+  s+='<div class="fill"></div>';
+  // mid row: avatar / table / avatar
+  s+='<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;padding:0 2px">';
+  s+=avatarOpp('Left Opp.',7,true);
+  s+='<div style="display:flex;flex-direction:column;align-items:center;gap:7px;padding-top:2px">';
+  s+=buildCard({colour:'amber',n:1},50);
+  s+='<div style="display:flex;align-items:center;gap:9px"><div style="position:relative">'+buildBack(32)+'<div style="position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);background:'+T.surface+';border-radius:999px;font-size:9.5px;font-weight:700;padding:1px 7px;color:'+T.ink+'">43</div></div>';
+  s+='<svg width="20" height="20" viewBox="0 0 18 18"><path d="M15 9a6 6 0 1 1-1.8-4.3M15 3v3h-3" fill="none" stroke="'+T.accent+'" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>';
+  s+=avatarOpp('Right Opp.',7,false);
+  s+='</div>';
+  s+='<div class="fill"></div>';
+  s+='<div style="text-align:center;color:'+T.mut+';font-size:11px;font-weight:700;margin-bottom:5px">2:49</div>';
+  s+='<div style="text-align:center;background:'+T.surface+';border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:9px;font-size:12.5px;font-weight:600;margin:0 8px 4px">Left Opponent is thinking…</div>';
+  s+=handRow(HAND,40,3);
+  s+='</div>';
+  return shell(s);
+}
+/* WIN */
+function win(){
+  var s='<div class="fill" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 28px;position:relative">';
+  var cols=[T.suits.crimson[1],T.suits.cobalt[1],T.suits.jade[1],T.suits.amber[1],T.accent];
+  s+='<div style="position:absolute;inset:46px 0 0;overflow:hidden;pointer-events:none">';
+  for(var i=0;i<28;i++){var x=(i*37%100),y=(i*53%88)+4,r=(i*47%360),w=4+i%4;s+='<span style="position:absolute;left:'+x+'%;top:'+y+'%;width:'+w+'px;height:'+(w*1.6)+'px;background:'+cols[i%5]+';border-radius:2px;transform:rotate('+r+'deg);opacity:.85"></span>';}
+  s+='</div><div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;width:100%">';
+  s+='<div style="width:90px;height:90px;border-radius:50%;background:'+T.accent+';display:flex;align-items:center;justify-content:center;margin-bottom:20px;box-shadow:0 0 30px '+T.accent+'aa"><svg width="42" height="42" viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 0 1-10 0V4Z" fill="none" stroke="'+T.onAccent+'" stroke-width="1.7"/><path d="M7 5H4.5a2.5 2.5 0 0 0 3 2.4M17 5h2.5a2.5 2.5 0 0 1-3 2.4M9 14h6M8 19h8M12 12v2" fill="none" stroke="'+T.onAccent+'" stroke-width="1.7" stroke-linecap="round"/></svg></div>';
+  s+='<div style="font-weight:700;font-size:32px">Round won!</div>';
+  s+='<div style="color:'+T.mut+';font-size:13px;margin-top:6px">Team A goes out first — +120 points</div>';
+  s+='<div style="height:24px"></div>';
+  s+='<div style="width:100%;max-width:250px;background:'+T.surface+';border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:6px 4px">';
+  [['Team A',640,true],['Team B',520,false]].forEach(function(r){s+='<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 15px;'+(r[2]?'':'opacity:.65')+'"><span style="font-weight:700;font-size:14.5px">'+r[0]+(r[2]?' <span style="font-size:10px;font-weight:700;color:'+T.onAccent+';background:'+T.accent+';border-radius:6px;padding:1px 7px;margin-left:6px">WON</span>':'')+'</span><span style="color:'+(r[2]?T.accent:T.ink)+';font-weight:700;font-size:17px">'+r[1]+'</span></div>';});
+  s+='</div><div style="height:26px"></div>';
+  s+='<div style="width:100%;max-width:250px;display:flex;flex-direction:column;gap:11px">'+btn('Next round','primary')+btn('Back to home','ghost')+'</div>';
+  s+='</div></div>';
+  return shell(s);
+}
+/* SETTINGS */
+function secLabel(x){return '<div style="color:'+T.mut+';font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:0 4px 8px">'+x+'</div>';}
+function toggleRow(label,on){return '<div style="display:flex;align-items:center;justify-content:space-between;background:'+T.surface+';border-radius:12px;padding:14px 15px;margin-bottom:8px"><span style="font-size:14px;font-weight:600">'+label+'</span><span style="width:44px;height:26px;border-radius:999px;background:'+(on?T.accent:'rgba(128,128,128,.4)')+';position:relative;display:inline-block;'+(on?'box-shadow:0 0 12px '+T.accent+'88':'')+'"><span style="position:absolute;top:2.5px;'+(on?'right':'left')+':2.5px;width:21px;height:21px;border-radius:50%;background:#fff"></span></span></div>';}
+function linkRow(label){return '<div style="display:flex;align-items:center;justify-content:space-between;background:'+T.surface+';border-radius:12px;padding:14px 15px;margin-bottom:8px"><span style="font-size:14px;font-weight:600">'+label+'</span><span style="color:'+T.mut+';font-size:17px">›</span></div>';}
+function settings(){
+  var s='<div class="fill" style="display:flex;flex-direction:column;padding:54px 22px 22px">';
+  s+='<div style="font-weight:700;font-size:28px">Settings</div><div style="height:18px"></div>';
+  s+=secLabel('Display')+toggleRow('Large cards',true)+toggleRow('Colour-blind mode',false)+toggleRow('Pattern fills',false)+toggleRow('Reduced motion',false);
+  s+='<div style="height:18px"></div>'+secLabel('Feedback')+toggleRow('Sound effects',true)+toggleRow('Haptics',true);
+  s+='<div style="height:18px"></div>'+secLabel('About')+linkRow('How to play')+linkRow('Reset statistics');
+  s+='</div>';
+  return shell(s);
+}
+
+var SCREENS=[['Home',home],['New game',setup],['In-game table',play],['Round won',win],['Settings',settings]];
+var rowEl=document.getElementById('row');
+SCREENS.forEach(function(sc){
+  var col=document.createElement('div'); col.className='col';
+  col.innerHTML=sc[1]()+'<div class="cap">'+sc[0]+'</div>';
+  rowEl.appendChild(col);
+});
+</script>
+</body>
+</html>

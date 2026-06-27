@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Wild Pairs — Phase 10 Design Directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Poppins:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Space+Grotesk:wght@400;500;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --shell-bg:#0e1116; --shell-panel:#161b22; --shell-ink:#e6edf3; --shell-mut:#8b949e;
+    --shell-line:#222b35; --shell-accent:#d9b872;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--shell-bg);color:var(--shell-ink);
+    font-family:'Outfit',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  a{color:inherit}
+  header.top{padding:26px 28px 14px;border-bottom:1px solid var(--shell-line)}
+  header.top h1{margin:0;font-size:22px;font-weight:700;letter-spacing:.2px}
+  header.top p{margin:6px 0 0;color:var(--shell-mut);font-size:14px;max-width:760px;line-height:1.5}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;padding:16px 28px;border-bottom:1px solid var(--shell-line);
+    position:sticky;top:0;background:rgba(14,17,22,.94);backdrop-filter:blur(8px);z-index:20}
+  .tab{border:1px solid var(--shell-line);background:var(--shell-panel);color:var(--shell-mut);
+    padding:8px 13px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;
+    display:flex;align-items:center;gap:8px;transition:.15s}
+  .tab .swatch{width:14px;height:14px;border-radius:4px;display:inline-block;border:1px solid rgba(255,255,255,.18)}
+  .tab:hover{color:var(--shell-ink);border-color:#3a4654}
+  .tab.active{color:#0e1116;background:var(--shell-accent);border-color:var(--shell-accent)}
+  .stage{padding:22px 28px 60px}
+  .opt-head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin:6px 0 18px;flex-wrap:wrap}
+  .opt-head h2{margin:0;font-size:26px;font-weight:800;letter-spacing:.2px}
+  .opt-head .num{color:var(--shell-mut);font-weight:700;font-size:14px;letter-spacing:2px;text-transform:uppercase}
+  .opt-head p{margin:8px 0 0;color:var(--shell-mut);font-size:14px;line-height:1.55;max-width:560px}
+  .solves{display:flex;flex-direction:column;gap:7px;min-width:280px}
+  .solves .row{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:#c2ccd6;line-height:1.4}
+  .solves .row b{color:var(--shell-accent);font-weight:700;font-size:11px;letter-spacing:.4px;
+    text-transform:uppercase;min-width:96px;display:inline-block}
+  .screens{display:flex;gap:22px;overflow-x:auto;padding:6px 2px 22px;scroll-snap-type:x proximity}
+  .screen-wrap{scroll-snap-align:start;flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:10px}
+  .screen-wrap .cap{font-size:12px;color:var(--shell-mut);font-weight:600}
+
+  /* ===== Device frame ===== */
+  .phone{width:266px;height:564px;border-radius:42px;padding:9px;background:#05070a;
+    box-shadow:0 24px 60px rgba(0,0,0,.55), inset 0 0 0 2px #1b2230;position:relative}
+  .scr{width:100%;height:100%;border-radius:34px;overflow:hidden;position:relative;display:flex;flex-direction:column}
+  .notch{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:86px;height:24px;
+    background:#05070a;border-radius:14px;z-index:60}
+  .statusbar{position:absolute;top:0;left:0;right:0;height:42px;display:flex;align-items:center;
+    justify-content:space-between;padding:0 22px;font-size:12px;font-weight:700;z-index:55}
+  .statusbar .r{display:flex;gap:5px;align-items:center}
+
+  /* generic helpers used inside screens */
+  .fill{flex:1;min-height:0}
+  .center{display:flex;align-items:center;justify-content:center}
+  .col{display:flex;flex-direction:column}
+  .pillbtn{border:none;border-radius:13px;font-weight:700;font-size:13px;padding:13px;width:100%;cursor:default}
+  .ghostbtn{background:transparent;font-weight:600}
+
+  /* ===== CARD (themeable via CSS vars) ===== */
+  .card{position:relative;border-radius:var(--cardR,12px);overflow:hidden;flex:0 0 auto;
+    box-shadow:var(--cardShadow,0 3px 6px rgba(0,0,0,.35));}
+  .card .face{position:absolute;inset:0;}
+  .card .pip{position:absolute;display:flex;flex-direction:column;align-items:center;gap:0;line-height:1;z-index:3}
+  .card .pip.tl{top:7%;left:9%}
+  .card .pip.br{bottom:7%;right:9%;transform:rotate(180deg)}
+  .card .pip .n{font-weight:800;font-family:var(--num,'Nunito');}
+  .card .ctr{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;z-index:2}
+  .card .ctr .big{font-weight:900;font-family:var(--num,'Nunito');line-height:.9}
+  .card .ctr .lbl{font-weight:800;letter-spacing:.3px;text-transform:uppercase}
+  .card .wm{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:1;opacity:.16}
+  .card .gloss{position:absolute;left:0;right:0;top:0;height:46%;
+    background:linear-gradient(180deg,rgba(255,255,255,.34),rgba(255,255,255,0));z-index:2;pointer-events:none}
+  .card.back .ctr{gap:4px}
+
+  /* card-back */
+  .cback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:3px}
+
+  /* fan layout */
+  .hand{display:flex;justify-content:center;align-items:flex-end;padding:16px 0 8px}
+  .hand .card{transform-origin:bottom center}
+  .opp-fan{display:flex;justify-content:center}
+  .opp-fan .card{margin-left:-26px}
+  .opp-fan .card:first-child{margin-left:0}
+
+  .chip{display:inline-flex;align-items:center;gap:5px;border-radius:999px;font-weight:700;font-size:11px;padding:3px 9px}
+  .seat-name{font-size:10.5px;font-weight:700;opacity:.92;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  .scrollhint{color:var(--shell-mut);font-size:12px;margin:-6px 0 14px;display:flex;align-items:center;gap:7px}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin:2px 0 22px;color:var(--shell-mut);font-size:12.5px}
+  .legend b{color:var(--shell-ink)}
+  ::-webkit-scrollbar{height:10px;width:10px}
+  ::-webkit-scrollbar-thumb{background:#283341;border-radius:8px}
+  ::-webkit-scrollbar-track{background:transparent}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Wild Pairs · Phase 10 — UX perfection</h1>
+  <p>Ten design directions for the App-Store-quality overhaul. Each direction is shown across the five core screens. Every direction fixes the three reported problems: low-quality card faces, full cards running off-screen, and wasted empty space. Use the tabs to switch direction; scroll each row sideways to see all five screens.</p>
+</header>
+<div class="tabs" id="tabs"></div>
+<div class="stage" id="stage"></div>
+
+<script>
+/* ----------------------------------------------------------------------------
+   Suit glyphs (Flame / Wave / Leaf / Sun) — original marks, drawn as SVG.
+---------------------------------------------------------------------------- */
+function suit(colour,opts){
+  opts=opts||{};
+  var c='var(--suit-'+colour+')';
+  var sw=opts.stroke||2.4;
+  var s='<svg viewBox="0 0 24 24" width="'+(opts.size||'100%')+'" height="'+(opts.size||'100%')+'" style="display:block">';
+  if(colour==='crimson'){ // flame, filled
+    s+='<path d="M12 2.4c2.7 3.4 4.6 5.4 4.6 8.9a4.6 4.6 0 0 1-2.2 4 3 3 0 0 0 .3-3.7c-.2 1.6-1.1 2.3-1.9 2.5.5-2.6-.6-4.6-2-7.4-1.4 1.9-2.4 3.6-2.4 5.9A4.6 4.6 0 0 0 12 17a4.6 4.6 0 0 0 4.6-4.6C16.6 8 14.6 5.7 12 2.4Z" fill="'+c+'"/>';
+  } else if(colour==='cobalt'){ // waves, stroked
+    s+='<g fill="none" stroke="'+c+'" stroke-width="'+sw+'" stroke-linecap="round">';
+    s+='<path d="M3 9.5c2-2.6 4-2.6 6 0s4 2.6 6 0 4-2.6 6 0"/>';
+    s+='<path d="M3 15c2-2.6 4-2.6 6 0s4 2.6 6 0 4-2.6 6 0"/></g>';
+  } else if(colour==='jade'){ // leaf, filled + vein
+    s+='<path d="M12 2.5C18.5 7 18.8 14 12 21.5 5.2 14 5.5 7 12 2.5Z" fill="'+c+'"/>';
+    s+='<path d="M12 5v13.5" stroke="rgba(0,0,0,.25)" stroke-width="1.3" stroke-linecap="round"/>';
+  } else { // sun, filled core + rays
+    s+='<circle cx="12" cy="12" r="4.2" fill="'+c+'"/>';
+    s+='<g stroke="'+c+'" stroke-width="'+(sw+.2)+'" stroke-linecap="round">';
+    for(var i=0;i<8;i++){var a=i/8*Math.PI*2,x=Math.cos(a),y=Math.sin(a);
+      s+='<line x1="'+(12+x*7).toFixed(2)+'" y1="'+(12+y*7).toFixed(2)+'" x2="'+(12+x*9.4).toFixed(2)+'" y2="'+(12+y*9.4).toFixed(2)+'"/>';}
+    s+='</g>';
+  }
+  return s+'</svg>';
+}
+
+/* readable action labels & glyph (Tabler-ish unicode via inline svg fallback = text) */
+var ACT={
+  reverse:{lbl:'Reverse',gl:'⟲'}, skip:{lbl:'Skip',gl:'⦸'}, draw2:{lbl:'+2',gl:'+2'},
+  draw4:{lbl:'+4',gl:'+4'}, wild:{lbl:'Wild',gl:'✦'}, team:{lbl:'Team',gl:'⚇'},
+  swap:{lbl:'Swap',gl:'⇄'}, skip2:{lbl:'Skip 2',gl:'⦸'}
+};
+
+/* ----------------------------------------------------------------------------
+   Card renderer. card = {colour, n} for number OR {colour, act:'reverse'} etc.
+   wild cards use colour:'wild'.
+---------------------------------------------------------------------------- */
+function faceVar(t,colour){
+  if(colour==='wild') return t.wildFace;
+  return 'linear-gradient(160deg, '+t.suits[colour][1]+', '+t.suits[colour][0]+')';
+}
+function inkFor(t,colour){ return (colour==='amber'&&t.amberInkDark)?'#3a2a02':(t.cardInk||'#fff'); }
+
+function buildCard(t,card,w){
+  var h=Math.round(w*1.46);
+  var colour=card.colour;
+  var ink=inkFor(t,colour);
+  var num=card.act?ACT[card.act]:null;
+  var face=faceVar(t,colour);
+  var border = t.cardBorder ? ('border:'+t.cardBorder+';') : '';
+  var glow = (t.cardGlow&&colour!=='wild') ? ('box-shadow:'+t.cardShadow+', 0 0 14px '+t.suits[colour][1]+'66;') : '';
+  var s='<div class="card" style="width:'+w+'px;height:'+h+'px;'+border+glow+'color:'+ink+'">';
+  s+='<div class="face" style="background:'+face+';'+(t.cardInner||'')+'"></div>';
+  if(t.gloss) s+='<div class="gloss"></div>';
+  if(t.cardPlate){ // inset plate for premium/paper looks
+    s+='<div style="position:absolute;inset:'+t.plateInset+';border-radius:'+Math.max(4,w*0.12)+'px;'+t.cardPlate+';z-index:1"></div>';
+  }
+  // watermark suit
+  if(colour!=='wild') s+='<div class="wm" style="width:62%;height:62%;left:19%;top:19%;color:'+ink+'">'+suit(colour,{size:'100%'})+'</div>';
+  // corner pip(s) — number/value on top, suit below. Second corner only on large cards.
+  if(w>=30) s+='<div class="pip tl">'+cornerPip(t,card,w)+'</div>';
+  if(w>=46) s+='<div class="pip br">'+cornerPip(t,card,w)+'</div>';
+  // centre
+  s+='<div class="ctr">';
+  if(num){
+    s+='<div class="big" style="font-size:'+(w*0.46)+'px">'+num.gl+'</div>';
+    s+='<div class="lbl" style="font-size:'+(w*0.155)+'px">'+num.lbl+'</div>';
+  } else if(colour==='wild'){
+    s+='<div style="display:flex;gap:3px;flex-wrap:wrap;width:62%;justify-content:center">';
+    ['crimson','cobalt','jade','amber'].forEach(function(cc){s+='<div style="width:'+(w*0.22)+'px;height:'+(w*0.22)+'px">'+suit(cc,{size:'100%'})+'</div>';});
+    s+='</div><div class="lbl" style="font-size:'+(w*0.15)+'px;margin-top:4px">Wild</div>';
+  } else {
+    s+='<div class="big" style="font-size:'+(w*0.62)+'px">'+card.n+'</div>';
+  }
+  s+='</div></div>';
+  return s;
+}
+function cornerPip(t,card,w){
+  var colour=card.colour;
+  var sz=Math.max(9,w*0.21);
+  var val = card.act ? ACT[card.act].gl : (colour==='wild'?'★':card.n);
+  var s='<div class="n" style="font-size:'+(w*0.235)+'px">'+val+'</div>';
+  if(colour!=='wild') s+='<div style="width:'+sz+'px;height:'+sz+'px;margin-top:1px">'+suit(colour)+'</div>';
+  return s;
+}
+
+/* card back */
+function buildBack(t,w){
+  var h=Math.round(w*1.46);
+  var s='<div class="card back" style="width:'+w+'px;height:'+h+'px;color:'+t.backInk+'">';
+  s+='<div class="face" style="background:'+t.backFace+';'+(t.cardBorder?'border:'+t.cardBorder:'')+'"></div>';
+  s+='<div class="cback">';
+  s+='<div style="display:flex;gap:'+(w*0.12)+'px">';
+  ['crimson','cobalt'].forEach(function(c){s+='<div style="width:'+(w*0.2)+'px;height:'+(w*0.2)+'px;opacity:.85">'+suit(c)+'</div>';});
+  s+='</div>';
+  s+='<div style="font-family:var(--num);font-weight:900;font-size:'+(w*0.34)+'px;letter-spacing:-1px">WP</div>';
+  s+='<div style="display:flex;gap:'+(w*0.12)+'px">';
+  ['jade','amber'].forEach(function(c){s+='<div style="width:'+(w*0.2)+'px;height:'+(w*0.2)+'px;opacity:.85">'+suit(c)+'</div>';});
+  s+='</div>';
+  s+='</div></div>';
+  return s;
+}
+
+/* hand fan: every card visible, overlapped + arced (fixes off-screen problem) */
+function handFan(t,cards,w,selIdx){
+  var n=cards.length, mid=(n-1)/2, overlap=Math.round(w*0.46);
+  var s='<div class="hand">';
+  cards.forEach(function(c,i){
+    var off=i-mid;
+    var rot=off*4.2, lift=-Math.pow(Math.abs(off),1.2)*3.4;
+    var sel=(i===selIdx);
+    var tr='rotate('+rot.toFixed(1)+'deg) translateY('+(sel? -26 : lift).toFixed(0)+'px)'+(sel?' scale(1.1)':'');
+    var ml=i===0?0:-overlap;
+    var z=sel?40:i;
+    var ring=sel?('outline:2.5px solid '+t.playRing+';outline-offset:1px;'):'';
+    s+='<div style="margin-left:'+ml+'px;transform:'+tr+';z-index:'+z+';'+ring+'border-radius:'+(t.cardRpx||12)+'px">'+buildCard(t,c,w)+'</div>';
+  });
+  return s+'</div>';
+}
+function oppFan(t,count,w){
+  var s='<div class="opp-fan">';
+  var show=Math.min(count,5);
+  for(var i=0;i<show;i++){ s+=buildBack(t,w); }
+  return s+'</div>';
+}
+
+/* ----------------------------------------------------------------------------
+   THEME DEFINITIONS — 10 directions.
+   Each: bg (screen background), surface, ink, mut, accent, suits{}, card style.
+---------------------------------------------------------------------------- */
+function mk(o){
+  o.num=o.num||'Nunito'; o.cardInk=o.cardInk||'#fff'; o.cardShadow=o.cardShadow||'0 4px 9px rgba(0,0,0,.4)';
+  o.playRing=o.playRing||'#5ad28a'; o.backInk=o.backInk||o.accent;
+  o.cardRpx=o.cardRpx||14;
+  o.cardR='var(--cardR)';
+  return o;
+}
+var THEMES=[
+ mk({ id:'casino', name:'Casino Royale', tag:'Premium dark felt, gold trim, glossy injection-moulded cards. The classic done flawlessly.',
+   font:"'Outfit'", num:'Nunito',
+   bg:'radial-gradient(120% 90% at 50% 0%, #1c4a3c 0%, #0c2a23 55%, #071c18 100%)',
+   surface:'rgba(255,255,255,.06)', ink:'#f3ecd9', mut:'rgba(243,236,217,.62)', accent:'#d9b872',
+   suits:{crimson:['#a62b22','#e6584b'],cobalt:['#1f5f96','#3a92d6'],jade:['#15784a','#28b46c'],amber:['#c79412','#f4c63a']},
+   wildFace:'linear-gradient(160deg,#4a3a66,#241a38)', amberInkDark:true,
+   gloss:true, cardRpx:13, cardShadow:'0 5px 11px rgba(0,0,0,.5)',
+   cardBorder:'1.5px solid rgba(255,255,255,.5)', cardInner:'box-shadow:inset 0 0 0 2px rgba(255,255,255,.14)',
+   backFace:'linear-gradient(160deg,#163f35,#0b2c26)', cardPlate:null }),
+
+ mk({ id:'glass', name:'Aurora Glass', tag:'Frosted translucent cards floating over an aurora gradient. Modern, premium, light-touch glassmorphism.',
+   font:"'Outfit'", num:'Outfit',
+   bg:'linear-gradient(160deg,#2a1b4d 0%, #3b2a73 38%, #1d3a8a 72%, #0e2150 100%)',
+   surface:'rgba(255,255,255,.1)', ink:'#f4f1ff', mut:'rgba(244,241,255,.66)', accent:'#9ec3ff',
+   suits:{crimson:['#ff6a7a','#ff95a4'],cobalt:['#5aa9ff','#8ecbff'],jade:['#3fd9a6','#7ff0cd'],amber:['#ffc24d','#ffe08a']},
+   wildFace:'linear-gradient(160deg,rgba(255,255,255,.32),rgba(255,255,255,.12))',
+   gloss:true, cardRpx:18, cardShadow:'0 8px 22px rgba(10,8,40,.5)',
+   cardBorder:'1.5px solid rgba(255,255,255,.45)',
+   cardInner:'backdrop-filter:blur(2px);box-shadow:inset 0 1px 0 rgba(255,255,255,.4)',
+   cardPlate:null, backFace:'linear-gradient(160deg,rgba(255,255,255,.22),rgba(255,255,255,.06))', backInk:'#fff',
+   translucentCards:true }),
+
+ mk({ id:'paper', name:'Paper & Ink', tag:'Bright, friendly, tactile. Soft paper cards with crisp ink, gentle shadows. Approachable and clean.',
+   font:"'Nunito'", num:'Nunito', light:true,
+   bg:'linear-gradient(180deg,#f6f1e7 0%, #efe7d7 100%)',
+   surface:'#ffffff', ink:'#2b2a26', mut:'#7a766c', accent:'#1e8a64',
+   suits:{crimson:['#d4483a','#ec6657'],cobalt:['#2b7fc4','#4a9ce0'],jade:['#1f9460','#37b378'],amber:['#e0a81e','#f4c63a']},
+   wildFace:'linear-gradient(160deg,#3c3450,#2a2440)', amberInkDark:true,
+   gloss:false, cardRpx:16, cardShadow:'0 4px 10px rgba(60,50,30,.18)',
+   cardBorder:'2px solid #fff', cardInner:'box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)',
+   cardPlate:null, backFace:'linear-gradient(160deg,#2a8a66,#1c6e50)', backInk:'#fdf6e7' }),
+
+ mk({ id:'neon', name:'Neon Arcade', tag:'High-energy dark arcade. Cards glow with their suit colour; bold, juicy, game-night electric.',
+   font:"'Space Grotesk'", num:'Space Grotesk',
+   bg:'radial-gradient(120% 100% at 50% -10%, #1a1242 0%, #0d0820 60%, #05030f 100%)',
+   surface:'rgba(255,255,255,.05)', ink:'#eef0ff', mut:'rgba(238,240,255,.6)', accent:'#36e0c8',
+   suits:{crimson:['#ff2e63','#ff6b8e'],cobalt:['#2e7bff','#5fa8ff'],jade:['#16e08a','#5cffb4'],amber:['#ffb01f','#ffd45e']},
+   wildFace:'linear-gradient(160deg,#3a1a6a,#1a0c3a)',
+   gloss:false, cardRpx:14, cardGlow:true, cardShadow:'0 4px 10px rgba(0,0,0,.6)',
+   cardBorder:'1.5px solid rgba(255,255,255,.55)', cardInner:'box-shadow:inset 0 0 12px rgba(255,255,255,.15)',
+   cardPlate:null, backFace:'linear-gradient(160deg,#231554,#120a30)', playRing:'#36e0c8' }),
+
+ mk({ id:'sunset', name:'Sunset Lounge', tag:'Warm dusk gradient, soft rounded cards, cosy and inviting. Casual-premium mobile-game polish.',
+   font:"'Poppins'", num:'Poppins',
+   bg:'linear-gradient(165deg,#3a1c4d 0%, #7a2f63 38%, #c0496a 70%, #e88a5a 100%)',
+   surface:'rgba(255,255,255,.12)', ink:'#fff4ee', mut:'rgba(255,244,238,.72)', accent:'#ffd28a',
+   suits:{crimson:['#e84b5a','#ff7d7d'],cobalt:['#3f8fd8','#6fb6f0'],jade:['#27ad7a','#54d29c'],amber:['#f1a82a','#ffcf5e']},
+   wildFace:'linear-gradient(160deg,#54375f,#33203c)',
+   gloss:true, cardRpx:20, cardShadow:'0 7px 16px rgba(60,12,40,.4)',
+   cardBorder:'2px solid rgba(255,255,255,.55)', cardInner:'box-shadow:inset 0 1px 0 rgba(255,255,255,.45)',
+   cardPlate:null, backFace:'linear-gradient(160deg,#7a3463,#4d2145)', backInk:'#ffd28a' }),
+
+ mk({ id:'minimal', name:'Midnight Minimal', tag:'Near-black canvas, huge confident type, hairline detail. Apple-restrained, gallery-quiet, zero clutter.',
+   font:"'Outfit'", num:'Outfit',
+   bg:'linear-gradient(180deg,#0c0d10 0%, #121317 100%)',
+   surface:'rgba(255,255,255,.05)', ink:'#f2f3f5', mut:'rgba(242,243,245,.5)', accent:'#e8e9ec',
+   suits:{crimson:['#e0524a','#e0524a'],cobalt:['#3d8be0','#3d8be0'],jade:['#22a96a','#22a96a'],amber:['#e6b22e','#e6b22e']},
+   wildFace:'linear-gradient(160deg,#26272c,#16171b)',
+   gloss:false, cardRpx:16, cardShadow:'0 6px 18px rgba(0,0,0,.5)',
+   cardBorder:'1px solid rgba(255,255,255,.16)', cardInner:'',
+   cardPlate:null, backFace:'#1a1c20', backInk:'rgba(255,255,255,.55)', flatNumbers:true, playRing:'#ffffff' }),
+
+ mk({ id:'bauhaus', name:'Bauhaus Bold', tag:'Flat geometric blocks, primary confidence, oversized numerals on a warm gallery wall. Editorial and graphic.',
+   font:"'Space Grotesk'", num:'Space Grotesk', light:true,
+   bg:'linear-gradient(180deg,#efe9dd,#e6dfce)',
+   surface:'#fbf8f1', ink:'#1c1b18', mut:'#6f6b61', accent:'#1c1b18',
+   suits:{crimson:['#e23b2e','#e23b2e'],cobalt:['#1f6fd0','#1f6fd0'],jade:['#1c9c5c','#1c9c5c'],amber:['#f0b400','#f0b400']},
+   wildFace:'#2a2a2a', amberInkDark:true,
+   gloss:false, cardRpx:8, cardShadow:'0 4px 0 rgba(28,27,24,.18)',
+   cardBorder:'2.5px solid #1c1b18', cardInner:'',
+   cardPlate:null, backFace:'#1c1b18', backInk:'#efe9dd', flatNumbers:true, playRing:'#1c1b18' }),
+
+ mk({ id:'emerald', name:'Emerald Deluxe', tag:'Old-world luxury: deep emerald, cream, engraved gold. Serif headlines, casino-stationery elegance.',
+   font:"'Fraunces'", num:'Fraunces',
+   bg:'radial-gradient(120% 90% at 50% 0%, #0f5240 0%, #093528 60%, #05231a 100%)',
+   surface:'rgba(243,236,217,.08)', ink:'#f3ecd9', mut:'rgba(243,236,217,.62)', accent:'#cda857',
+   suits:{crimson:['#9e2b22','#c84436'],cobalt:['#1d5c8a','#3683bf'],jade:['#147049','#1f9a63'],amber:['#bd8b16','#e3b53a']},
+   wildFace:'linear-gradient(160deg,#3a2f1c,#241c0f)', amberInkDark:true,
+   gloss:true, cardRpx:10, cardShadow:'0 5px 12px rgba(0,0,0,.5)',
+   cardBorder:'1.5px solid #cda857', cardInner:'box-shadow:inset 0 0 0 3px rgba(205,168,87,.25)',
+   plateInset:'5%', cardPlate:'box-shadow:inset 0 0 0 1px rgba(205,168,87,.5)',
+   backFace:'linear-gradient(160deg,#0f5240,#06291f)', backInk:'#cda857', serifHead:true }),
+
+ mk({ id:'candy', name:'Candy Pop', tag:'Saturated, juicy, joyful. Thick rounded cards that bounce. Maximum delight, family-table fun.',
+   font:"'Nunito'", num:'Nunito',
+   bg:'linear-gradient(165deg,#5b3df0 0%, #8a3fe6 40%, #d246c2 75%, #ff7aa8 100%)',
+   surface:'rgba(255,255,255,.18)', ink:'#fff', mut:'rgba(255,255,255,.78)', accent:'#ffe24d',
+   suits:{crimson:['#ff445e','#ff7d92'],cobalt:['#2f8df5','#62b2ff'],jade:['#1ec77f','#56e6a8'],amber:['#ffb01f','#ffd45e']},
+   wildFace:'linear-gradient(160deg,#6a3df0,#3a1ca0)',
+   gloss:true, cardRpx:22, cardShadow:'0 8px 0 rgba(0,0,0,.18),0 10px 18px rgba(60,12,80,.35)',
+   cardBorder:'3px solid #fff', cardInner:'box-shadow:inset 0 2px 0 rgba(255,255,255,.5)',
+   cardPlate:null, backFace:'linear-gradient(160deg,#7a3df0,#4a1cb0)', backInk:'#ffe24d', playRing:'#ffe24d' }),
+
+ mk({ id:'slate', name:'Slate Pro', tag:'Fintech-grade dark slate, frosted panels, indigo accent. Crisp, calm, expensive-feeling product polish.',
+   font:"'Outfit'", num:'Outfit',
+   bg:'linear-gradient(180deg,#11151c 0%, #161b24 100%)',
+   surface:'rgba(255,255,255,.055)', ink:'#eaeef4', mut:'rgba(234,238,244,.55)', accent:'#7c8cff',
+   suits:{crimson:['#e35666','#ef8090'],cobalt:['#4d8ef0','#79b0ff'],jade:['#26b07a','#4fd29c'],amber:['#e2a93a','#f4c862']},
+   wildFace:'linear-gradient(160deg,#3a3f6a,#23263f)',
+   gloss:false, cardRpx:14, cardShadow:'0 6px 16px rgba(0,0,0,.5)',
+   cardBorder:'1px solid rgba(255,255,255,.3)', cardInner:'box-shadow:inset 0 1px 0 rgba(255,255,255,.22)',
+   cardPlate:null, backFace:'linear-gradient(160deg,#222840,#171b2a)', backInk:'#7c8cff', playRing:'#7c8cff' })
+];
+
+/* ----------------------------------------------------------------------------
+   Sample game data (shared across themes)
+---------------------------------------------------------------------------- */
+var HAND=[ {colour:'crimson',n:7},{colour:'amber',act:'reverse'},{colour:'cobalt',n:5},
+  {colour:'jade',n:9},{colour:'crimson',act:'draw2'},{colour:'wild',act:'wild'},{colour:'cobalt',n:2} ];
+var PARTNER=[ {colour:'cobalt',n:0},{colour:'amber',n:3},{colour:'crimson',n:8},{colour:'cobalt',n:9},
+  {colour:'amber',n:4},{colour:'amber',n:8},{colour:'jade',n:6} ];
+
+/* ----------------------------------------------------------------------------
+   Screen builders
+---------------------------------------------------------------------------- */
+function shell(t,inner,light){
+  var sb='<div class="statusbar" style="color:'+t.ink+'"><div>16:00</div>'
+    +'<div class="r"><span>···</span><span>'+ico('wifi',t.ink)+'</span><span>'+ico('battery',t.ink)+'</span></div></div>';
+  return '<div class="phone"><div class="notch"></div><div class="scr" style="background:'+t.bg+';font-family:'+t.font+'">'+sb+inner+'</div></div>';
+}
+function ico(name,c){
+  if(name==='wifi') return '<svg width="16" height="12" viewBox="0 0 16 12"><path d="M8 10.5a1.2 1.2 0 1 0 0-.01M3.5 6.5a6 6 0 0 1 9 0M1 4a9.5 9.5 0 0 1 14 0" fill="none" stroke="'+c+'" stroke-width="1.4" stroke-linecap="round"/></svg>';
+  if(name==='battery') return '<svg width="22" height="12" viewBox="0 0 22 12"><rect x="1" y="1.5" width="18" height="9" rx="2.5" fill="none" stroke="'+c+'" stroke-width="1.2"/><rect x="3" y="3.5" width="13" height="5" rx="1" fill="'+c+'"/><rect x="20" y="4.5" width="1.6" height="3" rx=".8" fill="'+c+'"/></svg>';
+  return '';
+}
+function headFont(t){ return t.serifHead?"'Fraunces'":t.font; }
+
+/* --- HOME --- */
+function homeScreen(t){
+  var s='<div class="fill col" style="padding:0 26px;align-items:center;justify-content:center;text-align:center">';
+  // wordmark
+  s+='<div style="display:flex;gap:14px;padding:22px;border-radius:50%;background:rgba(0,0,0,.18);margin-bottom:24px">';
+  ['crimson','cobalt','jade','amber'].forEach(function(c){s+='<div style="width:30px;height:30px">'+suit(c)+'</div>';});
+  s+='</div>';
+  s+='<div style="font-family:'+headFont(t)+';font-weight:900;font-size:40px;color:'+t.ink+';letter-spacing:'+(t.id==='bauhaus'?'-1px':'.5px')+'">Wild Pairs</div>';
+  s+='<div style="color:'+t.mut+';font-size:13px;margin-top:6px;letter-spacing:.4px">Offline 2-v-2 team card game</div>';
+  s+='<div style="height:34px"></div>';
+  s+='<div style="width:100%;max-width:230px;display:flex;flex-direction:column;gap:11px">';
+  s+=btn(t,'Continue game',true);
+  s+=btn(t,'New game',false);
+  s+=btnGhost(t,'Rules');
+  s+=btnGhost(t,'Statistics');
+  s+=btnGhost(t,'Settings');
+  s+='</div></div>';
+  return shell(t,s);
+}
+function btn(t,label,primary){
+  if(primary) return '<button class="pillbtn" style="background:'+t.accent+';color:'+onAccent(t)+'">'+label+'</button>';
+  return '<button class="pillbtn" style="background:transparent;color:'+t.accent+';border:1.6px solid '+t.accent+'">'+label+'</button>';
+}
+function btnGhost(t,label){
+  return '<button class="pillbtn ghostbtn" style="color:'+t.ink+';opacity:.82;background:'+t.surface+'">'+label+'</button>';
+}
+function onAccent(t){ return t.light||t.id==='candy'||t.id==='minimal'||t.accent.match(/f|e|d|c/i)?'#1a1208':'#0e1116'; }
+
+/* --- NEW GAME SETUP --- */
+function setupScreen(t){
+  var s='<div class="fill col" style="padding:46px 22px 22px">';
+  s+='<div style="font-family:'+headFont(t)+';font-weight:800;font-size:26px;color:'+t.ink+'">New game</div>';
+  s+='<div style="height:18px"></div>';
+  s+=segGroup(t,'Mode',['Standard','All-Wild','Side-to-Side'],0);
+  s+='<div style="color:'+t.mut+';font-size:11.5px;margin:7px 2px 16px">Match by colour, number, or action type.</div>';
+  s+=segGroup(t,'Difficulty',['Easy','Medium','Hard','Expert'],2);
+  s+='<div style="height:16px"></div>';
+  s+=segGroup(t,'Card set',['Beginner','Standard','Advanced'],1);
+  s+='<div style="color:'+t.mut+';font-size:11.5px;margin:7px 2px 0">Beginner plus Draw Two and Draw Four.</div>';
+  s+='<div class="fill"></div>';
+  s+=btn(t,'Start game',true);
+  s+='</div>';
+  return shell(t,s);
+}
+function segGroup(t,title,opts,sel){
+  var s='<div style="color:'+t.mut+';font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">'+title+'</div>';
+  s+='<div style="display:flex;gap:6px;background:'+t.surface+';padding:4px;border-radius:13px">';
+  opts.forEach(function(o,i){
+    var on=i===sel;
+    s+='<div style="flex:1;text-align:center;padding:9px 4px;border-radius:9px;font-size:11.5px;font-weight:700;'
+      +(on?('background:'+t.accent+';color:'+onAccent(t)):('color:'+t.ink+';opacity:.7'))+'">'+o+'</div>';
+  });
+  return s+'</div>';
+}
+
+/* --- PLAY (the money screen) --- */
+function playScreen(t){
+  var cw=Math.round(266*0.115); // ~31px opp back
+  var hw=33; // hand card width
+  var s='';
+  // top bar
+  s+='<div style="position:absolute;top:46px;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:0 18px;z-index:30">';
+  s+='<div style="background:'+t.surface+';border-radius:999px;padding:5px 11px;font-size:10.5px;font-weight:700;color:'+t.ink+'">Round 2</div>';
+  s+='<div style="display:flex;gap:10px;font-size:12px;font-weight:700;color:'+t.ink+'"><span>Team A 0</span><span style="color:'+t.accent+'">Team B 640</span></div>';
+  s+='<div style="width:30px;height:30px;border-radius:50%;background:'+t.surface+';display:flex;align-items:center;justify-content:center;color:'+t.ink+'">'+pauseIco(t.ink)+'</div>';
+  s+='</div>';
+
+  s+='<div class="fill col" style="padding:84px 12px 20px;justify-content:flex-start">';
+  // partner open hand
+  s+='<div style="background:'+t.surface+';border-radius:16px;padding:8px 8px 6px;margin-bottom:8px">';
+  s+='<div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:4px"><span class="seat-name" style="color:'+t.ink+'">Partner</span><span class="chip" style="background:'+t.accent+';color:'+onAccent(t)+'">7</span></div>';
+  s+='<div style="display:flex;justify-content:center">'+miniFan(t,PARTNER,25)+'</div>';
+  s+='</div>';
+
+  // current colour banner
+  s+='<div style="display:flex;justify-content:center;margin:2px 0 8px">';
+  s+='<div style="display:flex;align-items:center;gap:7px;background:'+t.suits.amber[0]+';color:'+(t.amberInkDark?'#3a2a02':'#fff')+';border-radius:999px;padding:5px 14px;font-weight:800;font-size:13px">'
+    +'<span style="width:16px;height:16px">'+suit('amber')+'</span>Amber</div>';
+  s+='</div>';
+
+  s+='<div class="fill"></div>';
+  // middle row: opp / table / opp
+  s+='<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:0 4px">';
+  // left opp (thinking)
+  s+=oppCol(t,'Left Opp.',7,cw,true);
+  // table centre
+  s+='<div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:6px">';
+  s+='<div style="position:relative">'+buildCard(t,{colour:'amber',n:1},44)+'</div>';
+  s+='<div style="display:flex;align-items:center;gap:8px">';
+  s+='<div style="position:relative;opacity:.95">'+buildBack(t,30)+'<div style="position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);background:'+t.surface+';color:'+t.ink+';border-radius:999px;font-size:9px;font-weight:700;padding:1px 6px">43</div></div>';
+  s+='<div style="color:'+t.mut+';font-size:18px">'+ico2('refresh',t.accent)+'</div>';
+  s+='</div></div>';
+  // right opp
+  s+=oppCol(t,'Right Opp.',7,cw,false);
+  s+='</div>';
+
+  s+='<div class="fill"></div>';
+  // timer + status
+  s+='<div style="text-align:center;color:'+t.mut+';font-size:11px;font-weight:700;margin-bottom:5px">2:49</div>';
+  s+='<div style="text-align:center;background:'+t.surface+';color:'+t.ink+';border-radius:12px;padding:9px;font-size:12.5px;font-weight:600;margin:0 8px 8px">Left Opponent is thinking…</div>';
+  // your hand
+  s+=handFan(t,HAND,hw,3);
+  s+='</div>';
+  return shell(t,s);
+}
+function oppCol(t,name,count,cw,thinking){
+  var s='<div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:4px;width:78px">';
+  s+='<div style="display:flex;align-items:center;gap:4px"><span class="seat-name" style="color:'+t.ink+';max-width:52px">'+name+'</span><span class="chip" style="background:'+t.surface+';color:'+t.ink+'">'+count+'</span></div>';
+  s+='<div style="'+(thinking?('outline:2px solid '+t.accent+';outline-offset:3px;border-radius:8px;'):'')+'">'+oppFan(t,count,cw)+'</div>';
+  if(thinking) s+='<div style="display:flex;gap:3px;margin-top:3px">'+dots(t.accent)+'</div>';
+  return s+'</div>';
+}
+function dots(c){var s='';for(var i=0;i<3;i++)s+='<span style="width:5px;height:5px;border-radius:50%;background:'+c+';opacity:'+(0.4+i*0.25)+'"></span>';return s;}
+function miniFan(t,cards,w){
+  var s='<div style="display:flex">';
+  cards.forEach(function(c,i){ s+='<div style="margin-left:'+(i?-w*0.42:0)+'px">'+buildCard(t,c,w)+'</div>'; });
+  return s+'</div>';
+}
+function pauseIco(c){return '<svg width="13" height="13" viewBox="0 0 13 13"><rect x="2" y="1.5" width="3.2" height="10" rx="1" fill="'+c+'"/><rect x="7.8" y="1.5" width="3.2" height="10" rx="1" fill="'+c+'"/></svg>';}
+function ico2(n,c){ if(n==='refresh') return '<svg width="18" height="18" viewBox="0 0 18 18"><path d="M15 9a6 6 0 1 1-1.8-4.3M15 3v3h-3" fill="none" stroke="'+c+'" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'; return '';}
+
+/* --- ROUND END / WIN --- */
+function winScreen(t){
+  var s='<div class="fill col center" style="padding:0 26px;text-align:center">';
+  // confetti dots
+  s+='<div style="position:absolute;inset:42px 0 0;overflow:hidden;pointer-events:none">'+confetti(t)+'</div>';
+  s+='<div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;width:100%">';
+  s+='<div style="width:84px;height:84px;border-radius:50%;background:'+t.accent+';display:flex;align-items:center;justify-content:center;margin-bottom:18px;box-shadow:0 8px 24px rgba(0,0,0,.35)">'+trophy(onAccent(t))+'</div>';
+  s+='<div style="font-family:'+headFont(t)+';font-weight:900;font-size:30px;color:'+t.ink+'">Round won!</div>';
+  s+='<div style="color:'+t.mut+';font-size:13px;margin-top:6px">Team A goes out first — +120 points</div>';
+  s+='<div style="height:22px"></div>';
+  // scoreboard
+  s+='<div style="width:100%;max-width:228px;background:'+t.surface+';border-radius:16px;padding:6px 4px">';
+  [['Team A',640,true],['Team B',520,false]].forEach(function(r){
+    s+='<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;'+(r[2]?'':'opacity:.7')+'">'
+      +'<span style="color:'+t.ink+';font-weight:700;font-size:14px">'+r[0]+(r[2]?' '+winflag(t):'')+'</span>'
+      +'<span style="color:'+(r[2]?t.accent:t.ink)+';font-weight:800;font-size:16px;font-variant-numeric:tabular-nums">'+r[1]+'</span></div>';
+  });
+  s+='</div>';
+  s+='<div style="height:24px"></div>';
+  s+='<div style="width:100%;max-width:228px;display:flex;flex-direction:column;gap:10px">'+btn(t,'Next round',true)+btnGhost(t,'Back to home')+'</div>';
+  s+='</div></div>';
+  return shell(t,s);
+}
+function winflag(t){return '<span style="font-size:10px;font-weight:800;color:'+onAccent(t)+';background:'+t.accent+';border-radius:6px;padding:1px 6px;margin-left:6px">WON</span>';}
+function trophy(c){return '<svg width="38" height="38" viewBox="0 0 24 24"><path d="M7 4h10v3a5 5 0 0 1-10 0V4Z" fill="none" stroke="'+c+'" stroke-width="1.7"/><path d="M7 5H4.5a2.5 2.5 0 0 0 3 2.4M17 5h2.5a2.5 2.5 0 0 1-3 2.4M9 14h6M8 19h8M12 12v2" fill="none" stroke="'+c+'" stroke-width="1.7" stroke-linecap="round"/></svg>';}
+function confetti(t){
+  var cols=[t.suits.crimson[1],t.suits.cobalt[1],t.suits.jade[1],t.suits.amber[1],t.accent];
+  var s='';
+  for(var i=0;i<26;i++){
+    var x=(i*37%100), y=(i*53%90)+4, r=(i*47%360), w=4+i%4, c=cols[i%5];
+    s+='<span style="position:absolute;left:'+x+'%;top:'+y+'%;width:'+w+'px;height:'+(w*1.6)+'px;background:'+c+';border-radius:2px;transform:rotate('+r+'deg);opacity:.85"></span>';
+  }
+  return s;
+}
+
+/* --- SETTINGS --- */
+function settingsScreen(t){
+  var s='<div class="fill col" style="padding:46px 20px 20px">';
+  s+='<div style="font-family:'+headFont(t)+';font-weight:800;font-size:26px;color:'+t.ink+'">Settings</div>';
+  s+='<div style="height:16px"></div>';
+  s+=secLabel(t,'Display');
+  s+=toggleRow(t,'Large cards',true);
+  s+=toggleRow(t,'Colour-blind mode',false);
+  s+=toggleRow(t,'Pattern fills',false);
+  s+=toggleRow(t,'Reduced motion',false);
+  s+='<div style="height:18px"></div>';
+  s+=secLabel(t,'Feedback');
+  s+=toggleRow(t,'Sound effects',true);
+  s+=toggleRow(t,'Haptics',true);
+  s+='<div style="height:18px"></div>';
+  s+=secLabel(t,'About');
+  s+=linkRow(t,'How to play');
+  s+=linkRow(t,'Reset statistics');
+  s+='</div>';
+  return shell(t,s);
+}
+function secLabel(t,x){return '<div style="color:'+t.mut+';font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:0 4px 8px">'+x+'</div>';}
+function toggleRow(t,label,on){
+  return '<div style="display:flex;align-items:center;justify-content:space-between;background:'+t.surface+';border-radius:12px;padding:13px 14px;margin-bottom:8px">'
+    +'<span style="color:'+t.ink+';font-size:13.5px;font-weight:600">'+label+'</span>'
+    +'<span style="width:42px;height:25px;border-radius:999px;background:'+(on?t.accent:'rgba(128,128,128,.4)')+';position:relative;display:inline-block">'
+    +'<span style="position:absolute;top:2.5px;'+(on?'right':'left')+':2.5px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3)"></span></span></div>';
+}
+function linkRow(t,label){
+  return '<div style="display:flex;align-items:center;justify-content:space-between;background:'+t.surface+';border-radius:12px;padding:13px 14px;margin-bottom:8px">'
+    +'<span style="color:'+t.ink+';font-size:13.5px;font-weight:600">'+label+'</span>'
+    +'<span style="color:'+t.mut+';font-size:16px">›</span></div>';
+}
+
+/* ----------------------------------------------------------------------------
+   Assembly
+---------------------------------------------------------------------------- */
+var SCREENS=[
+  {cap:'Home',fn:homeScreen},
+  {cap:'New game',fn:setupScreen},
+  {cap:'In-game table',fn:playScreen},
+  {cap:'Round won',fn:winScreen},
+  {cap:'Settings',fn:settingsScreen}
+];
+
+function solveRows(t){
+  var map={
+    casino:['Refined glossy faces with inset frame, bespoke suit watermark, gold pips','7-card arced fan, fully overlapped — nothing clips','Partner panel + tight centre column reclaim the dead air'],
+    glass:['Frosted translucent cards read as premium objects, not flat blocks','Arced overlap keeps the whole hand on-screen','Aurora field fills every pixel; panels group loose elements'],
+    paper:['Soft paper cards + crisp ink feel hand-printed, not generic','Overlapping arc fits 7 cards in the hand band','Light surfaces and grouped rows remove empty voids'],
+    neon:['Suit-coloured glow makes each card pop and read instantly','Fanned hand, full overlap — all cards visible','Dark field + glow gives the empty centre life'],
+    sunset:['Rounded glossy cards with warm depth feel tactile','Arc fan keeps every card in frame','Warm gradient + frosted panels banish empty space'],
+    minimal:['Big confident numerals, hairline frame — quiet quality','Fan layout, generous overlap, zero clipping','Negative space becomes deliberate, not accidental'],
+    bauhaus:['Flat bold blocks + oversized numerals look intentional','Overlapped arc fan shows the full hand','Strong grid fills the canvas with rhythm'],
+    emerald:['Engraved gold frame + serif numerals = luxury','Arc fan keeps 7 cards on-screen','Emerald field and framed panels remove voids'],
+    candy:['Thick juicy cards with bounce — maximum delight','Full-overlap fan, nothing runs off the edge','Vivid field + chunky panels leave no dead zones'],
+    slate:['Crisp frosted faces, indigo accents — product-grade','Arced overlapping hand, fully contained','Frosted panels organise the table, no gaps']
+  };
+  var labels=['Card quality','No clipping','No empty space'];
+  return map[t.id].map(function(x,i){return '<div class="row"><b>'+labels[i]+'</b><span>'+x+'</span></div>';}).join('');
+}
+
+function renderOption(idx){
+  var t=THEMES[idx];
+  var stage=document.getElementById('stage');
+  var h='<div class="opt-head"><div>'
+    +'<div class="num">Direction '+(idx+1)+' / 10</div>'
+    +'<h2>'+t.name+'</h2><p>'+t.tag+'</p></div>'
+    +'<div class="solves">'+solveRows(t)+'</div></div>';
+  h+='<div class="scrollhint">'+'<span>↔</span><span>Scroll sideways to see all five screens</span></div>';
+  h+='<div class="screens">';
+  SCREENS.forEach(function(sc){
+    h+='<div class="screen-wrap">'+sc.fn(t)+'<div class="cap">'+sc.cap+'</div></div>';
+  });
+  h+='</div>';
+  stage.innerHTML=h;
+  [].forEach.call(document.querySelectorAll('.tab'),function(el,i){el.classList.toggle('active',i===idx);});
+}
+
+function buildTabs(){
+  var tabs=document.getElementById('tabs');
+  THEMES.forEach(function(t,i){
+    var b=document.createElement('button');
+    b.className='tab';
+    b.innerHTML='<span class="swatch" style="background:'+t.accent+'"></span>'+(i+1)+'. '+t.name;
+    b.onclick=function(){renderOption(i);window.scrollTo({top:0,behavior:'smooth'});};
+    tabs.appendChild(b);
+  });
+}
+buildTabs();
+renderOption(0);
+</script>
+</body>
+</html>
