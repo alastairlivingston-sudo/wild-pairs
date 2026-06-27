@@ -180,7 +180,7 @@ struct GameTableView: View {
         return VStack(spacing: spacing) {
             if let partner = seat(at: 2) {
                 PlayerZoneView(seat: partner, showColourName: showColourName, showPattern: showPattern,
-                               cardBackSize: seatBackSize, openHandCardSize: Theme.CardSize.compactHand,
+                               cardBackSize: seatBackSize, openHandCardSize: Theme.CardSize.partnerHand,
                                maxFanWidth: partnerMaxWidth,
                                reducedMotion: reducedMotion, isThinking: partner.id == vm.thinkingPlayerID,
                                thinkingDotCount: thinkingDotCount)
