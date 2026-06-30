@@ -26,6 +26,9 @@ struct GameTableView: View {
     private var showColourName: Bool { settings.userSettings.colourBlindMode }
     private var showPattern: Bool { settings.userSettings.colourBlindMode && settings.userSettings.patternFills }
     private var reducedMotion: Bool { settings.userSettings.reducedVisualEffects }
+    /// The per-move timer bar is hidden until this many seconds remain, so normal play has no
+    /// constant countdown pressure.
+    private let moveWarningWindow: TimeInterval = 12
     /// Dot count by difficulty (ux-spec.md §10 thinking-indicator table): Easy gets fewer
     /// dots than Medium/Hard/Expert/Master, which all show the full three.
     private var thinkingDotCount: Int { vm.thinkingDifficulty == .easy ? 2 : 3 }
@@ -87,8 +90,12 @@ struct GameTableView: View {
                                         RoundTimerBadge(remaining: roundRemaining, total: vm.roundTimeLimit)
                                     }
                                     PromptBanner(prompt: vs.prompt).padding(.horizontal, Theme.Space.s4)
-                                    if let moveRemaining = vm.moveTimeRemaining {
-                                        MoveTimerBar(remaining: moveRemaining, total: vm.moveTimeLimit)
+                                    // Only surface the per-move countdown in the final stretch — a
+                                    // constant draining bar made calm play feel rushed. With the
+                                    // lenient limit this appears only if you've genuinely paused,
+                                    // then fills and drains over the last `moveWarningWindow` seconds.
+                                    if let moveRemaining = vm.moveTimeRemaining, moveRemaining <= moveWarningWindow {
+                                        MoveTimerBar(remaining: moveRemaining, total: moveWarningWindow)
                                             .padding(.horizontal, Theme.Space.s4)
                                     }
                                     bottomControls

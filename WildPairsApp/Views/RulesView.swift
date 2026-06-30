@@ -41,6 +41,9 @@ struct RulesView: View {
                 .listRowBackground(Color.black.opacity(0.25))
             }
             .scrollContentBackground(.hidden)
+            // iPad: a centred reading column instead of edge-to-edge rows (ux-spec §7).
+            .frame(maxWidth: 700)
+            .frame(maxWidth: .infinity)
         }
         .navigationTitle("Rules")
         .preferredColorScheme(.dark)

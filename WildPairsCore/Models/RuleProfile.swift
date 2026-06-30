@@ -96,7 +96,7 @@ public struct RuleProfile: Codable, Equatable, Sendable {
             teamPassEnabled: false, teamPassCooldown: 0,
             soloCallEnabled: true, soloCallPenaltyCards: 2, soloCallTimeoutSeconds: 5.0,
             scoringEnabled: false, maxTurnsPerRound: 300, partnerPlaysImmediately: false,
-            roundTimeLimitSeconds: 180, moveTimeLimitSeconds: 10
+            roundTimeLimitSeconds: 180, moveTimeLimitSeconds: 30
         )
     }
 
@@ -111,7 +111,7 @@ public struct RuleProfile: Codable, Equatable, Sendable {
             teamPassEnabled: false, teamPassCooldown: 0,
             soloCallEnabled: true, soloCallPenaltyCards: 2, soloCallTimeoutSeconds: 5.0,
             scoringEnabled: false, maxTurnsPerRound: 300, partnerPlaysImmediately: false,
-            roundTimeLimitSeconds: 180, moveTimeLimitSeconds: 10
+            roundTimeLimitSeconds: 180, moveTimeLimitSeconds: 30
         )
     }
 
@@ -126,7 +126,7 @@ public struct RuleProfile: Codable, Equatable, Sendable {
             teamPassEnabled: true, teamPassCooldown: 0,
             soloCallEnabled: true, soloCallPenaltyCards: 2, soloCallTimeoutSeconds: 5.0,
             scoringEnabled: false, maxTurnsPerRound: 300, partnerPlaysImmediately: false,
-            roundTimeLimitSeconds: 180, moveTimeLimitSeconds: 10
+            roundTimeLimitSeconds: 180, moveTimeLimitSeconds: 30
         )
     }
 
@@ -156,7 +156,7 @@ public struct RuleProfile: Codable, Equatable, Sendable {
         maxTurnsPerRound: Int,
         partnerPlaysImmediately: Bool,
         roundTimeLimitSeconds: Double = 180,
-        moveTimeLimitSeconds: Double = 10
+        moveTimeLimitSeconds: Double = 30
     ) {
         self.winCondition = winCondition
         self.targetScore = targetScore

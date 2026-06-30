@@ -52,6 +52,10 @@ struct SettingsView: View {
             }
             .scrollContentBackground(.hidden)
             .tint(Theme.Palette.accent)
+            // iPad: a centred reading column instead of full-width rows with a huge gap
+            // between each label and its control (ux-spec §7). No effect on iPhone.
+            .frame(maxWidth: 640)
+            .frame(maxWidth: .infinity)
         }
         .navigationTitle("Settings")
         .preferredColorScheme(.dark)

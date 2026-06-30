@@ -300,15 +300,23 @@ public struct GameViewState: Equatable, Sendable {
     /// Builds the "play a Crimson card, a 5, or a wild card" hint from the active colour
     /// and top discard.
     public static func matchHint(state: GameState) -> String {
-        var parts: [String] = ["a \(state.currentColour.displayName) card"]
+        let colour = state.currentColour.displayName
+        var parts: [String] = ["\(article(for: colour)) \(colour) card"]
         if let top = state.deck.topDiscard, case .number(let v) = top.type {
-            parts.append("a \(v)")
+            parts.append("\(article(for: "\(v)")) \(v)")
         }
         parts.append("or a wild card")
         if parts.count == 2 {
             return "Play \(parts[0]) \(parts[1])."
         }
         return "Play \(parts[0]), \(parts[1]), \(parts[2])."
+    }
+
+    /// "a"/"an" by sound, for our vocabulary: vowel-initial words (Earth) and the digit 8
+    /// ("eight") take "an"; everything else takes "a".
+    private static func article(for word: String) -> String {
+        let vowelInitial = "aeiouAEIOU".contains(word.first ?? " ")
+        return (vowelInitial || word == "8") ? "an" : "a"
     }
 
     private static func name(of id: UUID, in state: GameState) -> String {

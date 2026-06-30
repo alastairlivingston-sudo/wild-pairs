@@ -13,7 +13,6 @@ struct NewGameFlowView: View {
     @State private var mode: GameMode = .standardTeams
     @State private var difficulty: Difficulty = .medium
     @State private var cardSet: CardSet = .standard
-    @Environment(\.horizontalSizeClass) private var hSize
 
     var body: some View {
         ZStack {
@@ -26,15 +25,16 @@ struct NewGameFlowView: View {
             GeometryReader { geo in
                 VStack(spacing: 0) {
                     ScrollView {
-                        // iPad: centre the controls in the scroll viewport so the form isn't
-                        // top-loaded with a void above the bottom-pinned Start button. iPhone
-                        // keeps its natural top-aligned scroll.
+                        // Centre the controls in the scroll viewport so the form isn't top-loaded
+                        // with a void above the bottom-pinned Start button. At large Dynamic Type
+                        // the controls exceed the viewport and the spacers collapse, so it scrolls
+                        // and the Start button stays reachable (testDynamicTypeAX3LayoutSurvives).
                         VStack(spacing: 0) {
-                            if hSize == .regular { Spacer(minLength: 0) }
+                            Spacer(minLength: 0)
                             controls
-                            if hSize == .regular { Spacer(minLength: 0) }
+                            Spacer(minLength: 0)
                         }
-                        .frame(minHeight: hSize == .regular ? geo.size.height - 96 : nil)
+                        .frame(minHeight: geo.size.height - 96)
                     }
                     startButton
                 }
