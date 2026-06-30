@@ -13,6 +13,7 @@ struct NewGameFlowView: View {
     @State private var mode: GameMode = .standardTeams
     @State private var difficulty: Difficulty = .medium
     @State private var cardSet: CardSet = .standard
+    @Environment(\.horizontalSizeClass) private var hSize
 
     var body: some View {
         ZStack {
@@ -22,50 +23,68 @@ struct NewGameFlowView: View {
             // but the controls above it still scroll, so at huge accessibility text sizes
             // (AX3+) nothing becomes unreachable (regression caught by
             // testDynamicTypeAX3LayoutSurvives).
-            VStack(spacing: 0) {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: Theme.Space.s4) {
-                        Text("New game")
-                            .font(.largeTitle.weight(.bold))
-                            .padding(.top, Theme.Space.s5)
-                            .padding(.bottom, Theme.Space.s1)
-
-                        NeonSegmented(title: "Mode", options: [
-                            (GameMode.standardTeams, "Standard Teams"),
-                            (GameMode.allWild, "All-Wild Teams"),
-                            (GameMode.sideToSide, "Side-to-Side Teams")
-                        ], selection: $mode, blurb: modeBlurb)
-
-                        NeonSegmented(title: "Difficulty", options: Difficulty.allCases.map {
-                            ($0, $0.rawValue.capitalized)
-                        }, selection: $difficulty, blurb: difficultyBlurb)
-
-                        NeonSegmented(title: "Card set", options: [
-                            (CardSet.beginner, "Beginner"),
-                            (CardSet.standard, "Standard"),
-                            (CardSet.advanced, "Advanced")
-                        ], selection: $cardSet, blurb: cardSetBlurb)
+            GeometryReader { geo in
+                VStack(spacing: 0) {
+                    ScrollView {
+                        // iPad: centre the controls in the scroll viewport so the form isn't
+                        // top-loaded with a void above the bottom-pinned Start button. iPhone
+                        // keeps its natural top-aligned scroll.
+                        VStack(spacing: 0) {
+                            if hSize == .regular { Spacer(minLength: 0) }
+                            controls
+                            if hSize == .regular { Spacer(minLength: 0) }
+                        }
+                        .frame(minHeight: hSize == .regular ? geo.size.height - 96 : nil)
                     }
-                    .padding(.horizontal, Theme.Space.s4)
+                    startButton
                 }
-
-                Button {
-                    onStart(.standardFourPlayer(mode: mode, difficulty: difficulty, cardSet: cardSet,
-                                                 stackingEnabled: stackingEnabled))
-                } label: {
-                    Text("Start Game")
-                }
-                .buttonStyle(.wpPrimary)
-                .accessibilityIdentifier("newgame-start")
-                .padding(.horizontal, Theme.Space.s4)
-                .padding(.bottom, Theme.Space.s4)
+                // iPad: keep the controls from stretching edge-to-edge at regular width.
+                .frame(maxWidth: 480)
+                .frame(maxWidth: .infinity)
             }
-            // iPad: keep the controls from stretching edge-to-edge at regular width.
-            .frame(maxWidth: 480)
         }
         .navigationTitle("New Game")
         .navigationBarTitleDisplayMode(.inline)
         .preferredColorScheme(.dark)
+    }
+
+    private var controls: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.s4) {
+            Text("New game")
+                .font(.largeTitle.weight(.bold))
+                .padding(.top, Theme.Space.s5)
+                .padding(.bottom, Theme.Space.s1)
+
+            NeonSegmented(title: "Mode", options: [
+                (GameMode.standardTeams, "Standard Teams"),
+                (GameMode.allWild, "All-Wild Teams"),
+                (GameMode.sideToSide, "Side-to-Side Teams")
+            ], selection: $mode, blurb: modeBlurb)
+
+            NeonSegmented(title: "Difficulty", options: Difficulty.allCases.map {
+                ($0, $0.rawValue.capitalized)
+            }, selection: $difficulty, blurb: difficultyBlurb)
+
+            NeonSegmented(title: "Card set", options: [
+                (CardSet.beginner, "Beginner"),
+                (CardSet.standard, "Standard"),
+                (CardSet.advanced, "Advanced")
+            ], selection: $cardSet, blurb: cardSetBlurb)
+        }
+        .padding(.horizontal, Theme.Space.s4)
+    }
+
+    private var startButton: some View {
+        Button {
+            onStart(.standardFourPlayer(mode: mode, difficulty: difficulty, cardSet: cardSet,
+                                         stackingEnabled: stackingEnabled))
+        } label: {
+            Text("Start Game")
+        }
+        .buttonStyle(.wpPrimary)
+        .accessibilityIdentifier("newgame-start")
+        .padding(.horizontal, Theme.Space.s4)
+        .padding(.bottom, Theme.Space.s4)
     }
 
     private var modeBlurb: String {

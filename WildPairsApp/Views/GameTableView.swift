@@ -68,35 +68,40 @@ struct GameTableView: View {
                         scoreBar.padding(.top, spacing)
 
                         ScrollView(.vertical, showsIndicators: false) {
-                            VStack(spacing: spacing) {
-                                // Spread the three game zones down the tall canvas instead of
-                                // clustering them with a dead band: partner anchored at the top,
-                                // opponents + draw/discard centred in the middle, your prompt +
-                                // hand at the bottom (thumb zone, ux-spec §6).
-                                partnerZone(maxWidth: partnerMaxWidth, seatBackSize: seatBackSize,
-                                            openHandCardSize: partnerCardSize)
-                                Spacer(minLength: spacing)
-                                opponentCenterRow(spacing: spacing, seatBackSize: seatBackSize,
-                                                  centerSize: centerSize, sideWidth: resolvedSide, spread: isPad)
-                                Spacer(minLength: spacing)
+                            // iPhone: zones fill the height with flexible spacers (partner top,
+                            // table middle, hand bottom). iPad: the same zones form a fixed-gap
+                            // block centred vertically, so the elements sit close together and the
+                            // unavoidable felt on the very tall canvas reads as a margin at the
+                            // screen edges rather than dead bands between the zones.
+                            VStack(spacing: 0) {
+                                if isPad { Spacer(minLength: spacing) }
+                                VStack(spacing: spacing) {
+                                    partnerZone(maxWidth: partnerMaxWidth, seatBackSize: seatBackSize,
+                                                openHandCardSize: partnerCardSize)
+                                    zoneGap(isPad: isPad)
+                                    opponentCenterRow(spacing: spacing, seatBackSize: seatBackSize,
+                                                      centerSize: centerSize, sideWidth: resolvedSide, spread: isPad)
+                                    zoneGap(isPad: isPad)
 
-                                if let roundRemaining = vm.roundTimeRemaining {
-                                    RoundTimerBadge(remaining: roundRemaining, total: vm.roundTimeLimit)
+                                    if let roundRemaining = vm.roundTimeRemaining {
+                                        RoundTimerBadge(remaining: roundRemaining, total: vm.roundTimeLimit)
+                                    }
+                                    PromptBanner(prompt: vs.prompt).padding(.horizontal, Theme.Space.s4)
+                                    if let moveRemaining = vm.moveTimeRemaining {
+                                        MoveTimerBar(remaining: moveRemaining, total: vm.moveTimeLimit)
+                                            .padding(.horizontal, Theme.Space.s4)
+                                    }
+                                    bottomControls
+                                    pointsAtRiskPill
+                                    HandView(hand: vs.localHand, cardSize: handCardSize,
+                                             showColourName: showColourName, showPattern: showPattern,
+                                             reducedMotion: reducedMotion, onPlay: vm.play)
                                 }
-                                PromptBanner(prompt: vs.prompt).padding(.horizontal, Theme.Space.s4)
-                                if let moveRemaining = vm.moveTimeRemaining {
-                                    MoveTimerBar(remaining: moveRemaining, total: vm.moveTimeLimit)
-                                        .padding(.horizontal, Theme.Space.s4)
-                                }
-                                bottomControls
-                                pointsAtRiskPill
-                                HandView(hand: vs.localHand, cardSize: handCardSize,
-                                         showColourName: showColourName, showPattern: showPattern,
-                                         reducedMotion: reducedMotion, onPlay: vm.play)
+                                .frame(maxWidth: contentMaxWidth)
+                                .frame(maxWidth: .infinity)
+                                if isPad { Spacer(minLength: spacing) }
                             }
                             .padding(.vertical, spacing)
-                            .frame(maxWidth: contentMaxWidth)
-                            .frame(maxWidth: .infinity)
                             .frame(minHeight: geo.size.height - 60)
                         }
                         // Loss desaturates the table gently underneath the overlay (ux-spec.md
@@ -201,6 +206,16 @@ struct GameTableView: View {
             .padding(.horizontal, Theme.Space.s3).padding(.vertical, Theme.Space.s1)
             .background(Capsule().fill(.white.opacity(0.06)))
             .accessibilityLabel("Your team would lose \(vs.localTeamPointsAtRisk) points if you lost the round now.")
+    }
+
+    /// Gap between table zones: a flexible spacer on iPhone (fills the height), a fixed gap on
+    /// iPad (so the zone block has a fixed height that the surrounding spacers can centre).
+    @ViewBuilder private func zoneGap(isPad: Bool) -> some View {
+        if isPad {
+            Color.clear.frame(height: Theme.Space.s8)
+        } else {
+            Spacer(minLength: Theme.Space.s3)
+        }
     }
 
     /// Partner's open hand, anchored at the top of the table (A6: `maxFanWidth` clamps the fan
