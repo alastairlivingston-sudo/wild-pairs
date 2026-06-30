@@ -28,53 +28,34 @@ struct CardView: View {
     private var faceHighlight: Color {
         card.colour?.highlightColor(scheme) ?? Color(hex: 0x44345E)
     }
-    private var inkColor: Color { .white }
-    /// Real playing cards show both corner indices (neon-final.html spec: top-left + mirrored
-    /// bottom-right) at any size large enough to render them legibly.
+    /// Real playing cards show both corner indices (top-left + mirrored bottom-right) at any
+    /// size large enough to render them legibly; smaller cards show just the top-left index.
     private var showSecondCorner: Bool { size.width >= 46 }
 
     var body: some View {
         ZStack {
+            // 1. Coloured card face (wilds get a deep plum so they don't vanish against felt).
             RoundedRectangle(cornerRadius: Theme.Radius.card)
                 .fill(
                     LinearGradient(colors: [faceHighlight, faceColor],
-                                   startPoint: .top, endPoint: .bottom)
+                                   startPoint: .topLeading, endPoint: .bottomTrailing)
                 )
             if showPattern, let colour = card.colour {
                 CardPatternFill(colour: colour)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
             }
-            // Large faint suit watermark behind the centre glyph.
-            if let colour = card.colour {
-                SuitSymbol(colour: colour, lineWidth: size.width * 0.03)
-                    .frame(width: size.width * 0.62, height: size.width * 0.62)
-                    .opacity(0.16)
-            }
+            // 2. Inset hairline frame — the classic playing-card border that makes the deck
+            // read as a real set of cards rather than flat coloured tiles.
+            RoundedRectangle(cornerRadius: max(2, Theme.Radius.card - size.width * 0.05))
+                .strokeBorder(.white.opacity(0.55), lineWidth: max(1, size.width * 0.022))
+                .padding(size.width * 0.07)
+
+            cornerIndices
+            centrePanel
+
+            // 3. Outer crisp edge + playable ring (accent when the card is legal to play).
             RoundedRectangle(cornerRadius: Theme.Radius.card)
                 .strokeBorder(borderColor, lineWidth: isPlayable ? 3 : 1.5)
-            // Inner light border for depth.
-            RoundedRectangle(cornerRadius: Theme.Radius.card)
-                .strokeBorder(.white.opacity(0.18), lineWidth: 1)
-                .padding(1.5)
-            // Gloss highlight (neon-final.html spec: `inset 0 0 12px white15`) — a soft sheen
-            // across the top half of the face, distinct from the depth border above.
-            RoundedRectangle(cornerRadius: Theme.Radius.card)
-                .fill(
-                    LinearGradient(colors: [.white.opacity(0.16), .clear],
-                                   startPoint: .top, endPoint: .center)
-                )
-                .blendMode(.plusLighter)
-
-            VStack {
-                corner(alignment: .leading)
-                Spacer()
-                centre
-                Spacer()
-                if showSecondCorner {
-                    corner(alignment: .trailing).rotationEffect(.degrees(180))
-                }
-            }
-            .padding(size.width * 0.08)
         }
         .frame(width: size.width, height: size.height)
         .shadow(color: shadowColor, radius: shadowRadius, x: 0, y: shadowY)
@@ -85,51 +66,105 @@ struct CardView: View {
         .accessibilityAddTraits(isPlayable ? .isButton : [])
     }
 
-    private func corner(alignment: HorizontalAlignment) -> some View {
-        HStack {
-            if alignment == .trailing { Spacer() }
-            VStack(alignment: alignment == .leading ? .leading : .trailing, spacing: 1) {
-                if let colour = card.colour {
-                    SuitSymbol(colour: colour, lineWidth: size.width * 0.018)
-                        .frame(width: size.width * 0.16, height: size.width * 0.16)
-                }
-                Text(cornerLabel)
-                    .font(.system(size: max(9, size.width * 0.16), weight: .bold))
-                    .minimumScaleFactor(0.7)
+    // MARK: Card face elements
+
+    private var badgeSize: CGFloat { size.width * 0.56 }
+
+    /// Rank/abbreviation + bespoke suit mark in the top-left and (mirrored) bottom-right
+    /// corners — the classic card index. The smallest cards show only the top-left index.
+    private var cornerIndices: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 0) { cornerIndex; Spacer(minLength: 0) }
+            Spacer(minLength: 0)
+            if showSecondCorner {
+                HStack(spacing: 0) { Spacer(minLength: 0); cornerIndex.rotationEffect(.degrees(180)) }
             }
-            if alignment == .leading { Spacer() }
         }
-        .foregroundStyle(inkColor)
+        .padding(size.width * 0.09)
+        .foregroundStyle(.white)
     }
 
-    /// Numbers keep the digit; action cards show the readable name so the card is
-    /// self-explanatory without decoding an abbreviation (A3).
+    private var cornerIndex: some View {
+        VStack(spacing: size.height * 0.005) {
+            Text(cornerLabel)
+                .font(.system(size: max(8, size.width * 0.17), weight: .heavy, design: .rounded))
+                .minimumScaleFactor(0.6).lineLimit(1)
+            if let colour = card.colour {
+                SuitSymbol(colour: colour, lineWidth: max(1, size.width * 0.022))
+                    .frame(width: size.width * 0.13, height: size.width * 0.13)
+            }
+        }
+        .fixedSize()
+    }
+
     private var cornerLabel: String {
         if case .number(let v) = card.type { return "\(v)" }
         return card.type.abbreviation
     }
 
-    @ViewBuilder private var centre: some View {
-        VStack(spacing: Theme.Space.s1) {
-            if case .number(let v) = card.type {
-                Text("\(v)").font(.system(size: size.height * 0.42, weight: .bold))
-            } else {
-                if let symbol = card.type.centerSymbol {
-                    Image(systemName: symbol).font(.system(size: size.height * 0.26, weight: .semibold))
+    /// The focal centre: a white badge (the "face" of the card) holding the big number or the
+    /// action glyph, with the action/colour name beneath it on larger cards.
+    private var centrePanel: some View {
+        VStack(spacing: size.height * 0.035) {
+            ZStack {
+                RoundedRectangle(cornerRadius: badgeSize * 0.26)
+                    .fill(.white)
+                    .frame(width: badgeSize, height: badgeSize)
+                    .shadow(color: .black.opacity(0.22), radius: size.width * 0.03, y: 1)
+                // Wild cards ring the badge with all four colours to signal "plays on anything".
+                if card.isWild {
+                    RoundedRectangle(cornerRadius: badgeSize * 0.26)
+                        .strokeBorder(wildRing, lineWidth: max(1.5, size.width * 0.03))
+                        .frame(width: badgeSize, height: badgeSize)
                 }
-                Text(card.type.readableName)
-                    .font(.system(size: max(9, size.height * 0.1), weight: .bold))
-                    .minimumScaleFactor(0.7)
-                    .lineLimit(1)
-                    .multilineTextAlignment(.center)
+                centreGlyph
             }
-            if showColourName, let colour = card.colour {
-                Text(colour.displayName.uppercased())
-                    .font(.caption2).fontWeight(.semibold)
-                    .minimumScaleFactor(0.7)
+            if let caption = centreCaption {
+                Text(caption)
+                    .font(.system(size: max(8, size.height * 0.08), weight: .bold))
+                    .minimumScaleFactor(0.6).lineLimit(1)
+                    .foregroundStyle(.white)
             }
         }
-        .foregroundStyle(inkColor)
+    }
+
+    @ViewBuilder private var centreGlyph: some View {
+        if case .number(let v) = card.type {
+            Text("\(v)")
+                .font(.system(size: badgeSize * 0.66, weight: .heavy, design: .rounded))
+                .foregroundStyle(glyphInk)
+        } else if let symbol = card.type.centerSymbol {
+            Image(systemName: symbol)
+                .font(.system(size: badgeSize * 0.5, weight: .bold))
+                .foregroundStyle(glyphInk)
+        }
+    }
+
+    /// Action cards caption their name; in colour-blind mode every card captions its colour.
+    /// Hidden on the smallest cards (partner strip) where it would be unreadable.
+    private var centreCaption: String? {
+        guard size.width >= 56 else { return nil }
+        if showColourName, let colour = card.colour { return colour.displayName.uppercased() }
+        if case .number = card.type { return nil }
+        return card.type.readableName
+    }
+
+    /// Glyph ink: a deepened variant of the card colour so it stays legible on the white badge
+    /// (Wind's pale gold especially needs darkening); wild uses a deep plum.
+    private var glyphInk: Color {
+        guard let colour = card.colour else { return Color(hex: 0x3C2A63) }
+        switch colour {
+        case .crimson: return Color(hex: 0xC0392B)
+        case .cobalt:  return Color(hex: 0x1B5FD9)
+        case .jade:    return Color(hex: 0x1E7A48)
+        case .amber:   return Color(hex: 0x8A6A12)
+        }
+    }
+
+    private var wildRing: AngularGradient {
+        AngularGradient(colors: [Color(hex: 0xE8431F), Color(hex: 0x1B5FD9),
+                                 Color(hex: 0x2F8F5B), Color(hex: 0xC9A227), Color(hex: 0xE8431F)],
+                        center: .center)
     }
 
     private var borderColor: Color {
@@ -287,6 +322,10 @@ extension CardColour {
 struct CardBackView: View {
     var size: CGSize = Theme.CardSize.opponentBack
 
+    /// Below this width the four-suit grid renders as illegible specks (the old 38pt draw-pile
+    /// chip). Compact backs show a single bold "WP" monogram so the deck reads cleanly.
+    private var isCompact: Bool { size.width < 56 }
+
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: Theme.Radius.card)
@@ -301,19 +340,23 @@ struct CardBackView: View {
                 .padding(size.width * 0.12)
 
             VStack(spacing: size.height * 0.03) {
-                HStack(spacing: size.width * 0.1) {
-                    SuitSymbol(colour: .crimson, lineWidth: size.width * 0.025)
-                        .frame(width: size.width * 0.18, height: size.width * 0.18)
-                    SuitSymbol(colour: .cobalt, lineWidth: size.width * 0.025)
-                        .frame(width: size.width * 0.18, height: size.width * 0.18)
+                if !isCompact {
+                    HStack(spacing: size.width * 0.1) {
+                        SuitSymbol(colour: .crimson, lineWidth: size.width * 0.025)
+                            .frame(width: size.width * 0.18, height: size.width * 0.18)
+                        SuitSymbol(colour: .cobalt, lineWidth: size.width * 0.025)
+                            .frame(width: size.width * 0.18, height: size.width * 0.18)
+                    }
                 }
                 Text("WP")
-                    .font(.system(size: size.width * 0.26, weight: .black, design: .rounded))
-                HStack(spacing: size.width * 0.1) {
-                    SuitSymbol(colour: .jade, lineWidth: size.width * 0.025)
-                        .frame(width: size.width * 0.18, height: size.width * 0.18)
-                    SuitSymbol(colour: .amber, lineWidth: size.width * 0.025)
-                        .frame(width: size.width * 0.18, height: size.width * 0.18)
+                    .font(.system(size: size.width * (isCompact ? 0.4 : 0.26), weight: .black, design: .rounded))
+                if !isCompact {
+                    HStack(spacing: size.width * 0.1) {
+                        SuitSymbol(colour: .jade, lineWidth: size.width * 0.025)
+                            .frame(width: size.width * 0.18, height: size.width * 0.18)
+                        SuitSymbol(colour: .amber, lineWidth: size.width * 0.025)
+                            .frame(width: size.width * 0.18, height: size.width * 0.18)
+                    }
                 }
             }
             .foregroundStyle(Theme.Palette.accent.opacity(0.85))

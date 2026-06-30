@@ -27,20 +27,24 @@ struct TableCenterView: View {
     @State private var colourPulse = false
     @State private var arrowAngle: Double?
 
-    /// Draw pile back — smaller than the discard so the discard reads as the focal element
-    /// (neon-final.html spec: discard 50px, draw-back 32px).
-    private var drawCardSize: CGSize { Theme.CardSize.tableDraw }
+    /// Draw pile back — slightly smaller than the discard so the discard stays the focal
+    /// element, but large enough to read as a real, tappable deck (the previous 38pt back was
+    /// an illegible chip). Kept in 2:3 ratio relative to the discard.
+    private var drawCardSize: CGSize {
+        CGSize(width: cardSize.width * 0.85, height: cardSize.height * 0.85)
+    }
 
     var body: some View {
-        // Spec layout: colour pill above the row; discard on top; draw-back + direction
-        // arrow beside it below the discard.
-        VStack(spacing: Theme.Space.s2) {
+        // ux-spec.md §game-table: draw pile left of centre, discard right of centre — a single
+        // row of two comparable cards with the colour pill above and the direction arrow below,
+        // instead of the old top-heavy vertical stack that buried the draw pile.
+        VStack(spacing: Theme.Space.s3) {
             colourIndicator
-            discardPile
-            HStack(spacing: Theme.Space.s3) {
+            HStack(alignment: .center, spacing: Theme.Space.s4) {
                 drawPile
-                directionArrow
+                discardPile
             }
+            directionArrow
         }
         .onChange(of: currentColour) { _, _ in pulseColour() }
         .onChange(of: turnDirection) { _, _ in rotateArrow() }

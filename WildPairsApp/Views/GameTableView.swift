@@ -19,7 +19,8 @@ struct GameTableView: View {
     private var vs: GameViewState { vm.viewState }
     private var handCardSize: CGSize {
         let large = settings.userSettings.largeCards
-        if hSize == .regular { return large ? Theme.CardSize.selected : Theme.CardSize.regularHand }
+        // iPad hand reads larger so the deck has real presence on the wide canvas (ux-spec §7).
+        if hSize == .regular { return large ? CGSize(width: 120, height: 180) : Theme.CardSize.selected }
         return large ? Theme.CardSize.regularHand : Theme.CardSize.compactHand
     }
     private var showColourName: Bool { settings.userSettings.colourBlindMode }
@@ -43,7 +44,22 @@ struct GameTableView: View {
                 // table centre (discard/draw) claim the room a back-fan used to need.
                 let avatarColumnWidth: CGFloat = 92
                 let sideWidth = min(avatarColumnWidth, (geo.size.width - spacing * 4) * 0.22)
-                let centerSize = Theme.CardSize.compactHand
+                // The draw + discard pair is the focal point of the table — the old compact
+                // (60pt) centre read as two small cards lost in dead space. Give it real
+                // presence: bigger on iPhone, bigger still on iPad's wider canvas.
+                let isPad = hSize == .regular
+                let centerSize = isPad ? Theme.CardSize.selected : Theme.CardSize.regularHand
+                let resolvedSide = max(sideWidth, 80)
+                // iPad uses its width deliberately (ux-spec §7): the table is a centred block of
+                // a sensible max width with opponents pushed out to its edges and larger cards,
+                // instead of phone-width content marooned in the middle of a 1024pt screen.
+                let contentMaxWidth: CGFloat = isPad ? 760 : .infinity
+                let availableWidth = contentMaxWidth.isFinite ? contentMaxWidth : geo.size.width
+                let partnerCardSize = isPad ? CGSize(width: 60, height: 90) : Theme.CardSize.partnerHand
+                // Clamp the partner's open-hand fan to the real on-screen width so it never
+                // clips off the right edge (A6).
+                let partnerMaxWidth = min(resolvedSide * 2 + centerSize.width * 2 + Theme.Space.s3,
+                                          availableWidth - Theme.Space.s4 * 2)
 
                 ZStack {
                     TableBackground().ignoresSafeArea()
@@ -53,11 +69,16 @@ struct GameTableView: View {
 
                         ScrollView(.vertical, showsIndicators: false) {
                             VStack(spacing: spacing) {
-                                Spacer(minLength: 0)
-                                portraitSeatsStack(spacing: spacing, seatBackSize: seatBackSize,
-                                                    centerSize: centerSize, sideWidth: max(sideWidth, 80),
-                                                    tableWidth: geo.size.width)
-                                Spacer(minLength: 0)
+                                // Spread the three game zones down the tall canvas instead of
+                                // clustering them with a dead band: partner anchored at the top,
+                                // opponents + draw/discard centred in the middle, your prompt +
+                                // hand at the bottom (thumb zone, ux-spec §6).
+                                partnerZone(maxWidth: partnerMaxWidth, seatBackSize: seatBackSize,
+                                            openHandCardSize: partnerCardSize)
+                                Spacer(minLength: spacing)
+                                opponentCenterRow(spacing: spacing, seatBackSize: seatBackSize,
+                                                  centerSize: centerSize, sideWidth: resolvedSide, spread: isPad)
+                                Spacer(minLength: spacing)
 
                                 if let roundRemaining = vm.roundTimeRemaining {
                                     RoundTimerBadge(remaining: roundRemaining, total: vm.roundTimeLimit)
@@ -74,6 +95,8 @@ struct GameTableView: View {
                                          reducedMotion: reducedMotion, onPlay: vm.play)
                             }
                             .padding(.vertical, spacing)
+                            .frame(maxWidth: contentMaxWidth)
+                            .frame(maxWidth: .infinity)
                             .frame(minHeight: geo.size.height - 60)
                         }
                         // Loss desaturates the table gently underneath the overlay (ux-spec.md
@@ -180,36 +203,38 @@ struct GameTableView: View {
             .accessibilityLabel("Your team would lose \(vs.localTeamPointsAtRisk) points if you lost the round now.")
     }
 
-    /// Partner stacked above a fixed-width row of (left opponent, table centre, right
-    /// opponent) — each zone is given an explicit width from `GeometryReader` so the row
-    /// never needs to scroll or clip, even at large Dynamic Type sizes (A6/A7).
-    private func portraitSeatsStack(spacing: CGFloat, seatBackSize: CGSize, centerSize: CGSize, sideWidth: CGFloat,
-                                     tableWidth: CGFloat) -> some View {
-        // The naive sum (both side columns + both centre cards) can exceed the table's actual
-        // width once spacing is added back in — clamp to what's really on screen so the
-        // partner's fan never clips off the right edge (A6).
-        let partnerMaxWidth = min(sideWidth * 2 + centerSize.width * 2 + Theme.Space.s3,
-                                   tableWidth - Theme.Space.s4 * 2)
-        return VStack(spacing: spacing) {
-            if let partner = seat(at: 2) {
-                PlayerZoneView(seat: partner, showColourName: showColourName, showPattern: showPattern,
-                               cardBackSize: seatBackSize, openHandCardSize: Theme.CardSize.partnerHand,
-                               maxFanWidth: partnerMaxWidth,
-                               reducedMotion: reducedMotion, isThinking: partner.id == vm.thinkingPlayerID,
-                               thinkingDotCount: thinkingDotCount)
+    /// Partner's open hand, anchored at the top of the table (A6: `maxFanWidth` clamps the fan
+    /// to the on-screen width so it never clips off the right edge).
+    @ViewBuilder private func partnerZone(maxWidth: CGFloat, seatBackSize: CGSize,
+                                          openHandCardSize: CGSize) -> some View {
+        if let partner = seat(at: 2) {
+            PlayerZoneView(seat: partner, showColourName: showColourName, showPattern: showPattern,
+                           cardBackSize: seatBackSize, openHandCardSize: openHandCardSize,
+                           maxFanWidth: maxWidth,
+                           reducedMotion: reducedMotion, isThinking: partner.id == vm.thinkingPlayerID,
+                           thinkingDotCount: thinkingDotCount)
+        }
+    }
+
+    /// The middle row: left opponent · table centre (draw + discard) · right opponent. Each
+    /// zone gets an explicit width from `GeometryReader` so the row never scrolls or clips,
+    /// even at large Dynamic Type sizes (A6/A7). On iPad (`spread`) the opponents are pushed
+    /// out to the edges of the table block so the canvas width is actually used.
+    private func opponentCenterRow(spacing: CGFloat, seatBackSize: CGSize, centerSize: CGSize,
+                                   sideWidth: CGFloat, spread: Bool) -> some View {
+        HStack(alignment: .center, spacing: spacing) {
+            if let left = seat(at: 1) {
+                opponentZone(left, backSize: seatBackSize, width: sideWidth)
+            } else {
+                Color.clear.frame(width: sideWidth)
             }
-            HStack(alignment: .center, spacing: spacing) {
-                if let left = seat(at: 1) {
-                    opponentZone(left, backSize: seatBackSize, width: sideWidth)
-                } else {
-                    Color.clear.frame(width: sideWidth)
-                }
-                tableCenter(size: centerSize)
-                if let right = seat(at: 3) {
-                    opponentZone(right, backSize: seatBackSize, width: sideWidth)
-                } else {
-                    Color.clear.frame(width: sideWidth)
-                }
+            if spread { Spacer(minLength: spacing) }
+            tableCenter(size: centerSize)
+            if spread { Spacer(minLength: spacing) }
+            if let right = seat(at: 3) {
+                opponentZone(right, backSize: seatBackSize, width: sideWidth)
+            } else {
+                Color.clear.frame(width: sideWidth)
             }
         }
     }

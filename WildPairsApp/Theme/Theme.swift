@@ -50,9 +50,10 @@ enum Theme {
         static let regularHand = CGSize(width: 80, height: 120)
         static let selected = CGSize(width: 100, height: 150)
         static let opponentBack = CGSize(width: 44, height: 66)
-        /// Partner's open hand row (neon-final.html spec: ~28px overlapped row) — far smaller
-        /// than `compactHand` so the partner panel reads as a glanceable strip, not a second hand.
-        static let partnerHand = CGSize(width: 30, height: 45)
+        /// Partner's open hand row — a glanceable strip, smaller than `compactHand` but large
+        /// enough that the partner's card faces (numbers/symbols) are actually readable, which
+        /// is the whole point of an open partner hand. (Was 30×45, too small to read.)
+        static let partnerHand = CGSize(width: 38, height: 57)
         /// Table-centre draw pile back — smaller than the discard so the discard reads as the
         /// focal point (spec: discard 50px, draw-back 32px, ratio preserved here).
         static let tableDraw = CGSize(width: 38, height: 57)

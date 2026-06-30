@@ -36,11 +36,14 @@ struct HandView: View {
             let available = geo.size.width - Theme.Space.s4 * 2
             let step = fanStep(available: available)
             if step >= minimumStep || hand.count <= 1 {
-                // Centre the fan within the *full* GeometryReader width, not within an
-                // already-full-width HStack plus extra padding on top of it — `available`
-                // (and therefore `fanWidth`) already reserves the `Theme.Space.s4` margin on
-                // each side, so re-adding that padding here would push the fan `s4` further
-                // past the reader's own bounds and clip the trailing card off-screen.
+                // `.offset(x:)` is a render-time transform that does NOT contribute to layout, so
+                // the ZStack's intrinsic width is a single card — not the full fan. The inner
+                // frame must therefore be **leading-anchored**: that pins the offset origin (and
+                // card 0) to the fan's true left edge, so the fan occupies exactly [0, fanWidth].
+                // A default (centre) alignment here centres a one-card-wide box inside the wider
+                // fanWidth frame, shifting the whole fan right by (fanWidth − cardWidth)/2 and
+                // clipping the trailing cards off the right edge (the bug fixed here). The outer
+                // frame then centres the real fan width within the reader with symmetric margins.
                 ZStack(alignment: .leading) {
                     ForEach(Array(hand.enumerated()), id: \.element.id) { index, item in
                         card(item, index: index)
@@ -48,7 +51,7 @@ struct HandView: View {
                             .zIndex(item.isPlayable ? Double(index) + 100 : Double(index))
                     }
                 }
-                .frame(width: fanWidth(step: step), height: cardSize.height + Theme.Space.s3 * 2)
+                .frame(width: fanWidth(step: step), height: cardSize.height + Theme.Space.s3 * 2, alignment: .leading)
                 .frame(width: geo.size.width, height: cardSize.height + Theme.Space.s3 * 2, alignment: .center)
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
