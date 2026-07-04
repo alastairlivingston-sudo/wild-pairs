@@ -1,0 +1,39 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wild Pairs — 10 High-Fidelity Directions</title><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0b0f;color:#e9edf6;font-family:-apple-system,"SF Pro Display",system-ui,sans-serif;padding:48px 24px 80px}
+h1{font-size:30px;font-weight:800;letter-spacing:-.02em;text-align:center}
+.sub{text-align:center;color:#9aa3b5;margin:10px auto 8px;max-width:640px;line-height:1.5}
+.hint{text-align:center;color:#6f7686;font-size:13px;margin-bottom:40px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:34px 24px;max-width:1320px;margin:0 auto}
+.cell{display:flex;flex-direction:column;align-items:center;gap:14px}
+.frameWrap{width:250px;height:541px;border-radius:38px;overflow:hidden;position:relative;
+  box-shadow:0 30px 60px -24px #000,0 0 0 1px #1c1f29}
+iframe{width:390px;height:844px;border:0;transform:scale(.641);transform-origin:top left;position:absolute;top:0;left:0}
+.meta{text-align:center}
+.meta a{color:#fff;font-weight:700;font-size:15px;text-decoration:none}
+.meta a:hover{text-decoration:underline}
+.meta p{color:#9aa3b5;font-size:12.5px;margin-top:3px;max-width:240px;line-height:1.45}
+</style></head><body>
+<h1>Wild Pairs — 10 high-fidelity directions</h1>
+<p class="sub">Same game state, ten production-grade visual languages for the game table. The brief: kill the flatness, make it feel like a premium iOS game. Pick a direction (or a hybrid) and I'll translate it into SwiftUI.</p>
+<p class="hint">Tap any title to open it full-screen. Effects (aurora drift, holo sheen, motes, twinkle) animate live.</p>
+<div class="grid" id="g"></div>
+<script>
+const items=[
+ ["01-liquid-glass","Liquid Glass","Frosted depth, specular highlights, aurora behind glass — iOS-26 native feel."],
+ ["02-aurora-noir","Aurora Noir","Near-black with a living aurora mesh and neon-edged cards. Moody, premium."],
+ ["03-luxe-felt","Luxe Felt","Emerald casino felt, gold foil edges, embossed faces. Warm and high-end."],
+ ["04-elemental-live","Elemental Live","Background + glow react to the active element. Drifting crystalline motes."],
+ ["05-holo-foil","Holo Foil","Trading-card iridescence with a moving prismatic sheen. Collectible energy."],
+ ["06-soft-clay","Soft Clay","Claymorphic, tactile, soft-extruded pieces. Friendly but still premium."],
+ ["07-midnight-minimal","Midnight Minimal","Linear/Arc restraint: monochrome, one accent, impeccable hierarchy."],
+ ["08-synthwave-grid","Synthwave Grid","Retro-futurist neon, chrome cards, grid horizon. High energy, arcade."],
+ ["09-cosmic-deck","Cosmic Deck","Nebula + starfield, constellation-rim cards. Calm, vast, magical."],
+ ["10-tactile-print","Tactile Print","Real printed-card feel: matte ink, letterpress, honest stacking shadows."]
+];
+g.innerHTML=items.map((it,i)=>`<div class="cell">
+ <div class="frameWrap"><iframe src="${it[0]}.html" loading="lazy" scrolling="no"></iframe></div>
+ <div class="meta"><a href="${it[0]}.html" target="_blank">${String(i+1).padStart(2,'0')} · ${it[1]}</a><p>${it[2]}</p></div>
+</div>`).join("");
+</script></body></html>

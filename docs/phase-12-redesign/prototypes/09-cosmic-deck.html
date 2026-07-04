@@ -1,0 +1,80 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wild Pairs — Cosmic Deck</title><style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased}
+body{background:#04050c;display:grid;place-items:center;min-height:100vh;font-family:-apple-system,"SF Pro Display",system-ui,sans-serif}
+.phone{width:390px;height:844px;border-radius:54px;position:relative;overflow:hidden;background:#000;box-shadow:0 40px 120px -20px #000,0 0 0 11px #0e1020,0 0 0 13px #1b1e36}
+.screen{position:absolute;inset:0;overflow:hidden;color:#eef0ff;background:
+ radial-gradient(60% 40% at 25% 18%,rgba(120,80,255,.4),transparent 60%),
+ radial-gradient(55% 38% at 85% 30%,rgba(255,80,170,.32),transparent 60%),
+ radial-gradient(70% 50% at 50% 110%,rgba(40,120,255,.3),transparent 60%),
+ linear-gradient(180deg,#0a0a1e,#05060f)}
+/* starfield */
+.stars{position:absolute;inset:0;z-index:1;background-image:
+ radial-gradient(1px 1px at 20% 30%,#fff,transparent),radial-gradient(1px 1px at 70% 20%,#fff,transparent),
+ radial-gradient(1.5px 1.5px at 40% 60%,#cde,transparent),radial-gradient(1px 1px at 85% 70%,#fff,transparent),
+ radial-gradient(1px 1px at 12% 80%,#fff,transparent),radial-gradient(1.5px 1.5px at 60% 85%,#ace,transparent),
+ radial-gradient(1px 1px at 33% 12%,#fff,transparent),radial-gradient(1px 1px at 92% 45%,#fff,transparent);
+ animation:tw 4s ease-in-out infinite alternate}
+@keyframes tw{from{opacity:.5}to{opacity:1}}
+.screen>:not(.stars){position:relative;z-index:2}
+.island{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:122px;height:34px;background:#000;border-radius:20px;z-index:5}
+.status{display:flex;justify-content:space-between;padding:16px 30px 0;font-size:14px;font-weight:600}
+.tag{position:absolute;top:46px;left:0;right:0;text-align:center;font-size:11px;letter-spacing:.24em;text-transform:uppercase;font-weight:800;color:#b9a8ff}
+.hud{display:flex;align-items:center;gap:8px;padding:14px 18px 6px}
+.neb{background:rgba(20,18,46,.55);border:1px solid rgba(150,130,255,.3);box-shadow:inset 0 1px 0 rgba(180,160,255,.25),0 8px 22px -12px #000;backdrop-filter:blur(12px)}
+.pill{padding:7px 12px;border-radius:13px;font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:7px}
+.scores{margin-left:auto}.scores i{width:9px;height:9px;border-radius:50%;display:inline-block}.scores .a{background:#6aa8ff;box-shadow:0 0 8px #6aa8ff}.scores .b{background:#ff6aa8;box-shadow:0 0 8px #ff6aa8}
+.pause{width:38px;height:38px;justify-content:center;border-radius:50%;color:#cbf}
+.partner{margin:8px 16px 0;padding:10px 14px 14px;border-radius:20px}
+.ptag{font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:#b9a8ff}
+.pfan{display:flex;justify-content:center;margin-top:8px}.pfan .mini{margin-left:-12px}.pfan .mini:first-child{margin-left:0}
+.mid{display:flex;align-items:center;justify-content:space-between;padding:18px 22px 6px}
+.opp{display:flex;flex-direction:column;align-items:center;gap:6px}
+.av{width:58px;height:58px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:20px;color:#eef0ff}
+.opp.active .av{box-shadow:0 0 0 2px #b9a8ff,0 0 30px #7a5cff}
+.opp span{font-size:12px;font-weight:700;color:#b9a8ff}
+.center{display:flex;flex-direction:column;align-items:center;gap:12px}
+.colour{padding:8px 18px;border-radius:999px;font-weight:900;font-size:15px;display:flex;gap:8px;align-items:center;color:#04130c;background:linear-gradient(180deg,#7dffc4,#16d28a);box-shadow:0 0 30px #16e89a,inset 0 1px 0 rgba(255,255,255,.6)}
+.piles{display:flex;gap:16px;align-items:center}
+.draw{width:60px;height:90px;border-radius:14px;display:grid;place-items:end center;padding-bottom:6px;font-weight:800;color:#cdf;background:linear-gradient(160deg,#1a1840,#0c0a24);border:1px solid rgba(150,130,255,.45);box-shadow:0 0 22px rgba(120,90,255,.35);position:relative}
+.draw::before{content:"✦";position:absolute;top:8px;left:0;right:0;text-align:center;font-size:16px;color:rgba(190,170,255,.6)}
+.prompt{margin:6px 18px 0;text-align:center;font-size:15px;line-height:1.35;padding:14px 18px;border-radius:18px;color:#eef0ff}
+.prompt b{color:#7dffc4}
+.hand{position:absolute;bottom:30px;left:0;right:0;height:150px}
+/* constellation-edge cards: deep gradient + glowing rim + tiny star at corner */
+.card{border-radius:14px;position:relative;display:grid;place-items:center;font-weight:800;color:#fff;border:1px solid rgba(180,160,255,.4);box-shadow:0 16px 28px -14px #000,inset 0 0 22px rgba(120,90,255,.18),0 0 16px rgba(120,90,255,.25)}
+.card .badge{background:#fff;border-radius:30%;display:grid;place-items:center;font-weight:900}
+.card .idx{position:absolute;top:7px;left:9px;font-size:13px}
+.fire{background:linear-gradient(160deg,#ff8a5b,#e0432a)}.fire .badge{color:#c0392b}
+.rain{background:linear-gradient(160deg,#5fb0ff,#2766d6)}.rain .badge{color:#1a5fd0}
+.earth{background:linear-gradient(160deg,#5be8b4,#1ea877)}.earth .badge{color:#10805a}
+.wind{background:linear-gradient(160deg,#ffe08a,#e0ab2a)}.wind .badge{color:#8a6a12}
+.wild{background:linear-gradient(160deg,#5a3cb0,#1a0d3a)}.wild .badge{background:conic-gradient(#ff6a4a,#6aa8ff,#5be8b4,#ffd24d,#ff6a4a);color:#fff}
+.mini{width:34px;height:50px}.mini .badge{width:20px;height:20px;font-size:11px;border-radius:34%}
+.big{width:78px;height:116px}.big .badge{width:48px;height:48px;font-size:30px}
+.hand .card{width:84px;height:124px;position:absolute;bottom:0;left:50%;margin-left:-42px;transition:.3s}
+.hand .badge{width:50px;height:50px;font-size:32px;border-radius:30%}
+.h1{transform:rotate(-12deg) translateX(-108px)}.h2{transform:rotate(-7deg) translateX(-64px) translateY(8px)}
+.h3{transform:rotate(-2deg) translateX(-20px)}.h4{transform:rotate(3deg) translateX(24px) translateY(8px)}
+.h5{transform:rotate(8deg) translateX(68px)}.h6{transform:rotate(13deg) translateX(112px) translateY(10px)}
+.play{bottom:24px;border-color:#cbf;box-shadow:0 0 0 2px #cbf,0 0 32px #7a5cff,0 18px 30px -14px #000}
+</style></head><body><div class="phone"><div class="screen">
+ <div class="island"></div><div class="stars"></div>
+ <div class="status"><span>9:41</span><span>Wild Pairs</span><span>100%</span></div>
+ <div class="tag">09 · Cosmic Deck</div>
+ <div class="hud"><span class="pill round neb">Round 3</span><span class="pill scores neb"><i class="a"></i>Us 2&nbsp;&nbsp;<i class="b"></i>Them 1</span><span class="pill pause neb">❚❚</span></div>
+ <div class="partner neb"><div class="ptag">Partner · 4 cards</div><div class="pfan">
+   <div class="mini card fire"><span class="badge">7</span></div><div class="mini card earth"><span class="badge">3</span></div><div class="mini card rain"><span class="badge">9</span></div><div class="mini card wild"><span class="badge">★</span></div></div></div>
+ <div class="mid">
+   <div class="opp"><div class="av neb">L</div><span>4 cards</span></div>
+   <div class="center"><div class="colour">◆ Earth</div><div class="piles"><div class="draw">42</div><div class="card earth big"><span class="idx">0</span><span class="badge">0</span></div></div></div>
+   <div class="opp active"><div class="av neb">R</div><span>6 cards</span></div></div>
+ <div class="prompt neb">Play an <b>Earth</b> card, a <b>0</b>, or a wild card</div>
+ <div class="hand">
+   <div class="card fire h1 play"><span class="idx">7</span><span class="badge">7</span></div>
+   <div class="card rain h2"><span class="idx">↺</span><span class="badge" style="font-size:24px">↺</span></div>
+   <div class="card earth h3 play"><span class="idx">0</span><span class="badge">0</span></div>
+   <div class="card wind h4"><span class="idx">+2</span><span class="badge" style="font-size:22px">+2</span></div>
+   <div class="card wild h5 play"><span class="idx">★</span><span class="badge" style="font-size:22px">✦</span></div>
+   <div class="card fire h6"><span class="idx">9</span><span class="badge">9</span></div></div>
+</div></div></body></html>

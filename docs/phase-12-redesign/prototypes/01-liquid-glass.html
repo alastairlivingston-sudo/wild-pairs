@@ -1,0 +1,127 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wild Pairs — Liquid Glass</title>
+<style>
+:root{
+  --fire:#ff5a3c; --rain:#2f8bff; --earth:#27c08a; --wind:#ffc83d; --gold:#ffd479;
+  --ink:#0a0e17;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased}
+body{background:#10131c;display:grid;place-items:center;min-height:100vh;
+  font-family:-apple-system,"SF Pro Display",system-ui,sans-serif}
+.phone{width:390px;height:844px;border-radius:54px;padding:0;position:relative;overflow:hidden;
+  box-shadow:0 40px 120px -20px #000,0 0 0 11px #1c1f29,0 0 0 13px #2c2f3a;
+  background:#000}
+.screen{position:absolute;inset:0;overflow:hidden;color:#eef2ff;
+  background:
+   radial-gradient(120% 80% at 20% -10%,rgba(47,139,255,.35),transparent 60%),
+   radial-gradient(120% 90% at 100% 10%,rgba(39,192,138,.30),transparent 55%),
+   radial-gradient(140% 120% at 50% 120%,rgba(255,90,60,.25),transparent 60%),
+   linear-gradient(160deg,#0b1020,#070a13 60%,#05070e)}
+/* animated aurora behind glass */
+.screen::before{content:"";position:absolute;inset:-30%;z-index:0;filter:blur(60px);opacity:.55;
+  background:conic-gradient(from 0deg,var(--rain),var(--earth),var(--wind),var(--fire),var(--rain));
+  animation:spin 26s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.screen>*{position:relative;z-index:1}
+.island{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:122px;height:34px;
+  background:#000;border-radius:20px;z-index:5}
+.status{display:flex;justify-content:space-between;padding:16px 30px 0;font-size:14px;font-weight:600}
+.hud{display:flex;align-items:center;gap:8px;padding:14px 18px 6px}
+.glass{background:rgba(255,255,255,.08);backdrop-filter:blur(24px) saturate(160%);
+  -webkit-backdrop-filter:blur(24px) saturate(160%);border:1px solid rgba(255,255,255,.16);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 10px 30px -12px rgba(0,0,0,.6)}
+.pill{padding:7px 12px;border-radius:14px;font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:7px}
+.pill.round{color:#cdd6f4}
+.scores{margin-left:auto}.scores i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.scores .a{background:linear-gradient(var(--rain),#1a5fd0)}.scores .b{background:linear-gradient(var(--fire),#d23)}
+.pause{width:38px;height:38px;justify-content:center;border-radius:50%;color:var(--gold)}
+.partner{margin:10px 16px 0;padding:10px 14px 14px;border-radius:22px}
+.ptag{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#aeb8d6;font-weight:700}
+.pfan{display:flex;justify-content:center;margin-top:8px}
+.pfan .mini{width:34px;height:50px;margin-left:-12px;border-radius:8px;font-size:13px}
+.mini:first-child{margin-left:0}
+.mid{display:flex;align-items:center;justify-content:space-between;padding:22px 22px 6px}
+.opp{display:flex;flex-direction:column;align-items:center;gap:6px}
+.av{width:58px;height:58px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:20px;
+  color:#dfe7ff}
+.opp.active .av{box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 0 0 2px var(--gold),0 0 26px var(--gold)}
+.opp span{font-size:12px;color:#b9c2e0;font-weight:700}
+.center{display:flex;flex-direction:column;align-items:center;gap:12px}
+.colour{padding:8px 16px;border-radius:999px;font-weight:800;font-size:14px;display:flex;gap:8px;align-items:center;
+  color:#062018;background:linear-gradient(180deg,#5ff0bf,var(--earth));
+  box-shadow:0 8px 26px -6px var(--earth),inset 0 1px 0 rgba(255,255,255,.6)}
+.piles{display:flex;gap:16px;align-items:center}
+.draw{width:62px;height:92px;border-radius:14px;display:grid;place-items:end center;padding-bottom:6px;
+  font-weight:800;color:#cfe;background:linear-gradient(160deg,#16324a,#0c1a2c);
+  border:1px solid rgba(120,200,255,.4);box-shadow:0 14px 30px -10px #000,inset 0 1px 0 rgba(255,255,255,.25);
+  position:relative}
+.draw::before{content:"";position:absolute;inset:6px;border-radius:9px;border:1px dashed rgba(150,210,255,.4)}
+.prompt{margin:6px 18px 0;text-align:center;font-size:15px;line-height:1.35;color:#e7edff;padding:14px 18px;border-radius:18px}
+.prompt b{color:var(--earth)}
+.hand{position:absolute;bottom:30px;left:0;right:0;display:flex;justify-content:center;height:150px}
+/* CARD */
+.card{border-radius:14px;position:relative;display:grid;place-items:center;font-weight:800;color:#fff;
+  box-shadow:0 18px 30px -14px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.45),inset 0 0 0 1px rgba(255,255,255,.18)}
+.card .badge{background:#fff;border-radius:30%;display:grid;place-items:center;font-weight:900}
+.card .idx{position:absolute;top:7px;left:9px;font-size:13px;opacity:.95}
+.fire{background:linear-gradient(160deg,#ff8a5b,var(--fire))}.fire .badge{color:#c0392b}
+.rain{background:linear-gradient(160deg,#5fb0ff,var(--rain))}.rain .badge{color:#1a5fd0}
+.earth{background:linear-gradient(160deg,#5be8b4,var(--earth))}.earth .badge{color:#10805a}
+.wind{background:linear-gradient(160deg,#ffe08a,var(--wind))}.wind .badge{color:#8a6a12}
+.wild{background:linear-gradient(160deg,#3a2b63,#181033)}.wild .badge{background:conic-gradient(var(--fire),var(--rain),var(--earth),var(--wind),var(--fire));color:#fff}
+.big{width:78px;height:116px}.big .badge{width:48px;height:48px;font-size:30px}.big .idx{font-size:15px}
+.mini .badge{width:20px;height:20px;font-size:11px;border-radius:34%}
+.hand .card{width:84px;height:124px;position:absolute;bottom:0;transition:.3s}
+.hand .badge{width:50px;height:50px;font-size:32px;border-radius:30%}
+.h1{transform:rotate(-12deg) translateX(-150px)}
+.h2{transform:rotate(-7deg) translateX(-92px) translateY(8px)}
+.h3{transform:rotate(-2deg) translateX(-34px)}
+.h4{transform:rotate(3deg) translateX(24px) translateY(8px)}
+.h5{transform:rotate(8deg) translateX(82px)}
+.h6{transform:rotate(13deg) translateX(140px) translateY(10px)}
+.play{bottom:26px;box-shadow:0 0 0 3px var(--gold),0 0 34px var(--gold),0 22px 36px -14px #000;animation:bob 2.6s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-8px) var(--t)}}
+.h1.play{--t:rotate(-12deg) translateX(-150px)}.h3.play{--t:rotate(-2deg) translateX(-34px)}.h5.play{--t:rotate(8deg) translateX(82px)}
+.tag{position:absolute;top:18px;left:50%;transform:translateX(-50%);font-size:11px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--gold);font-weight:800;opacity:.9}
+</style></head>
+<body><div class="phone"><div class="screen">
+  <div class="island"></div>
+  <div class="status"><span>9:41</span><span>Wild Pairs</span><span>100%</span></div>
+  <div class="tag">01 · Liquid Glass</div>
+  <div class="hud">
+    <span class="pill round glass">Round 3</span>
+    <span class="pill scores glass"><i class="a"></i>Us 2&nbsp;&nbsp;<i class="b"></i>Them 1</span>
+    <span class="pill pause glass">❚❚</span>
+  </div>
+  <div class="partner glass">
+    <div class="ptag">Partner · 4 cards</div>
+    <div class="pfan">
+      <div class="mini card fire"><span class="badge">7</span></div>
+      <div class="mini card earth"><span class="badge">3</span></div>
+      <div class="mini card rain"><span class="badge">9</span></div>
+      <div class="mini card wild"><span class="badge">★</span></div>
+    </div>
+  </div>
+  <div class="mid">
+    <div class="opp"><div class="av glass">L</div><span>4 cards</span></div>
+    <div class="center">
+      <div class="colour">◆ Earth</div>
+      <div class="piles">
+        <div class="draw">42</div>
+        <div class="card earth big discard"><span class="idx">0</span><span class="badge">0</span></div>
+      </div>
+    </div>
+    <div class="opp active"><div class="av glass">R</div><span>6 cards</span></div>
+  </div>
+  <div class="prompt glass">Play an <b>Earth</b> card, a <b>0</b>, or a wild card</div>
+  <div class="hand">
+    <div class="card fire h1 play"><span class="idx">7</span><span class="badge">7</span></div>
+    <div class="card rain h2"><span class="idx">↺</span><span class="badge" style="font-size:24px">↺</span></div>
+    <div class="card earth h3 play"><span class="idx">0</span><span class="badge">0</span></div>
+    <div class="card wind h4"><span class="idx">+2</span><span class="badge" style="font-size:22px">+2</span></div>
+    <div class="card wild h5 play"><span class="idx">★</span><span class="badge" style="font-size:22px">✦</span></div>
+    <div class="card fire h6"><span class="idx">9</span><span class="badge">9</span></div>
+  </div>
+</div></div></body></html>
