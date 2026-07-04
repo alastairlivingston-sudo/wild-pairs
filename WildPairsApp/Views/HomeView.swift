@@ -7,7 +7,9 @@ struct HomeView: View {
     let onContinue: () -> Void
 
     @State private var showNewGame = false
+    @Environment(\.horizontalSizeClass) private var hSize
     private var reducedMotion: Bool { settings.userSettings.reducedVisualEffects }
+    private var isPad: Bool { hSize == .regular }
 
     var body: some View {
         NavigationStack {
@@ -36,7 +38,7 @@ struct HomeView: View {
                             Button { showNewGame = true } label: {
                                 Label("New Game", systemImage: "plus.circle.fill")
                             }
-                            .buttonStyle(.wpSecondary)
+                            .buttonStyle(.wpGlassButton)
                             .accessibilityIdentifier("home-new-game")
                         } else {
                             Button { showNewGame = true } label: {
@@ -46,20 +48,16 @@ struct HomeView: View {
                             .accessibilityIdentifier("home-new-game")
                         }
 
-                        NavigationLink { RulesView() } label: {
-                            Label("Rules", systemImage: "questionmark.circle.fill")
-                        }.buttonStyle(.wpSecondary)
-
-                        NavigationLink { StatisticsView(settings: settings) } label: {
-                            Label("Statistics", systemImage: "chart.bar.fill")
-                        }.buttonStyle(.wpSecondary)
-
-                        NavigationLink { SettingsView(settings: settings) } label: {
-                            Label("Settings", systemImage: "gearshape.fill")
-                        }.buttonStyle(.wpSecondary)
-                        .accessibilityIdentifier("home-settings")
+                        // iPad: the utility trio shares one row inside a wider column, so the
+                        // menu fills the canvas instead of reading as a stretched phone list
+                        // (design-plan.md §3.6).
+                        if isPad {
+                            HStack(spacing: Theme.Space.s3) { utilityButtons }
+                        } else {
+                            utilityButtons
+                        }
                     }
-                    .frame(maxWidth: 360)
+                    .frame(maxWidth: isPad ? 560 : 360)
                     .padding(.horizontal, Theme.Space.s4)
                     Spacer()
                 }
@@ -74,6 +72,21 @@ struct HomeView: View {
         .preferredColorScheme(.dark)
     }
 
+    @ViewBuilder private var utilityButtons: some View {
+        NavigationLink { RulesView() } label: {
+            Label("Rules", systemImage: "questionmark.circle.fill")
+        }.buttonStyle(.wpGlassButton)
+
+        NavigationLink { StatisticsView(settings: settings) } label: {
+            Label("Statistics", systemImage: "chart.bar.fill")
+        }.buttonStyle(.wpGlassButton)
+
+        NavigationLink { SettingsView(settings: settings) } label: {
+            Label("Settings", systemImage: "gearshape.fill")
+        }.buttonStyle(.wpGlassButton)
+        .accessibilityIdentifier("home-settings")
+    }
+
     /// Branded wordmark monogram built from the four bespoke suit symbols (A11) — no SF
     /// Symbol logo placeholder.
     private var wordmark: some View {
@@ -81,14 +94,13 @@ struct HomeView: View {
             ForEach(CardColour.allCases, id: \.self) { colour in
                 SuitSymbol(colour: colour, lineWidth: 2.5)
                     .frame(width: 30, height: 30)
-                    .foregroundStyle(colour.fillColor(.dark))
+                    .foregroundStyle(colour.highlightColor(.dark))
+                    .shadow(color: reducedMotion ? .clear : Theme.Element.scene(for: colour).glow.opacity(0.8),
+                            radius: 8)
             }
         }
-        .padding(Theme.Space.s4)
-        .background(
-            Circle().fill(Theme.Palette.surface.opacity(0.5)).frame(width: 110, height: 110)
-                .shadow(color: reducedMotion ? .clear : Theme.Palette.accent.opacity(0.35), radius: 26)
-        )
+        .padding(.horizontal, Theme.Space.s5).padding(.vertical, Theme.Space.s4)
+        .wpGlassCapsule()
         // Purely decorative — the "Wild Pairs" text immediately below already names the
         // app, so VoiceOver should skip these four shapes rather than read them individually.
         .accessibilityHidden(true)

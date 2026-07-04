@@ -435,3 +435,66 @@ final class WildPairsUITests: XCTestCase {
                       "Round 2 should be responsive to play, not frozen")
     }
 }
+
+// MARK: - Phase 12 design-verification capture
+
+// Walks the primary screens and writes full-resolution PNGs to WP_SCREENSHOT_DIR so the
+// design critique can run on real rendered output (design-plan.md §5). Skipped unless the
+// environment variable is set (pass TEST_RUNNER_WP_SCREENSHOT_DIR=… to xcodebuild), so
+// normal test runs are unaffected.
+final class WildPairsScreenshotCapture: XCTestCase {
+
+    private var captureDir: URL!
+
+    override func setUpWithError() throws {
+        guard let dir = ProcessInfo.processInfo.environment["WP_SCREENSHOT_DIR"] else {
+            throw XCTSkip("WP_SCREENSHOT_DIR not set — this class only runs for design capture")
+        }
+        captureDir = URL(fileURLWithPath: dir, isDirectory: true)
+        try FileManager.default.createDirectory(at: captureDir, withIntermediateDirectories: true)
+        continueAfterFailure = false
+    }
+
+    private func save(_ app: XCUIApplication, _ name: String) throws {
+        try app.screenshot().pngRepresentation
+            .write(to: captureDir.appendingPathComponent("\(name).png"))
+    }
+
+    func testCaptureDesignScreens() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest-reset-state"]
+        app.launch()
+
+        let skip = app.buttons["onboarding-skip"]
+        if skip.waitForExistence(timeout: 5) {
+            try save(app, "01-onboarding")
+            skip.tap()
+        }
+
+        XCTAssertTrue(app.buttons["home-new-game"].waitForExistence(timeout: 5))
+        try save(app, "02-home")
+
+        app.buttons["home-new-game"].tap()
+        XCTAssertTrue(app.buttons["newgame-start"].waitForExistence(timeout: 5))
+        try save(app, "03-new-game")
+
+        app.buttons["newgame-start"].tap()
+        XCTAssertTrue(app.buttons["game-pause-button"].waitForExistence(timeout: 5))
+        // Let the deal settle and the opening AI turns play out so the table looks lived-in.
+        sleep(5)
+        try save(app, "04-table")
+
+        // Draw a few times to hand the turn to the AI — its plays change the active colour,
+        // which should visibly re-tint the scene for the second capture.
+        let draw = app.buttons["game-draw-card-button"]
+        for _ in 0..<3 {
+            if draw.exists, draw.isEnabled { draw.tap() }
+            sleep(4)
+        }
+        try save(app, "05-table-later")
+
+        app.buttons["game-pause-button"].tap()
+        XCTAssertTrue(app.buttons["Resume"].waitForExistence(timeout: 3))
+        try save(app, "06-pause")
+    }
+}

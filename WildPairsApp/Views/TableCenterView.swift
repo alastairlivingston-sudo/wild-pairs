@@ -108,8 +108,13 @@ struct TableCenterView: View {
                 .lineLimit(1)
         }
         .padding(.horizontal, Theme.Space.s3).padding(.vertical, Theme.Space.s2)
-        .background(Capsule().fill(currentColour.fillColor(scheme)))
-        .shadow(color: currentColour.fillColor(scheme).opacity(reducedMotion ? 0 : 0.4), radius: 16)
+        .background(
+            Capsule().fill(
+                LinearGradient(colors: [currentColour.highlightColor(scheme), currentColour.fillColor(scheme)],
+                               startPoint: .top, endPoint: .bottom))
+        )
+        .overlay(Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 1))
+        .shadow(color: Theme.Element.scene(for: currentColour).glow.opacity(reducedMotion ? 0 : 0.55), radius: 18)
         .scaleEffect(colourPulse ? 1.08 : 1.0)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Current colour: \(currentColour.displayName)")

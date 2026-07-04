@@ -69,7 +69,7 @@ struct TargetPickerView: View {
                         .padding(Theme.Space.s4)
                         .frame(maxWidth: .infinity)
                         .foregroundStyle(.white)
-                        .background(RoundedRectangle(cornerRadius: Theme.Radius.r3).fill(Color.black.opacity(0.3)))
+                        .wpGlass(cornerRadius: Theme.Radius.r3)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("\(seat.name), \(seat.handCount) cards")
@@ -136,6 +136,8 @@ struct TeamPassPickerView: View {
 // The single guidance line above the hand (§ux tone of voice).
 struct PromptBanner: View {
     let prompt: PromptKind
+    /// Element glow for the border (design-plan.md §3.1) so the banner tracks the scene tint.
+    var tint: Color? = nil
 
     var body: some View {
         Text(text)
@@ -148,7 +150,7 @@ struct PromptBanner: View {
             // banner wraps to several lines, the capsule grows tall, and its semicircular
             // ends balloon inward and clip the text. A fixed-radius rounded rect has no
             // such failure mode regardless of how many lines the text wraps to.
-            .background(RoundedRectangle(cornerRadius: Theme.Radius.r4).fill(Color.black.opacity(0.3)))
+            .wpGlass(cornerRadius: Theme.Radius.r4, tint: tint)
             .accessibilityIdentifier("game-prompt")
     }
 
@@ -218,7 +220,7 @@ struct RoundTimerBadge: View {
             .font(.caption).fontWeight(.semibold).monospacedDigit()
             .foregroundStyle(isUrgent ? Theme.Palette.warning : .white.opacity(0.8))
             .padding(.horizontal, Theme.Space.s3).padding(.vertical, 4)
-            .background(Capsule().fill(Color.black.opacity(0.3)))
+            .wpGlassCapsule(tint: isUrgent ? Theme.Palette.warning : nil)
             .accessibilityLabel("Round time remaining: \(label)")
             .accessibilityIdentifier("game-round-timer")
     }

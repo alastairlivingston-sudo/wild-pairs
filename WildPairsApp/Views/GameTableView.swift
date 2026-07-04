@@ -36,6 +36,9 @@ struct GameTableView: View {
         guard vs.phase != .playing, vs.localTeamWon == false, !settings.userSettings.reducedVisualEffects else { return 1 }
         return 0
     }
+    /// Chrome accent for the active element (design-plan.md §2.1) — the prompt border and
+    /// active-seat glow follow the scene tint so the whole table reads as one environment.
+    private var elementGlow: Color { Theme.Element.scene(for: vs.currentColour).glow }
 
     var body: some View {
         NavigationStack {
@@ -65,7 +68,7 @@ struct GameTableView: View {
                                           availableWidth - Theme.Space.s4 * 2)
 
                 ZStack {
-                    TableBackground().ignoresSafeArea()
+                    TableBackground(element: vs.currentColour).ignoresSafeArea()
 
                     VStack(spacing: 0) {
                         scoreBar.padding(.top, spacing)
@@ -89,7 +92,8 @@ struct GameTableView: View {
                                     if let roundRemaining = vm.roundTimeRemaining {
                                         RoundTimerBadge(remaining: roundRemaining, total: vm.roundTimeLimit)
                                     }
-                                    PromptBanner(prompt: vs.prompt).padding(.horizontal, Theme.Space.s4)
+                                    PromptBanner(prompt: vs.prompt, tint: elementGlow)
+                                        .padding(.horizontal, Theme.Space.s4)
                                     // Only surface the per-move countdown in the final stretch — a
                                     // constant draining bar made calm play feel rushed. With the
                                     // lenient limit this appears only if you've genuinely paused,
@@ -155,7 +159,7 @@ struct GameTableView: View {
                 .font(.caption).fontWeight(.semibold).foregroundStyle(.secondary)
                 .lineLimit(1).minimumScaleFactor(0.5)
                 .padding(.horizontal, Theme.Space.s2).padding(.vertical, Theme.Space.s1)
-                .background(Capsule().fill(.white.opacity(0.08)))
+                .wpGlassCapsule()
 
             Spacer(minLength: Theme.Space.s2)
 
@@ -172,14 +176,14 @@ struct GameTableView: View {
                 }
             }
             .padding(.horizontal, Theme.Space.s3).padding(.vertical, Theme.Space.s1)
-            .background(Capsule().fill(.white.opacity(0.08)))
+            .wpGlassCapsule()
 
             Spacer(minLength: Theme.Space.s2)
 
             Button { showPause = true; vm.pause() } label: {
                 Image(systemName: "pause.fill").font(.footnote)
                     .frame(width: 28, height: 28)
-                    .background(Circle().fill(.white.opacity(0.08)))
+                    .wpGlassCircle()
                     .frame(minWidth: 44, minHeight: 44)
                     .contentShape(Rectangle())
             }
@@ -207,11 +211,13 @@ struct GameTableView: View {
     /// team's hands, shown only for that team since it's derived purely from already-visible
     /// hands (the local player's own + the open partner hand) and never leaks opponent info.
     private var pointsAtRiskPill: some View {
-        Text("Team at risk: \(vs.localTeamPointsAtRisk) pts")
+        // "On the table", not "Team at risk" — the original critique flagged the old wording
+        // as alarming during calm play (design-plan.md §3.1).
+        Text("On the table: \(vs.localTeamPointsAtRisk) pts")
             .font(.caption).fontWeight(.semibold)
             .foregroundStyle(.secondary)
             .padding(.horizontal, Theme.Space.s3).padding(.vertical, Theme.Space.s1)
-            .background(Capsule().fill(.white.opacity(0.06)))
+            .wpGlassCapsule()
             .accessibilityLabel("Your team would lose \(vs.localTeamPointsAtRisk) points if you lost the round now.")
     }
 
@@ -234,7 +240,7 @@ struct GameTableView: View {
                            cardBackSize: seatBackSize, openHandCardSize: openHandCardSize,
                            maxFanWidth: maxWidth,
                            reducedMotion: reducedMotion, isThinking: partner.id == vm.thinkingPlayerID,
-                           thinkingDotCount: thinkingDotCount)
+                           thinkingDotCount: thinkingDotCount, accent: elementGlow)
         }
     }
 
@@ -276,6 +282,7 @@ struct GameTableView: View {
             seat: seat, cardBackSize: backSize, maxFanWidth: width - Theme.Space.s2 * 2,
             reducedMotion: reducedMotion,
             isThinking: seat.id == vm.thinkingPlayerID, thinkingDotCount: thinkingDotCount,
+            accent: elementGlow,
             onCatchSolo: seat.id == vs.catchableSoloPlayerID ? { vm.callOut(seat.id) } : nil
         )
         .frame(width: width)

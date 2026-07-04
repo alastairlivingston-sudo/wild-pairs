@@ -113,6 +113,82 @@ enum Theme {
         static func base(_ scheme: ColorScheme) -> Color { scheme == .dark ? baseDark : baseLight }
         static func highlight(_ scheme: ColorScheme) -> Color { scheme == .dark ? baseDarkHighlight : baseLightHighlight }
     }
+
+    // MARK: Element scene palettes (Phase 12 Elemental Live, design-plan.md §2.1) — the table
+    // scene re-tints to the active colour; menus and wild resolution use `neutral`.
+    enum Element {
+        struct ScenePalette: Equatable {
+            let base: Color
+            let auroraA: Color
+            let auroraB: Color
+            let glow: Color
+        }
+
+        static let neutral = ScenePalette(base: Felt.baseDark,
+                                          auroraA: Palette.accent,
+                                          auroraB: Color(hex: 0x7A5CFF),
+                                          glow: Palette.accent)
+
+        static func scene(for colour: CardColour?) -> ScenePalette {
+            switch colour {
+            case .crimson: return ScenePalette(base: Color(hex: 0x1F0A06), auroraA: Color(hex: 0xFF5A3C),
+                                               auroraB: Color(hex: 0xFF8A5B), glow: Color(hex: 0xFF8A5B))
+            case .cobalt:  return ScenePalette(base: Color(hex: 0x050F22), auroraA: Color(hex: 0x2F8BFF),
+                                               auroraB: Color(hex: 0x4FD2F0), glow: Color(hex: 0x4FD2F0))
+            case .jade:    return ScenePalette(base: Color(hex: 0x06190F), auroraA: Color(hex: 0x16E89A),
+                                               auroraB: Color(hex: 0x3CFFB4), glow: Color(hex: 0x5EFFBF))
+            case .amber:   return ScenePalette(base: Color(hex: 0x1C1405), auroraA: Color(hex: 0xFFC83D),
+                                               auroraB: Color(hex: 0xFFE08A), glow: Color(hex: 0xFFD34D))
+            case nil:      return neutral
+            }
+        }
+    }
+}
+
+// MARK: - Glass surface (design-plan.md §2.2) — the single chrome recipe: material base,
+// dark wash, top-lit rim, optional element tint. Reduced Visual Effects swaps the material
+// for a flat dark fill so no blur or transparency remains.
+
+struct GlassSurface: ViewModifier {
+    let shape: AnyShape
+    var tint: Color? = nil
+    @Environment(\.reducedVisualEffects) private var reducedVisualEffects
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                if reducedVisualEffects {
+                    shape.fill(Color.black.opacity(0.45))
+                } else {
+                    ZStack {
+                        shape.fill(.ultraThinMaterial)
+                        shape.fill(Color.black.opacity(0.25))
+                    }
+                }
+            }
+            .overlay {
+                shape.stroke(
+                    LinearGradient(
+                        colors: [(tint ?? .white).opacity(tint == nil ? 0.26 : 0.5),
+                                 (tint ?? .white).opacity(tint == nil ? 0.06 : 0.16)],
+                        startPoint: .top, endPoint: .bottom),
+                    lineWidth: 1)
+            }
+            .shadow(color: Theme.Elevation.resting.color, radius: Theme.Elevation.resting.radius,
+                    x: Theme.Elevation.resting.x, y: Theme.Elevation.resting.y)
+    }
+}
+
+extension View {
+    func wpGlass(cornerRadius: CGFloat = Theme.Radius.r4, tint: Color? = nil) -> some View {
+        modifier(GlassSurface(shape: AnyShape(RoundedRectangle(cornerRadius: cornerRadius)), tint: tint))
+    }
+    func wpGlassCapsule(tint: Color? = nil) -> some View {
+        modifier(GlassSurface(shape: AnyShape(Capsule()), tint: tint))
+    }
+    func wpGlassCircle(tint: Color? = nil) -> some View {
+        modifier(GlassSurface(shape: AnyShape(Circle()), tint: tint))
+    }
 }
 
 // MARK: - Button styles (§9)
@@ -190,6 +266,25 @@ extension ButtonStyle where Self == DestructiveButtonStyle {
     static var wpDestructive: DestructiveButtonStyle { DestructiveButtonStyle() }
 }
 
+/// Glass menu button (design-plan.md §3.2) — replaces the outline secondary style on menu
+/// screens so secondary actions sit on the same chrome recipe as the rest of the HUD.
+struct GlassButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.body.weight(.semibold))
+            .frame(minHeight: 50)
+            .frame(maxWidth: .infinity)
+            .foregroundStyle(Theme.Palette.cream)
+            .wpGlass(cornerRadius: Theme.Radius.r2)
+            .opacity(configuration.isPressed ? 0.7 : 1)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+    }
+}
+
+extension ButtonStyle where Self == GlassButtonStyle {
+    static var wpGlassButton: GlassButtonStyle { GlassButtonStyle() }
+}
+
 /// Press-scale for the elemental colour-picker tiles (Phase 11 B) — same press feedback
 /// language as the pill buttons, applied to a square swatch instead.
 struct ElementTileButtonStyle: ButtonStyle {
@@ -235,7 +330,7 @@ struct NeonSegmented<T: Hashable>: View {
                 }
             }
             .padding(Theme.Space.s1)
-            .background(RoundedRectangle(cornerRadius: Theme.Radius.r3).fill(Theme.Palette.surface.opacity(0.4)))
+            .wpGlass(cornerRadius: Theme.Radius.r3)
             if let blurb {
                 Text(blurb).font(.footnote).foregroundStyle(.secondary)
             }

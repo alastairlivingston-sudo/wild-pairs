@@ -21,6 +21,9 @@ struct PlayerZoneView: View {
     var reducedMotion: Bool = false
     var isThinking: Bool = false
     var thinkingDotCount: Int = 3
+    /// Element-tinted chrome accent (design-plan.md §3.1): the active seat's ring and glow
+    /// follow the table's current-colour scene rather than the fixed teal.
+    var accent: Color = Theme.Palette.accent
     var onCatchSolo: (() -> Void)? = nil
 
     /// Drives the active-player glow pulse (ux-spec.md §10 "Active player highlight": a
@@ -30,12 +33,45 @@ struct PlayerZoneView: View {
     private var isOpponentAvatar: Bool { seat.visiblePartnerHand == nil }
 
     var body: some View {
+        seatChrome
+            .shadow(color: glowColor, radius: glowRadius)
+            .animation(.spring(response: 0.5, dampingFraction: 0.6), value: seat.needsSoloCall)
+            .onAppear { updateGlow(seat.isCurrentPlayer) }
+            .onChange(of: seat.isCurrentPlayer) { _, isCurrent in updateGlow(isCurrent) }
+            // `.combine` merges the whole zone into a single VoiceOver element, which would
+            // otherwise swallow the catch-out button (it stops being independently reachable
+            // by swipe navigation). Forward the same action to the combined element's double
+            // tap instead, so catching a Solo! call still works for VoiceOver users.
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(accessibilityLabel)
+            .accessibilityHint(catchSoloHint)
+            .accessibilityAddTraits(canCatchSolo ? .isButton : [])
+            .onTapGesture { if canCatchSolo { onCatchSolo?() } }
+            .accessibilityIdentifier("seat-\(seat.seatPosition)")
+    }
+
+    /// Opponent avatars float on the scene (prototype 04); only the partner's open-hand
+    /// panel gets the boxed glass surface — a box around a lone avatar read as dead weight.
+    @ViewBuilder private var seatChrome: some View {
+        if isOpponentAvatar {
+            seatContent
+        } else {
+            seatContent
+                .wpGlass(cornerRadius: Theme.Radius.r3, tint: seat.isCurrentPlayer ? accent : nil)
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.Radius.r3)
+                        .strokeBorder(seat.isCurrentPlayer ? accent : .clear, lineWidth: 2)
+                )
+        }
+    }
+
+    private var seatContent: some View {
         VStack(spacing: Theme.Space.s1) {
             if !isOpponentAvatar {
                 HStack(spacing: Theme.Space.s2) {
                     Text(seat.name)
                         .font(.subheadline).fontWeight(.semibold)
-                        .foregroundStyle(seat.isCurrentPlayer ? Theme.Palette.accent : .secondary)
+                        .foregroundStyle(seat.isCurrentPlayer ? accent : .secondary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
                     countBadge
@@ -52,7 +88,7 @@ struct PlayerZoneView: View {
                 avatarSeat
                 Text(seat.name)
                     .font(.caption).fontWeight(.semibold)
-                    .foregroundStyle(seat.isCurrentPlayer ? Theme.Palette.accent : .secondary)
+                    .foregroundStyle(seat.isCurrentPlayer ? accent : .secondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
             }
@@ -61,34 +97,11 @@ struct PlayerZoneView: View {
         }
         .padding(Theme.Space.s2)
         .frame(maxWidth: maxFanWidth.map { $0 + Theme.Space.s2 * 2 })
-        .background(
-            RoundedRectangle(cornerRadius: Theme.Radius.r3)
-                .fill(Color.black.opacity(seat.isCurrentPlayer ? 0.32 : 0.2))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.Radius.r3)
-                .strokeBorder(seat.isCurrentPlayer ? Theme.Palette.accent : Color.white.opacity(0.12),
-                              lineWidth: seat.isCurrentPlayer ? 2 : 1)
-        )
-        .shadow(color: glowColor, radius: glowRadius)
-        .animation(.spring(response: 0.5, dampingFraction: 0.6), value: seat.needsSoloCall)
-        .onAppear { updateGlow(seat.isCurrentPlayer) }
-        .onChange(of: seat.isCurrentPlayer) { _, isCurrent in updateGlow(isCurrent) }
-        // `.combine` merges the whole zone into a single VoiceOver element, which would
-        // otherwise swallow the catch-out button (it stops being independently reachable
-        // by swipe navigation). Forward the same action to the combined element's double
-        // tap instead, so catching a Solo! call still works for VoiceOver users.
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilityLabel)
-        .accessibilityHint(catchSoloHint)
-        .accessibilityAddTraits(canCatchSolo ? .isButton : [])
-        .onTapGesture { if canCatchSolo { onCatchSolo?() } }
-        .accessibilityIdentifier("seat-\(seat.seatPosition)")
     }
 
     private var glowColor: Color {
         guard seat.isCurrentPlayer else { return .clear }
-        return Theme.Palette.accent.opacity(reducedMotion ? 0.3 : (glowPulse ? 0.6 : 0.15))
+        return accent.opacity(reducedMotion ? 0.3 : (glowPulse ? 0.6 : 0.15))
     }
     private var glowRadius: CGFloat {
         guard seat.isCurrentPlayer else { return 0 }
@@ -147,20 +160,17 @@ struct PlayerZoneView: View {
     /// Neon Arcade): a single glanceable circle reads faster than counting overlapping backs.
     private var avatarSeat: some View {
         ZStack(alignment: .bottomTrailing) {
-            Circle()
-                .fill(Theme.Palette.surface.opacity(0.5))
+            Text(seat.name.first.map(String.init) ?? "?")
+                .font(.title3).fontWeight(.bold)
+                .foregroundStyle(Theme.Palette.cream)
+                .frame(width: 54, height: 54)
+                .wpGlassCircle(tint: (seat.isCurrentPlayer || isThinking) ? accent : nil)
                 .overlay(
                     Circle().strokeBorder(
-                        (seat.isCurrentPlayer || isThinking) ? Theme.Palette.accent : .white.opacity(0.22),
+                        (seat.isCurrentPlayer || isThinking) ? accent : .white.opacity(0.22),
                         lineWidth: (seat.isCurrentPlayer || isThinking) ? 2 : 1.5)
                 )
-                .frame(width: 54, height: 54)
-                .overlay(
-                    Text(seat.name.first.map(String.init) ?? "?")
-                        .font(.title3).fontWeight(.bold)
-                        .foregroundStyle(Theme.Palette.cream)
-                )
-                .shadow(color: (isThinking && !reducedMotion) ? Theme.Palette.accent.opacity(0.5) : .clear, radius: 10)
+                .shadow(color: (isThinking && !reducedMotion) ? accent.opacity(0.5) : .clear, radius: 10)
 
             Text("\(seat.handCount)")
                 .font(.caption2).fontWeight(.bold).monospacedDigit()

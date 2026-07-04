@@ -151,7 +151,11 @@ struct RoundEndView: View {
             .padding(Theme.Space.s6)
             .background(
                 RoundedRectangle(cornerRadius: Theme.Radius.r4).fill(Theme.Felt.base(.dark))
-                    .shadow(color: (didWin && !reducedMotion) ? Theme.Palette.accent.opacity(0.4) : .clear, radius: 24)
+                    .overlay(RoundedRectangle(cornerRadius: Theme.Radius.r4)
+                        .strokeBorder(.white.opacity(0.14), lineWidth: 1))
+                    // Win wash in the local team's colour (design-plan.md §3.4) so victory
+                    // reads as *your* moment, not generic chrome.
+                    .shadow(color: (didWin && !reducedMotion) ? Theme.Palette.teamA.opacity(0.45) : .clear, radius: 30)
             )
             .padding(Theme.Space.s5)
             .shadow(color: .black.opacity(0.2), radius: 16, y: 4)
