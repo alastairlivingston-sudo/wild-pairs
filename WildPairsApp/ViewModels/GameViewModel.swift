@@ -317,9 +317,9 @@ final class GameViewModel: ObservableObject {
 
     private func soloAnnouncement(for name: String) -> String {
         switch relation(toPlayerNamed: name) {
-        case "you":     return "Solo called! You have one card remaining."
-        case "partner": return "Your partner called Solo! They have one card remaining."
-        default:        return "\(name) called Solo! They have one card remaining."
+        case "you":     return "Solo called!"
+        case "partner": return "Your partner called Solo!"
+        default:        return "\(name) called Solo!"
         }
     }
 

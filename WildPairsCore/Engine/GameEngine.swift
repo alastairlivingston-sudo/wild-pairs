@@ -10,6 +10,26 @@ public struct GameEngine {
         state: GameState,
         action: GameAction
     ) -> (GameState, [GameEffect]) {
+        let (next, effects) = reduceCore(state: state, action: action)
+        return (normaliseSoloFlags(next), effects)
+    }
+
+    /// Solo! declarations only mean something at one or two cards — any hand that grows
+    /// past two (penalty draws, swaps, Team Play) invalidates a standing declaration or
+    /// a one-card grace, forcing a fresh declaration next time.
+    private static func normaliseSoloFlags(_ state: GameState) -> GameState {
+        var s = state
+        for i in s.players.indices where s.players[i].hand.count > 2 {
+            s.players[i].hasCalledSolo = false
+            s.players[i].soloGraceAtOne = nil
+        }
+        return s
+    }
+
+    private static func reduceCore(
+        state: GameState,
+        action: GameAction
+    ) -> (GameState, [GameEffect]) {
         switch action {
         case .newGame(let config):
             return handleNewGame(config: config)
@@ -177,14 +197,21 @@ public struct GameEngine {
         // that pushes back above one card is correctly accounted for).
         if s.players[playerIndex].hand.isEmpty {
             s.players[playerIndex].hasFinishedRound = true
+            if checkWin(state: s) != nil {
+                // The round is about to end: deliver any final-card Draw Two/Four penalty
+                // first so the target is scored holding it (it would otherwise be lost —
+                // the colour choice / stack response it normally rides on never happens).
+                effects.append(contentsOf: resolveFinalCardPenalty(
+                    card: card, playedByIndex: playerIndex, in: &s, rng: &rng))
+            }
             if let (finalState, winEffects) = checkWin(state: s) {
                 effects.append(contentsOf: winEffects)
                 effects.append(.triggerAutosave)
                 return (finalState, effects)
             }
         } else if s.players[playerIndex].hand.count == 1 {
-            // AI auto-calls Solo!; the human must call manually.
-            effects.append(contentsOf: applySoloRequirement(toPlayerAt: playerIndex, in: &s))
+            effects.append(contentsOf: applySoloRequirementViaPlay(
+                toPlayerAt: playerIndex, in: &s, rng: &rng))
         }
 
         effects.append(.triggerAutosave)
@@ -372,7 +399,7 @@ public struct GameEngine {
                         return (finalState, effects)
                     }
                 } else if s.players[playerIndex].hand.count == 1 {
-                    effects.append(contentsOf: applySoloRequirement(toPlayerAt: playerIndex, in: &s))
+                    effects.append(contentsOf: applySoloRequirementViaEffect(toPlayerAt: playerIndex, in: &s))
                 }
 
                 s.currentPlayerIndex = GameRules.nextIndex(
@@ -429,10 +456,10 @@ public struct GameEngine {
             s.players[playerIndex].hand = theirHand
             s.players[targetIndex].hand = myHand
 
-            // Re-evaluate Solo! status for both: anyone now at exactly one card
-            // re-incurs the requirement (AI auto-calls; human must call).
+            // Re-evaluate Solo! status for both: anyone now at exactly one card re-incurs
+            // the requirement, with the one-card grace (nobody can pre-declare a swap).
             for idx in [playerIndex, targetIndex] where s.players[idx].hand.count == 1 {
-                effects.append(contentsOf: applySoloRequirement(toPlayerAt: idx, in: &s))
+                effects.append(contentsOf: applySoloRequirementViaEffect(toPlayerAt: idx, in: &s))
             }
 
             effects.append(.animateHandSwap(
@@ -520,16 +547,47 @@ public struct GameEngine {
         return (s, effects)
     }
 
+    // MARK: - Final-card draw penalty
+
+    /// A Draw Two/Draw Four played as the round-winning final card still delivers its
+    /// cards (game-rules.md §Draw Two/§Draw Four): the round would otherwise end before
+    /// the colour choice or stack response ever applied the penalty, silently dropping
+    /// it. The next player draws the full pending stack here and is scored holding it.
+    private static func resolveFinalCardPenalty(
+        card: Card,
+        playedByIndex: Int,
+        in s: inout GameState,
+        rng: inout SeededRNG
+    ) -> [GameEffect] {
+        var penalty = s.pendingDrawCount ?? 0
+        if card.type == .drawFour { penalty += 4 }   // +4 defers its stack add to the colour choice
+        s.pendingDrawCount = nil
+        s.pendingDrawType = nil
+        guard penalty > 0 else { return [] }
+        s.pendingDecision = nil
+        let targetIndex = GameRules.nextIndex(
+            from: playedByIndex, direction: s.turnDirection, playerCount: s.players.count)
+        let drawn = drawCards(count: penalty, into: &s, rng: &rng)
+        s.players[targetIndex].hand.append(contentsOf: drawn)
+        return [.animateCardDraw(toPlayerID: s.players[targetIndex].id, count: penalty)]
+    }
+
     // MARK: - Call Solo
 
     private static func handleCallSolo(
         playerID: UUID,
         state: GameState
     ) -> (GameState, [GameEffect]) {
-        guard let playerIndex = state.players.firstIndex(where: { $0.id == playerID }),
-              state.players[playerIndex].hand.count == 1 else {
+        guard let playerIndex = state.players.firstIndex(where: { $0.id == playerID }) else {
             return (state, [])
         }
+        let player = state.players[playerIndex]
+        // Declare while holding two cards — before playing down to one — or at one card
+        // only within the grace an effect-driven drop grants (game-rules.md §Solo!).
+        let canDeclare = !player.hasCalledSolo
+            && (player.hand.count == 2 || (player.hand.count == 1 && player.soloGraceAtOne == true))
+        guard canDeclare else { return (state, []) }
+
         var s = state
         s.players[playerIndex].hasCalledSolo = true
         let name = s.players[playerIndex].name
@@ -569,20 +627,44 @@ public struct GameEngine {
         ])
     }
 
-    /// Applies the Solo! requirement to a player who just dropped to one card.
-    /// AI players auto-call (matching `game-rules.md` §Solo! Engine Handling); human
-    /// players are flagged as needing to call manually. Returns any effects to emit.
-    private static func applySoloRequirement(
+    /// Solo! handling when a player *plays* down to one card: the declaration must already
+    /// have happened while they held two (handleCallSolo). AI rolls a difficulty-based
+    /// forget chance — a slip leaves it silently catchable; an undeclared human is
+    /// immediately catchable with no grace window (game-rules.md §Solo!).
+    private static func applySoloRequirementViaPlay(
+        toPlayerAt index: Int,
+        in state: inout GameState,
+        rng: inout SeededRNG
+    ) -> [GameEffect] {
+        state.players[index].soloGraceAtOne = nil
+        if state.players[index].hasCalledSolo {
+            return []   // Declared while holding two; already announced then.
+        }
+        if state.players[index].role == .ai {
+            if GameRules.aiForgetsSolo(difficulty: state.players[index].difficulty, rng: &rng) {
+                return []   // Forgot — catchable until its next turn begins.
+            }
+            state.players[index].hasCalledSolo = true
+            return [.announceSolo(playerName: state.players[index].name)]
+        }
+        return [.accessibilityAnnounce(
+            "You did not call Solo before playing — you can be caught until your next turn.")]
+    }
+
+    /// Solo! handling when a card *effect* (Forced Swap, Discard All) drops a player
+    /// straight to one card: no chance to pre-declare existed, so AI auto-calls and a
+    /// human gets a grace window to declare at one card.
+    private static func applySoloRequirementViaEffect(
         toPlayerAt index: Int,
         in state: inout GameState
     ) -> [GameEffect] {
         if state.players[index].role == .ai {
             state.players[index].hasCalledSolo = true
             return [.announceSolo(playerName: state.players[index].name)]
-        } else {
-            state.players[index].hasCalledSolo = false
-            return [.accessibilityAnnounce("Call Solo! You have one card remaining.")]
         }
+        state.players[index].hasCalledSolo = false
+        state.players[index].soloGraceAtOne = true
+        return [.accessibilityAnnounce("Call Solo! You have one card remaining.")]
     }
 
     // MARK: - Team pass (Side-to-Side pre-round)

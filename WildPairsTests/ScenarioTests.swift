@@ -220,7 +220,7 @@ struct ScenarioTests {
 
     // MARK: Solo! mechanic
 
-    @Test("Player calls Solo! when they reach 1 card — flag set, no penalty")
+    @Test("Player declares Solo! at two cards, then plays to one — flag set, no penalty")
     func testSoloCallSetsFlag() {
         let card = CardFactory.number(5, .crimson)
         let state = GameStateBuilder()
@@ -232,34 +232,32 @@ struct ScenarioTests {
             .build()
         let p0id = state.players[0].id
 
-        // Play a card, leaving 1 in hand
-        let (afterPlay, _) = GameEngine.reduce(state: state, action: .playCard(card, playerID: p0id))
-        #expect(afterPlay.players[0].hand.count == 1)
-        #expect(afterPlay.players[0].hasCalledSolo == false)
-
-        // Call Solo!
-        let (afterSolo, _) = GameEngine.reduce(state: afterPlay, action: .callSolo(playerID: p0id))
+        // Phase 13: declare Solo! while holding two cards, then play down to one.
+        let (afterSolo, _) = GameEngine.reduce(state: state, action: .callSolo(playerID: p0id))
         #expect(afterSolo.players[0].hasCalledSolo == true)
-        // No penalty draw
-        #expect(afterSolo.players[0].hand.count == 1)
+
+        let (afterPlay, _) = GameEngine.reduce(state: afterSolo, action: .playCard(card, playerID: p0id))
+        #expect(afterPlay.players[0].hand.count == 1)
+        #expect(afterPlay.players[0].hasCalledSolo == true)
     }
 
-    @Test("Solo! call with > 1 card has no effect")
+    @Test("Solo! call with more than two cards has no effect")
     func testSoloCallIgnoredWithMultipleCards() {
         let state = GameStateBuilder()
             .withPlayers()
             .withCurrentColour(.crimson)
             .withHand(forPlayer: 0, cards: [
                 CardFactory.number(1, .crimson),
-                CardFactory.number(2, .crimson)
+                CardFactory.number(2, .crimson),
+                CardFactory.number(3, .crimson)
             ])
             .withDrawPile([])
             .build()
         let p0id = state.players[0].id
         let (next, _) = GameEngine.reduce(state: state, action: .callSolo(playerID: p0id))
-        // callSolo on a player with >1 card is a no-op
+        // callSolo only means something at two cards (declare) or one (effect-drop grace)
         #expect(next.players[0].hasCalledSolo == false)
-        #expect(next.players[0].hand.count == 2)
+        #expect(next.players[0].hand.count == 3)
     }
 
     // MARK: Multi-turn win scenario

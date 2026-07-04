@@ -101,11 +101,13 @@ struct CardEffectTests {
     @Test("Draw Four sets pendingDecision.colourChoice for playing player")
     func testDrawFourSetsPendingColourChoice() {
         let card = CardFactory.drawFour()
+        // A non-matching keeper card so the +4 is not the final card — a final +4 now
+        // skips the colour choice and applies its penalty directly (Phase 13).
         let state = GameStateBuilder()
             .withPlayers()
             .withCurrentColour(.cobalt)
             .withTopDiscard(CardFactory.number(3, .cobalt))
-            .withHand(forPlayer: 0, cards: [card])
+            .withHand(forPlayer: 0, cards: [card, CardFactory.number(7, .crimson)])
             .withDrawPile((0..<10).map { CardFactory.number($0, .jade) })
             .build()
         let p0id = state.players[0].id
@@ -125,7 +127,7 @@ struct CardEffectTests {
             .withRuleProfile({ var p = RuleProfile.standardTeams(); p.stackDrawCards = false; return p }())
             .withCurrentColour(.cobalt)
             .withTopDiscard(CardFactory.number(3, .cobalt))
-            .withHand(forPlayer: 0, cards: [card])
+            .withHand(forPlayer: 0, cards: [card, CardFactory.number(7, .crimson)])
             .withDrawPile((0..<20).map { CardFactory.number($0 % 10, .jade) })
             .build()
         let p0id = state.players[0].id

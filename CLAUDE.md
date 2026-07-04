@@ -92,9 +92,12 @@ single source of truth for the display name; everywhere else (VoiceOver, UI copy
 it, so no other code needed to change.
 
 ### One-card-left mechanic
-- **"Solo!"** — player must call "Solo!" when they play down to one card
-- If another player calls them out before the next turn starts: +2 draw penalty
-- VoiceOver announcement: "Call Solo! You have one card remaining."
+- **"Solo!"** — player must call "Solo!" *before* playing down to one card (declared while
+  holding two); effect-driven drops to one card (Forced Swap, Discard All) grant a grace
+  window to declare at one card (Phase 13 rule — see `docs/game-rules.md` §Solo!)
+- If another player catches an undeclared one-card player before their next turn starts: +2 draw penalty
+- AI opponents roll a difficulty-based forget chance (Easy 25% … Master never), so catching is a real mechanic
+- VoiceOver announcement (grace case): "Call Solo! You have one card remaining."
 
 ### Game modes
 | ID | Name | Core rule |

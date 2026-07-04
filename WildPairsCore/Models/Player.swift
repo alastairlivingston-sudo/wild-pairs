@@ -127,8 +127,14 @@ public struct Player: Codable, Equatable, Identifiable, Sendable {
 
     // MARK: Game State Flags
 
-    /// True once this player has called "Solo!" to declare they have one card left.
+    /// True once this player has called "Solo!" — declared while holding two cards, before
+    /// playing down to one (game-rules.md §Solo!).
     public var hasCalledSolo: Bool
+
+    /// Grace marker: this player dropped to one card via a card *effect* (Forced Swap,
+    /// Discard All) rather than by playing, so they may still declare Solo! at one card.
+    /// Optional so snapshots saved before Phase 13 decode without migration.
+    public var soloGraceAtOne: Bool?
 
     /// True if this player has played their last card and exited this round.
     public var hasFinishedRound: Bool
@@ -156,6 +162,7 @@ public struct Player: Codable, Equatable, Identifiable, Sendable {
         seatPosition: Int,
         hand: [Card] = [],
         hasCalledSolo: Bool = false,
+        soloGraceAtOne: Bool? = nil,
         hasFinishedRound: Bool = false
     ) {
         self.id = id
@@ -166,6 +173,7 @@ public struct Player: Codable, Equatable, Identifiable, Sendable {
         self.seatPosition = seatPosition
         self.hand = hand
         self.hasCalledSolo = hasCalledSolo
+        self.soloGraceAtOne = soloGraceAtOne
         self.hasFinishedRound = hasFinishedRound
     }
 }

@@ -38,15 +38,26 @@ struct GameViewStateTests {
         #expect(vs.localHand.allSatisfy { !$0.isPlayable })
     }
 
-    @Test("Solo button is visible only when local holds one card and has not called")
+    @Test("Solo button shows at two cards on your turn, and at one card only with effect-drop grace")
     func testSoloButtonVisibility() {
-        let state = GameStateBuilder()
+        var state = GameStateBuilder()
             .withPlayers()
             .withCurrentColour(.crimson)
-            .withHand(forPlayer: 0, cards: [CardFactory.number(5, .crimson)])
+            .withCurrentPlayer(0)
+            .withHand(forPlayer: 0, cards: [CardFactory.number(5, .crimson),
+                                            CardFactory.number(2, .cobalt)])
             .build()
-        let vs = GameViewState(from: state, localPlayerID: state.players[0].id)
-        #expect(vs.soloButtonVisible == true)
+        let localID = state.players[0].id
+        #expect(GameViewState(from: state, localPlayerID: localID).soloButtonVisible == true,
+                "Two cards on the local player's turn — declare before playing")
+
+        state.players[0].hand = [CardFactory.number(5, .crimson)]
+        #expect(GameViewState(from: state, localPlayerID: localID).soloButtonVisible == false,
+                "One card after a normal play — too late to declare")
+
+        state.players[0].soloGraceAtOne = true
+        #expect(GameViewState(from: state, localPlayerID: localID).soloButtonVisible == true,
+                "One card via an effect drop — grace declaration allowed")
     }
 
     @Test("Match hint names the colour and the top number")

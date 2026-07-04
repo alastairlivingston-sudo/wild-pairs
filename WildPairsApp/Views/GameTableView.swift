@@ -203,7 +203,7 @@ struct GameTableView: View {
             .buttonStyle(.borderedProminent)
             .tint(Theme.Palette.warning)
             .accessibilityIdentifier("game-solo-button")
-            .accessibilityHint("You have one card remaining. Call Solo to avoid a penalty.")
+            .accessibilityHint("Call Solo before playing your second-to-last card, or you can be caught for a penalty.")
         }
     }
 
@@ -276,7 +276,8 @@ struct GameTableView: View {
             drawPileCount: vs.drawPileCount, pendingDrawCount: vs.pendingDrawCount,
             turnDirection: vs.turnDirection,
             canDraw: vs.isLocalPlayerTurn, showColourName: showColourName, showPattern: showPattern,
-            reducedMotion: reducedMotion, cardSize: size, onDraw: vm.drawCard
+            reducedMotion: reducedMotion, cardSize: size,
+            colourChoicePending: vs.colourChoicePending, onDraw: vm.drawCard
         )
     }
 

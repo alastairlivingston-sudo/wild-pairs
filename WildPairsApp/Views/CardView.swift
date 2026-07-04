@@ -18,10 +18,15 @@ struct CardView: View {
     /// partner's open hand and the discard pile's top card are informational, not actionable.
     var announcePlayability: Bool = false
     var reducedMotion: Bool = false
+    /// Once a wild's colour has been chosen, the face re-prints in that colour so the
+    /// required colour is unmistakable (Phase 13); nil renders the unresolved charcoal wild.
+    var wildTint: CardColour? = nil
 
     @Environment(\.colorScheme) private var scheme
 
-    private var isWildStock: Bool { card.colour == nil }
+    /// The colour the face prints in — the card's own, or a resolved wild's chosen tint.
+    private var displayColour: CardColour? { card.colour ?? wildTint }
+    private var isWildStock: Bool { displayColour == nil }
     /// Real playing cards show both corner indices (top-left + mirrored bottom-right) at any
     /// size large enough to render them legibly; smaller cards show just the top-left index.
     private var showSecondCorner: Bool { size.width >= 46 }
@@ -81,8 +86,8 @@ struct CardView: View {
 
     /// Saturated three-stop print gradient: lit top-left, rich centre, deepened bottom-right.
     private var faceGradient: LinearGradient {
-        let base = card.colour?.fillColor(scheme) ?? Color(hex: 0x232030)
-        let highlight = card.colour?.highlightColor(scheme) ?? Color(hex: 0x3A3550)
+        let base = displayColour?.fillColor(scheme) ?? Color(hex: 0x232030)
+        let highlight = displayColour?.highlightColor(scheme) ?? Color(hex: 0x3A3550)
         return LinearGradient(
             colors: [highlight, base, base.blended(toward: .black, amount: 0.28)],
             startPoint: .topLeading, endPoint: .bottomTrailing)
@@ -90,7 +95,7 @@ struct CardView: View {
 
     /// Large tilted suit mark printed as a tonal watermark behind the content.
     @ViewBuilder private var ghostWatermark: some View {
-        if let colour = card.colour {
+        if let colour = displayColour {
             SuitSymbol(colour: colour, lineWidth: max(1.5, size.width * 0.05))
                 .frame(width: size.width * 0.66, height: size.width * 0.66)
                 .foregroundStyle(.white.opacity(0.14))
@@ -227,7 +232,7 @@ struct CardView: View {
     /// Suit-coloured glow on playable/selected cards; falls back to a subtle resting shadow
     /// (and under Reduced Visual Effects, since glow is a pure decoration with no information).
     private var hasGlow: Bool { (isPlayable || isSelected) && !reducedMotion }
-    private var glowTint: Color { Theme.Element.scene(for: card.colour).glow }
+    private var glowTint: Color { Theme.Element.scene(for: displayColour).glow }
     private var shadowColor: Color { hasGlow ? glowTint.opacity(0.55) : .black.opacity(isSelected ? 0.45 : 0.32) }
     private var shadowRadius: CGFloat { hasGlow ? (isSelected ? 14 : 10) : (isSelected ? 10 : 4) }
     private var shadowY: CGFloat { hasGlow ? 0 : (isSelected ? 4 : 2) }

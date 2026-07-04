@@ -259,6 +259,10 @@ Change Colour cards have no base colour. After playing, the player selects Fire,
 
 If draw stacking is enabled (house rule), the next player may play their own Draw Two (or Draw Four) to pass the cumulative penalty further down the chain.
 
+**Final-card rule:** a Draw Two played as the winner's last card still delivers its penalty —
+the next player draws the full pending amount before the round is scored, so the winning team's
+score includes those cards.
+
 ### Draw Four (wild)
 
 | Property | Value |
@@ -269,6 +273,7 @@ If draw stacking is enabled (house rule), the next player may play their own Dra
 | Effect | Player chooses new active colour; the next player draws 4 cards and loses their turn |
 | Solo!/penalty interaction | Normal for the player playing it; targeted player draws 4 |
 | VoiceOver label | "Draw Four — choose new colour" |
+| Final-card rule | Played as the winner's last card, the colour choice is skipped (irrelevant — the round ends) but the next player still draws 4 plus any pending stack before scoring |
 | In-app rules text | "Play only when you have no other matching card (unless the 'Draw Four Anytime' house rule is on). Choose the new colour. The next player draws 4 cards and loses their turn." |
 
 ### Discard All
@@ -458,27 +463,40 @@ The game ends when:
 
 ## Solo! Mechanic
 
-### Rule
+### Rule (Phase 13 revision — declare before the play)
 
-When a player plays a card that reduces their hand to exactly **one card**, they must declare "Solo!" before the next player takes any action (including drawing).
+A player must declare "Solo!" **while still holding two cards, before playing the card that
+takes them down to one**. Arriving at one card without having declared makes the player
+immediately catchable — there is no post-play grace for a normal play.
+
+**Effect-drop grace:** when a card *effect* (Forced Swap, or Discard All leaving exactly one
+card) drops a player straight to one card, no pre-declaration was possible, so that player may
+still declare "Solo!" at one card until caught or until their next turn begins.
+
+A declaration is invalidated whenever the declarer's hand grows above two cards (penalty draws,
+swaps, Team Play) — they must declare again next time they are about to go to one card.
 
 ### Penalty
 
-If a player fails to call "Solo!" and any other player notices before the Solo!-holding player's next turn begins, the caught player draws **2 cards** as a penalty.
+If a player reaches one card undeclared and any other player catches them before the
+Solo!-holding player's next turn begins, the caught player draws **2 cards** as a penalty.
 
 The window for catching a Solo! failure closes when:
 - The Solo!-holding player begins their next turn (draws or plays their next card), or
-- The round ends.
+- The round ends (a player who plays their final card uncaught has escaped).
 
 ### Engine Handling
 
 The app tracks Solo! status automatically:
-- When a player's hand count drops to 1, the engine flags that player as needing a Solo! declaration.
-- For human players: a "Solo!" button appears (and VoiceOver announces the prompt). The human must tap it within the timeout window. **The call is manual — it is never fired automatically for the human player.**
-- For AI players: the AI automatically calls Solo! with a short simulated delay (to feel natural).
-- If the human fails to tap Solo! within the timeout, the penalty is applied automatically.
-
-**Solo! timeout default: 5 seconds.** This is the value returned by all `RuleProfile` factory methods. It is configurable via `RuleProfile.soloCallTimeoutSeconds`; future house-rule UI may expose it. A timeout of 0 means no time limit (but the penalty still applies if an opponent calls the catch before the next turn).
+- For human players: the "Solo!" button appears on their turn while they hold exactly two
+  cards (declare, then play), and — grace case only — at one card after an effect drop.
+  **The call is manual — it is never fired automatically for the human player.**
+- For AI players: the AI declares as it plays its second-to-last card, but rolls a
+  difficulty-based forget chance (`GameRules.aiSoloForgetChance`: Easy 25%, Medium 15%,
+  Hard 8%, Expert 3%, Master never) — a forgetful AI is silently catchable via its seat's
+  "Solo?" badge until its next turn.
+- Effect drops (Forced Swap / Discard All to one card): AI auto-declares; the human gets the
+  one-card grace window and the VoiceOver prompt "Call Solo! You have one card remaining."
 
 ### Solo! Disabled (House Rule)
 

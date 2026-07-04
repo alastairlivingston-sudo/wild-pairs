@@ -19,7 +19,13 @@ struct TableCenterView: View {
     var showPattern: Bool = false
     var reducedMotion: Bool = false
     var cardSize: CGSize = Theme.CardSize.regularHand
+    /// True while a wild on top still awaits its colour choice — the resolved-wild tint
+    /// (Phase 13) is held back until the colour is actually chosen.
+    var colourChoicePending: Bool = false
     let onDraw: () -> Void
+
+    /// Escalating "+N" pop shown when the pending draw stack grows (Phase 13).
+    @State private var stackPop: Int?
 
     @Environment(\.colorScheme) private var scheme
     // ux-spec.md §8 "Current colour indicator": pulses (scale 1.0 → 1.08 → 1.0) when the
@@ -48,6 +54,16 @@ struct TableCenterView: View {
         }
         .onChange(of: currentColour) { _, _ in pulseColour() }
         .onChange(of: turnDirection) { _, _ in rotateArrow() }
+        .onChange(of: pendingDrawCount) { old, new in
+            guard let new, new > (old ?? 0) else { return }
+            popStack(to: new)
+        }
+        .overlay {
+            if let count = stackPop {
+                StackPopBadge(count: count, reducedMotion: reducedMotion)
+                    .transition(reducedMotion ? .opacity : .scale(scale: 0.4).combined(with: .opacity))
+            }
+        }
         .onAppear { if arrowAngle == nil { arrowAngle = turnDirection == .clockwise ? 0 : 180 } }
     }
 
@@ -89,9 +105,13 @@ struct TableCenterView: View {
             ZStack {
                 discardGhost(rotation: -6, x: -3, y: 2)
                 discardGhost(rotation: 4, x: 3, y: 1)
+                // A resolved wild re-prints in the chosen colour (Phase 13) — the tint is
+                // held back while the colour choice is still pending.
                 CardView(card: top, size: cardSize, showColourName: showColourName, showPattern: showPattern,
-                         reducedMotion: reducedMotion)
+                         reducedMotion: reducedMotion,
+                         wildTint: (top.isWild && !colourChoicePending) ? currentColour : nil)
                     .scaleEffect(colourPulse ? 1.08 : 1.0)
+                    .animation(reducedMotion ? nil : Theme.Motion.moderate, value: colourChoicePending)
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Discard pile. Top card: \(discardCardLabel(top)). Current colour: \(currentColour.displayName).")
@@ -166,9 +186,41 @@ struct TableCenterView: View {
         withAnimation(.easeInOut(duration: 0.15).delay(0.15)) { colourPulse = false }
     }
 
+    private func popStack(to count: Int) {
+        withAnimation(reducedMotion ? nil : Theme.Motion.celebration) { stackPop = count }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
+            if stackPop == count {
+                withAnimation(reducedMotion ? nil : Theme.Motion.moderate) { stackPop = nil }
+            }
+        }
+    }
+
     private func rotateArrow() {
         let target = turnDirection == .clockwise ? 0.0 : 180.0
         guard !reducedMotion else { arrowAngle = target; return }
         withAnimation(.easeInOut(duration: 0.3)) { arrowAngle = target }
+    }
+}
+
+/// The escalating draw-stack callout: "+4", "+8"… pops over the table centre as the
+/// pending penalty grows, so a stacking war reads as one at a glance (Phase 13).
+private struct StackPopBadge: View {
+    let count: Int
+    let reducedMotion: Bool
+
+    var body: some View {
+        Text("+\(count)")
+            .font(.system(size: 40, weight: .black, design: .rounded))
+            .foregroundStyle(.white)
+            .shadow(color: .black.opacity(0.4), radius: 0, x: 1.5, y: 2)
+            .padding(.horizontal, Theme.Space.s4).padding(.vertical, Theme.Space.s1)
+            .background(
+                Capsule().fill(
+                    LinearGradient(colors: [Theme.Palette.warning, Color(hex: 0xB56A00)],
+                                   startPoint: .top, endPoint: .bottom))
+            )
+            .shadow(color: reducedMotion ? .clear : Theme.Palette.warning.opacity(0.6), radius: 14)
+            .accessibilityLabel("Draw stack is now \(count) cards")
+            .allowsHitTesting(false)
     }
 }

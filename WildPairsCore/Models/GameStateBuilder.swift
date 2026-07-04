@@ -88,6 +88,18 @@ public final class GameStateBuilder {
         return self
     }
 
+    /// Replaces the player's difficulty. Call before `withHand` — the player is rebuilt,
+    /// which resets hand and flags (the id changes too; fetch ids from the built state).
+    @discardableResult
+    public func withDifficulty(_ difficulty: Difficulty, forPlayer seatIndex: Int) -> GameStateBuilder {
+        guard players.indices.contains(seatIndex) else { return self }
+        let p = players[seatIndex]
+        players[seatIndex] = Player(name: p.name, role: p.role, teamID: p.teamID,
+                                    difficulty: difficulty, seatPosition: p.seatPosition,
+                                    hand: p.hand)
+        return self
+    }
+
     @discardableResult
     public func withCurrentPlayer(_ seatIndex: Int) -> GameStateBuilder {
         self.currentPlayerIndex = seatIndex

@@ -26,8 +26,11 @@ struct SoloMechanicTests {
     @Test("AI dropping to one card is auto-called (hasCalledSolo == true)")
     func testAIAutoCallsSolo() {
         let played = CardFactory.number(5, .crimson)
+        // Master never rolls a Solo! slip (GameRules.aiSoloForgetChance), so the declare
+        // is deterministic; forgetful behaviour is covered in Phase13RuleTests.
         let state = GameStateBuilder()
             .withPlayers()
+            .withDifficulty(.master, forPlayer: 1)
             .withCurrentColour(.crimson)
             .withTopDiscard(CardFactory.number(5, .crimson))
             .withCurrentPlayer(1)  // seat 1 is AI
@@ -84,12 +87,14 @@ struct SoloMechanicTests {
         let p0id = state.players[0].id
         let p1id = state.players[1].id
 
-        let (afterPlay, _) = GameEngine.reduce(state: state, action: .playCard(played, playerID: p0id))
-        let (afterSolo, _) = GameEngine.reduce(state: afterPlay, action: .callSolo(playerID: p0id))
+        // Phase 13: declare while holding two, then play down to one.
+        let (afterSolo, _) = GameEngine.reduce(state: state, action: .callSolo(playerID: p0id))
         #expect(afterSolo.players[0].hasCalledSolo == true)
+        let (afterPlay, _) = GameEngine.reduce(state: afterSolo, action: .playCard(played, playerID: p0id))
+        #expect(afterPlay.players[0].hasCalledSolo == true)
 
         let (afterCatch, _) = GameEngine.reduce(
-            state: afterSolo,
+            state: afterPlay,
             action: .callOutSolo(targetPlayerID: p0id, callerID: p1id)
         )
         #expect(afterCatch.players[0].hand.count == 1)  // no penalty
@@ -120,6 +125,7 @@ struct SoloMechanicTests {
         let played = CardFactory.number(5, .crimson)
         let state = GameStateBuilder()
             .withPlayers()
+            .withDifficulty(.master, forPlayer: 1)
             .withCurrentColour(.crimson)
             .withTopDiscard(CardFactory.number(5, .crimson))
             .withCurrentPlayer(1)

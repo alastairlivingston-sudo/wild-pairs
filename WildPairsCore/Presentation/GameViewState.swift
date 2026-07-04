@@ -111,10 +111,14 @@ public struct GameViewState: Equatable, Sendable {
     public let roundNumber: Int
 
     public let isLocalPlayerTurn: Bool
-    /// The local player must press "Solo!" (holds one card, not yet called).
+    /// The local player may press "Solo!" — on their turn holding two cards (declare before
+    /// playing down to one), or at one card within an effect-drop grace window.
     public let soloButtonVisible: Bool
     /// True when the engine is waiting for the local player to pick a colour.
     public let awaitingLocalColourChoice: Bool
+    /// True while ANY player still owes a wild its colour choice — the discard's wild face
+    /// stays uncoloured until this clears (Phase 13 resolved-wild tint).
+    public let colourChoicePending: Bool
     /// Non-empty when the engine is waiting for the local player to pick a target.
     public let localTargetChoices: [UUID]
     /// True when the engine is waiting for the local player to submit their Side-to-Side
@@ -180,7 +184,16 @@ public struct GameViewState: Equatable, Sendable {
         }
 
         self.isLocalPlayerTurn = isLocalTurn
-        self.soloButtonVisible = (local?.hand.count == 1) && (local?.hasCalledSolo == false)
+        self.soloButtonVisible = {
+            guard let local, !local.hasCalledSolo else { return false }
+            if local.hand.count == 2 && isLocalTurn { return true }
+            return local.hand.count == 1 && local.soloGraceAtOne == true
+        }()
+        if case .colourChoice = state.pendingDecision {
+            self.colourChoicePending = true
+        } else {
+            self.colourChoicePending = false
+        }
 
         // Pending decisions that belong to the local player
         if case .colourChoice(let pid) = state.pendingDecision, pid == localPlayerID {

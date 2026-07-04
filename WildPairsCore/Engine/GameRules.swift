@@ -86,6 +86,27 @@ public enum GameRules {
         }
     }
 
+    // MARK: Solo! declaration
+
+    /// Probability that an AI at this difficulty forgets to declare Solo! before playing
+    /// down to one card, leaving it catchable for the penalty. Master never slips.
+    public static func aiSoloForgetChance(for difficulty: Difficulty) -> Double {
+        switch difficulty {
+        case .easy:   return 0.25
+        case .medium: return 0.15
+        case .hard:   return 0.08
+        case .expert: return 0.03
+        case .master: return 0
+        }
+    }
+
+    /// Deterministic forget roll — the engine and tests share this exact function so AI
+    /// declaration behaviour is reproducible from the game seed.
+    public static func aiForgetsSolo(difficulty: Difficulty, rng: inout SeededRNG) -> Bool {
+        let roll = Double(rng.next() % 10_000) / 10_000
+        return roll < aiSoloForgetChance(for: difficulty)
+    }
+
     // MARK: Turn ordering
 
     /// Returns the index of the player who acts after `currentIndex`, skipping `skipCount` seats.
