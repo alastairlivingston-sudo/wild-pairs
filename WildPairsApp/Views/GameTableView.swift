@@ -218,6 +218,9 @@ struct GameTableView: View {
             .foregroundStyle(.secondary)
             .padding(.horizontal, Theme.Space.s3).padding(.vertical, Theme.Space.s1)
             .wpGlassCapsule()
+            // Playable hand cards lift by 18% of their height (HandView); on iPad's 150pt
+            // cards that's ~27pt, which reaches this pill without the extra clearance.
+            .padding(.bottom, Theme.Space.s4)
             .accessibilityLabel("Your team would lose \(vs.localTeamPointsAtRisk) points if you lost the round now.")
     }
 

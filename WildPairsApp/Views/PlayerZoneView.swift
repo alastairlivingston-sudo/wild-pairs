@@ -152,8 +152,11 @@ struct PlayerZoneView: View {
                 }
             }
         }
+        // `.offset(x:)` does not contribute to layout, so the frame must be leading-anchored
+        // or the fan renders half a fan-width right of where the layout thinks it is (the
+        // same failure HandView's fan had — see its fan frame comment).
         .frame(width: count > 0 ? cardBackSize.width + step * CGFloat(count - 1) : cardBackSize.width,
-               height: cardBackSize.height)
+               height: cardBackSize.height, alignment: .leading)
     }
 
     /// Opponent avatar + count badge, replacing the repetitive fanned card-backs (Phase 10
@@ -199,8 +202,9 @@ struct PlayerZoneView: View {
                 }
             }
         }
+        // Leading-anchored for the same `.offset(x:)` layout reason as the backs fan above.
         .frame(width: count > 0 ? openHandCardSize.width + step * CGFloat(count - 1) : openHandCardSize.width,
-               height: openHandCardSize.height)
+               height: openHandCardSize.height, alignment: .leading)
     }
 
     @ViewBuilder private var statusBadges: some View {
