@@ -57,6 +57,9 @@ enum Theme {
         /// Table-centre draw pile back — smaller than the discard so the discard reads as the
         /// focal point (spec: discard 50px, draw-back 32px, ratio preserved here).
         static let tableDraw = CGSize(width: 38, height: 57)
+        /// iPhone table-centre discard — the stage of the table (Phase 12b): larger than a
+        /// hand card so the centre claims the mid-band instead of leaving dead felt.
+        static let tableFocus = CGSize(width: 96, height: 144)
     }
 
     // MARK: Elevation (§11) — one elevation level per element, never stacked.

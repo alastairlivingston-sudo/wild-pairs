@@ -26,7 +26,19 @@ struct TableBackground: View {
                                        center: .center, startRadius: 0, endRadius: radius * 0.75))
                 } else {
                     Rectangle().fill(palette.base)
-                    aurora(radius: radius)
+                    if reduceMotion {
+                        aurora(radius: radius)
+                    } else {
+                        // Slow breathing drift so the environment reads as alive without
+                        // competing with the cards ("subtle, not needy").
+                        TimelineView(.animation(minimumInterval: 1.0 / 15.0)) { timeline in
+                            let t = timeline.date.timeIntervalSinceReferenceDate
+                            aurora(radius: radius)
+                                .offset(x: sin(t / 13) * radius * 0.03,
+                                        y: cos(t / 17) * radius * 0.025)
+                                .scaleEffect(1 + 0.04 * sin(t / 21))
+                        }
+                    }
                     FeltWeave().opacity(0.04)
                     if !reduceMotion {
                         ElementalMotes(colour: palette.glow)

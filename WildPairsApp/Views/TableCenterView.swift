@@ -84,15 +84,36 @@ struct TableCenterView: View {
 
     @ViewBuilder private var discardPile: some View {
         if let top = topDiscard {
-            CardView(card: top, size: cardSize, showColourName: showColourName, showPattern: showPattern,
-                     reducedMotion: reducedMotion)
-                .scaleEffect(colourPulse ? 1.08 : 1.0)
-                .accessibilityLabel("Discard pile. Top card: \(discardCardLabel(top)). Current colour: \(currentColour.displayName).")
+            // Ghost cards under the top discard so the pile reads as a real stack of played
+            // cards rather than a lone floating card (Phase 12b).
+            ZStack {
+                discardGhost(rotation: -6, x: -3, y: 2)
+                discardGhost(rotation: 4, x: 3, y: 1)
+                CardView(card: top, size: cardSize, showColourName: showColourName, showPattern: showPattern,
+                         reducedMotion: reducedMotion)
+                    .scaleEffect(colourPulse ? 1.08 : 1.0)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Discard pile. Top card: \(discardCardLabel(top)). Current colour: \(currentColour.displayName).")
         } else {
             RoundedRectangle(cornerRadius: Theme.Radius.r3)
                 .strokeBorder(Theme.Palette.accent.opacity(0.4), style: StrokeStyle(lineWidth: 1, dash: [4]))
                 .frame(width: cardSize.width, height: cardSize.height)
         }
+    }
+
+    private func discardGhost(rotation: Double, x: CGFloat, y: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: Theme.Radius.card)
+            .fill(
+                LinearGradient(colors: [Color(hex: 0xFFFFFF), Color(hex: 0xE8E4DA)],
+                               startPoint: .topLeading, endPoint: .bottomTrailing)
+            )
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card).strokeBorder(.black.opacity(0.2), lineWidth: 1))
+            .frame(width: cardSize.width, height: cardSize.height)
+            .rotationEffect(.degrees(rotation))
+            .offset(x: x, y: y)
+            .shadow(color: .black.opacity(0.2), radius: 2, y: 1)
+            .accessibilityHidden(true)
     }
 
     /// Filled with the actual suit colour + glow (neon-final.html spec), not a dark pill with

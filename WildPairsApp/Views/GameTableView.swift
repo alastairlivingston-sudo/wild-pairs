@@ -54,7 +54,7 @@ struct GameTableView: View {
                 // (60pt) centre read as two small cards lost in dead space. Give it real
                 // presence: bigger on iPhone, bigger still on iPad's wider canvas.
                 let isPad = hSize == .regular
-                let centerSize = isPad ? Theme.CardSize.selected : Theme.CardSize.regularHand
+                let centerSize = isPad ? Theme.CardSize.selected : Theme.CardSize.tableFocus
                 let resolvedSide = max(sideWidth, 80)
                 // iPad uses its width deliberately (ux-spec §7): the table is a centred block of
                 // a sensible max width with opponents pushed out to its edges and larger cards,

@@ -33,7 +33,10 @@ struct HandView: View {
 
     var body: some View {
         GeometryReader { geo in
-            let available = geo.size.width - Theme.Space.s4 * 2
+            // The arc rotation and the playable 1.07 scale are render-time transforms that
+            // extend past the layout frame, so the fan needs bleed room beyond the text
+            // margin or edge cards clip at the screen boundary.
+            let available = geo.size.width - Theme.Space.s4 * 2 - cardSize.width * 0.24
             let step = fanStep(available: available)
             if step >= minimumStep || hand.count <= 1 {
                 // `.offset(x:)` is a render-time transform that does NOT contribute to layout, so
@@ -92,10 +95,18 @@ struct HandView: View {
     }
 
     private func card(_ item: CardViewModel, index: Int) -> some View {
-        CardView(card: item.card, size: cardSize,
+        // Held-fan arc (Phase 12b): cards rotate around a shared low pivot and bow downward
+        // toward the edges, like cards actually held in a hand. Static layout, not motion,
+        // so it applies under Reduce Motion too.
+        let centred = Double(index) - Double(hand.count - 1) / 2
+        let anglePerCard = min(3.5, 14.0 / Double(max(hand.count, 1)))
+        let halfSpan = max(1.0, Double(hand.count - 1) / 2)
+        let bow = CGFloat((centred * centred) / (halfSpan * halfSpan)) * 8
+        return CardView(card: item.card, size: cardSize,
                  isPlayable: item.isPlayable, showColourName: showColourName,
                  showPattern: showPattern, announcePlayability: true, reducedMotion: reducedMotion)
-            .offset(y: item.isPlayable ? -cardSize.height * 0.18 : 0)
+            .rotationEffect(.degrees(centred * anglePerCard), anchor: .bottom)
+            .offset(y: (item.isPlayable ? -cardSize.height * 0.18 : 0) + bow)
             .modifier(ShakeEffect(animatableData: shakingCardID == item.id ? 1 : 0))
             .onTapGesture { tap(item) }
             .animation(Theme.Motion.cardPlay, value: item.isPlayable)
