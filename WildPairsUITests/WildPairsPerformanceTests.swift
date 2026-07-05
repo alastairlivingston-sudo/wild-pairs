@@ -103,18 +103,32 @@ final class WildPairsPerformanceTests: XCTestCase {
 
         let roundLabel = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Round'")).firstMatch
         let roundTextBefore = roundLabel.exists ? roundLabel.label : nil
-        let drawCountBefore = app.buttons["game-draw-card-button"].label
+
+        // Pause before capturing the draw-pile label: AI turns run on their own timers, so an
+        // unpaused label can legally change (e.g. a Draw-Two stack growing) between capture and
+        // re-read. Paused, the state is frozen — any change across backgrounding is a real bug.
+        app.buttons["game-pause-button"].tap()
+        let resumeButton = app.buttons["Resume"]
+        XCTAssertTrue(resumeButton.waitForExistence(timeout: 3))
+
+        let drawButton = app.buttons["game-draw-card-button"]
+        XCTAssertTrue(drawButton.exists, "Draw pile should be queryable behind the pause sheet")
+        let drawCountBefore = drawButton.label
 
         XCUIDevice.shared.press(.home)
         sleep(2)
         app.activate()
 
-        XCTAssertTrue(app.buttons["game-pause-button"].waitForExistence(timeout: 10),
-                      "Game table should restore after backgrounding, not return to Home")
+        XCTAssertTrue(resumeButton.waitForExistence(timeout: 10),
+                      "Paused game should restore after backgrounding, not return to Home")
+        XCTAssertEqual(drawButton.label, drawCountBefore,
+                       "Draw pile count should be unchanged by backgrounding alone")
+
+        resumeButton.tap()
+        XCTAssertTrue(app.buttons["game-pause-button"].waitForExistence(timeout: 5),
+                      "Game table should restore after resuming")
         if let roundTextBefore {
             XCTAssertEqual(roundLabel.label, roundTextBefore, "Round number should survive backgrounding")
         }
-        XCTAssertEqual(app.buttons["game-draw-card-button"].label, drawCountBefore,
-                       "Draw pile count should be unchanged by backgrounding alone")
     }
 }
