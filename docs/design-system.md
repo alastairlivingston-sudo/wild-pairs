@@ -194,8 +194,32 @@ Each card is a rounded rectangle (`radius3`) with:
 - **Number:** Large, bold, centred — `.display` font style.
 - **Suit symbol:** Appears under each corner index (small) and large behind the centre mark as a reduced-opacity watermark.
 - **Corner index (Phase 14):** the centre mark in miniature — the digit for numbers, "+2"/"+4" for draw cards, the action glyph for other actions, a four-chip mini diamond for wilds. Never a text abbreviation ("SKIP"/"REV"/"D2" piled into word soup wherever fanned cards overlapped) and no caption text anywhere on the face — one dominant centre mark per card, production-card style. Mirrored bottom-right corner appears at ≥46pt width.
-- **Wild card design:** four element chips set in a diamond (the deck's own trade dress); Draw Four pairs a compact diamond with a large "+4".
+- **Wild card design:** four element chips set in a diamond on a faint orbit ring (the deck's own trade dress); Draw Four pairs a compact diamond with a large "+4".
 - **Colour name label:** In colour-blind mode a small plate at the foot of the face names the printed colour (including a resolved wild's chosen colour) on cards ≥56pt wide.
+
+### Action glyph system (Phase 15)
+
+Every action face depicts its effect pictorially — bespoke vector paths, no SF Symbols, no
+words (numerals such as "+2"/"×2" count as marks, not captions). The shared vocabulary:
+**player pips** (round head, rounded shoulders) for who is affected, **mini cards** (white
+rounded rects) for what moves, **arrows** for where it goes.
+
+| Card | Centre mark | Reads as |
+|---|---|---|
+| Skip | One pip struck by a prohibition ring | "this player is skipped" |
+| Skip Two | Two separated struck pips + small "×2" | "two players are skipped" |
+| Reverse | Two fat chasing arrows closing a circle (oversized heads for fan scale) | "play turns around" |
+| Draw Two | Bare bold "+2" (sole owner of the plain numeral silhouette) | "next player draws 2" |
+| Draw Four | Compact wild diamond over "+4" | "wild, next player draws 4" |
+| Targeted Draw | One pip ringed by a ticked target reticle between two faded pips, over a small "+2" | "you pick one player among several; they draw 2" |
+| Forced Swap | Two mini hand-fans trading places along two straight opposing arrows (no curves anywhere — never confusable with Reverse's loop) | "swap hands" |
+| Team Play | Two partnered pips, each receiving one mini card, over a small "+1" | "you and partner each draw 1" |
+| Discard All | Cards tumbling out of a tidy hand along one bold ejection arrow | "purge cards away" |
+| Change Colour | Four-chip diamond on the orbit ring | "wild — choose the colour" |
+
+Corner indices are each glyph's most distinctive silhouette in miniature (prohibition ring,
+reticle, swap arrows, sweep arrow, twin pips); stroke weights stay in one family
+(~0.12–0.15 of the glyph unit) so the deck reads as a single print run.
 
 ---
 

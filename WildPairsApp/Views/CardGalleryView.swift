@@ -39,6 +39,14 @@ struct CardGalleryView: View {
                         }
                     }
                 }
+                section("Table centre — normal, must-draw, forced pickup") {
+                    HStack(alignment: .top, spacing: Theme.Space.s6) {
+                        tableCentre(mustDraw: false, forced: false, pending: nil)
+                        tableCentre(mustDraw: true, forced: false, pending: nil)
+                        tableCentre(mustDraw: true, forced: true, pending: 6)
+                    }
+                    .padding(.top, Theme.Space.s5)
+                }
                 section("States — playable glow, back, colour-blind plate + pattern") {
                     HStack(spacing: Theme.Space.s2) {
                         CardView(card: Card(type: .number(5), colour: .crimson),
@@ -56,6 +64,15 @@ struct CardGalleryView: View {
         }
         .background(TableBackground())
         .preferredColorScheme(.dark)
+    }
+
+    private func tableCentre(mustDraw: Bool, forced: Bool, pending: Int?) -> some View {
+        TableCenterView(
+            topDiscard: Card(type: .drawTwo, colour: .crimson), currentColour: .crimson,
+            drawPileCount: 43, pendingDrawCount: pending, turnDirection: .clockwise,
+            canDraw: true, mustDraw: mustDraw, forcedPickup: forced,
+            showColourName: false, cardSize: focusSize, onDraw: {}
+        )
     }
 
     private func section<Content: View>(_ title: String,

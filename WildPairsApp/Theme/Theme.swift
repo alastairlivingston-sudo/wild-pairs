@@ -555,20 +555,4 @@ extension CardType {
         }
     }
 
-    /// Centre glyph (SF Symbol) for action cards; numbers render the digit instead.
-    var centerSymbol: String? {
-        switch self {
-        case .number:        return nil
-        case .skip:          return "nosign"
-        case .skipTwo:       return "nosign"
-        case .reverse:       return "arrow.2.squarepath"
-        case .drawTwo:       return "plus.rectangle.on.rectangle"
-        case .drawFour:      return "plus.square.on.square"
-        case .changeColour:  return "paintpalette.fill"
-        case .discardAll:    return "trash.fill"
-        case .targetedDraw:  return "scope"
-        case .forcedSwap:    return "arrow.left.arrow.right"
-        case .teamPlay:      return "person.2.fill"
-        }
-    }
 }
