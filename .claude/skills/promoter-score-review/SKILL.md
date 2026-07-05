@@ -1,3 +1,8 @@
+---
+name: promoter-score-review
+description: NPS-style scoring of the current design by each of the 10 defined personas — delights, frustrations, and what must improve before they'd score 9–10. Invoke after premortem and before coding, after any major UX or rules redesign, or on "promoter score review", "NPS review", "persona review".
+---
+
 # Skill: Promoter Score Review
 
 ## Purpose

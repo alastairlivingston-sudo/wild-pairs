@@ -1,11 +1,12 @@
 import SwiftUI
 import WildPairsCore
 
-// The primary gameplay screen. Portrait-only (Phase 9 A1): partner top-centre, opponents
-// upper-left/upper-right, you at the bottom, table centre between the opponents. All zones
-// are sized from `GeometryReader` so nothing ever clips off-screen — no horizontal
-// `ScrollView` seat wrappers. All game logic lives in the ViewModel/Core; this view only
-// renders state and forwards taps.
+// The primary gameplay screen: partner top-centre, opponents upper-left/upper-right, you at
+// the bottom, table centre between the opponents. All zones are sized from `GeometryReader`
+// so nothing ever clips off-screen — no horizontal `ScrollView` seat wrappers. iPhone is
+// portrait-only (Phase 9 A1); iPad additionally supports landscape (Phase 15), where the
+// same zone structure compresses vertically and spreads across the full width. All game
+// logic lives in the ViewModel/Core; this view only renders state and forwards taps.
 
 struct GameTableView: View {
     @ObservedObject var vm: GameViewModel
@@ -20,7 +21,7 @@ struct GameTableView: View {
     private var handCardSize: CGSize {
         let large = settings.userSettings.largeCards
         // iPad hand reads larger so the deck has real presence on the wide canvas (ux-spec §7).
-        if hSize == .regular { return large ? CGSize(width: 120, height: 180) : Theme.CardSize.selected }
+        if hSize == .regular { return large ? Theme.CardSize.padHandLarge : Theme.CardSize.padHand }
         return large ? Theme.CardSize.regularHand : Theme.CardSize.compactHand
     }
     private var showColourName: Bool { settings.userSettings.colourBlindMode }
@@ -54,14 +55,18 @@ struct GameTableView: View {
                 // (60pt) centre read as two small cards lost in dead space. Give it real
                 // presence: bigger on iPhone, bigger still on iPad's wider canvas.
                 let isPad = hSize == .regular
-                let centerSize = isPad ? Theme.CardSize.selected : Theme.CardSize.tableFocus
+                let isLandscape = isPad && geo.size.width > geo.size.height
+                let centerSize = isPad ? Theme.CardSize.padTableFocus : Theme.CardSize.tableFocus
                 let resolvedSide = max(sideWidth, 80)
                 // iPad uses its width deliberately (ux-spec §7): the table is a centred block of
                 // a sensible max width with opponents pushed out to its edges and larger cards,
                 // instead of phone-width content marooned in the middle of a 1024pt screen.
-                let contentMaxWidth: CGFloat = isPad ? 760 : .infinity
+                // Landscape gets a wider block (the height is the scarce axis there).
+                let contentMaxWidth: CGFloat = isPad
+                    ? (isLandscape ? min(geo.size.width - Theme.Space.s6 * 2, 1120) : 820)
+                    : .infinity
                 let availableWidth = contentMaxWidth.isFinite ? contentMaxWidth : geo.size.width
-                let partnerCardSize = isPad ? CGSize(width: 60, height: 90) : Theme.CardSize.partnerHand
+                let partnerCardSize = isPad ? Theme.CardSize.padPartnerHand : Theme.CardSize.partnerHand
                 // Clamp the partner's open-hand fan to the real on-screen width so it never
                 // clips off the right edge (A6).
                 let partnerMaxWidth = min(resolvedSide * 2 + centerSize.width * 2 + Theme.Space.s3,
@@ -84,10 +89,10 @@ struct GameTableView: View {
                                 VStack(spacing: spacing) {
                                     partnerZone(maxWidth: partnerMaxWidth, seatBackSize: seatBackSize,
                                                 openHandCardSize: partnerCardSize)
-                                    zoneGap(isPad: isPad)
+                                    zoneGap(isPad: isPad, compact: isLandscape)
                                     opponentCenterRow(spacing: spacing, seatBackSize: seatBackSize,
                                                       centerSize: centerSize, sideWidth: resolvedSide, spread: isPad)
-                                    zoneGap(isPad: isPad)
+                                    zoneGap(isPad: isPad, compact: isLandscape)
 
                                     if let roundRemaining = vm.roundTimeRemaining {
                                         RoundTimerBadge(remaining: roundRemaining, total: vm.roundTimeLimit)
@@ -226,9 +231,10 @@ struct GameTableView: View {
 
     /// Gap between table zones: a flexible spacer on iPhone (fills the height), a fixed gap on
     /// iPad (so the zone block has a fixed height that the surrounding spacers can centre).
-    @ViewBuilder private func zoneGap(isPad: Bool) -> some View {
+    /// `compact` (iPad landscape) halves the gap — height is the scarce axis there.
+    @ViewBuilder private func zoneGap(isPad: Bool, compact: Bool = false) -> some View {
         if isPad {
-            Color.clear.frame(height: Theme.Space.s8)
+            Color.clear.frame(height: compact ? Theme.Space.s4 : Theme.Space.s8)
         } else {
             Spacer(minLength: Theme.Space.s3)
         }
@@ -275,7 +281,9 @@ struct GameTableView: View {
             topDiscard: vs.topDiscard, currentColour: vs.currentColour,
             drawPileCount: vs.drawPileCount, pendingDrawCount: vs.pendingDrawCount,
             turnDirection: vs.turnDirection,
-            canDraw: vs.isLocalPlayerTurn, showColourName: showColourName, showPattern: showPattern,
+            canDraw: vs.isLocalPlayerTurn,
+            mustDraw: vs.mustDrawNow, forcedPickup: vs.forcedPickupCount != nil,
+            showColourName: showColourName, showPattern: showPattern,
             reducedMotion: reducedMotion, cardSize: size,
             colourChoicePending: vs.colourChoicePending, onDraw: vm.drawCard
         )

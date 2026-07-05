@@ -1,3 +1,8 @@
+---
+name: accessibility-audit
+description: Full accessibility audit of a single screen — VoiceOver, Dynamic Type, contrast, colour-blind patterns — producing a pass/fail checklist. Invoke when a screen is ready for a11y sign-off, at phase gates for each new screen, or on "accessibility audit", "VoiceOver review", "a11y check".
+---
+
 # Skill: Accessibility Audit
 
 ## Purpose

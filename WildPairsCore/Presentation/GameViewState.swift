@@ -83,6 +83,9 @@ public enum PromptKind: Equatable, Sendable {
     /// Draw stacking (Phase 11 F): the local player must stack a matching Draw Two/Four or
     /// draw the whole pending stack.
     case stackOrDraw(count: Int)
+    /// A pending draw stack the local player cannot answer — no stacking card in hand, so
+    /// the penalty is being picked up automatically (no tap required).
+    case forcedPickup(count: Int)
     case roundOver(winningTeamName: String)
     /// Round timer fallback fired (`WinReason.roundTimerExpired`) — nobody emptied their
     /// hand, the round was decided by lowest card-point score instead of a normal go-out.
@@ -111,6 +114,13 @@ public struct GameViewState: Equatable, Sendable {
     public let roundNumber: Int
 
     public let isLocalPlayerTurn: Bool
+    /// True when it's the local player's turn and nothing in their hand is playable — the
+    /// only move is the draw pile. Drives the draw-pile attention treatment.
+    public let mustDrawNow: Bool
+    /// Non-nil when `mustDrawNow` and a draw stack is pending: the number of penalty cards
+    /// the local player is forced to pick up (they hold no card that can answer the stack).
+    /// The ViewModel auto-draws this — the player is never prompted to tap for a forced pickup.
+    public let forcedPickupCount: Int?
     /// The local player may press "Solo!" — on their turn holding two cards (declare before
     /// playing down to one), or at one card within an effect-drop grace window.
     public let soloButtonVisible: Bool
@@ -184,6 +194,9 @@ public struct GameViewState: Equatable, Sendable {
         }
 
         self.isLocalPlayerTurn = isLocalTurn
+        self.mustDrawNow = isLocalTurn && legalIDs.isEmpty && !(local?.hand.isEmpty ?? true)
+        self.forcedPickupCount = (isLocalTurn && legalIDs.isEmpty && state.ruleProfile.stackDrawCards)
+            ? state.pendingDrawCount : nil
         self.soloButtonVisible = {
             guard let local, !local.hasCalledSolo else { return false }
             if local.hand.count == 2 && isLocalTurn { return true }
@@ -300,7 +313,8 @@ public struct GameViewState: Equatable, Sendable {
         }
         if isLocalTurn {
             if let pendingCount = state.pendingDrawCount, state.ruleProfile.stackDrawCards {
-                return .stackOrDraw(count: pendingCount)
+                return hasLegalPlay ? .stackOrDraw(count: pendingCount)
+                                    : .forcedPickup(count: pendingCount)
             }
             return hasLegalPlay ? .yourTurn(hint: matchHint(state: state)) : .mustDraw
         }

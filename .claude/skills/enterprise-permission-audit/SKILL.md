@@ -1,3 +1,8 @@
+---
+name: enterprise-permission-audit
+description: Verify Wild Pairs has zero unnecessary permissions, entitlements, or network usage — structured PASS/FAIL per check. Invoke at every phase gate, whenever a new capability or Info.plist key is proposed, or on "permission audit", "entitlements check", "capability audit".
+---
+
 # Skill: Enterprise Permission Audit
 
 ## Purpose

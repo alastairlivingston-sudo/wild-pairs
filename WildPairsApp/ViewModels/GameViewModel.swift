@@ -41,6 +41,7 @@ final class GameViewModel: ObservableObject {
     private var roundTimerTask: Task<Void, Never>?
     private var moveTimerTask: Task<Void, Never>?
     private var tickTask: Task<Void, Never>?
+    private var forcedPickupTask: Task<Void, Never>?
     private var roundDeadline: Date?
     private var moveDeadline: Date?
     private var turnsThisRound = 0
@@ -60,6 +61,7 @@ final class GameViewModel: ObservableObject {
         scheduleAITurnsIfNeeded()
         scheduleRoundTimerIfNeeded()
         scheduleMoveTimerIfNeeded()
+        scheduleForcedPickupIfNeeded()
     }
 
     convenience init(
@@ -110,6 +112,8 @@ final class GameViewModel: ObservableObject {
         aiTask?.cancel()
         roundTimerTask?.cancel()
         moveTimerTask?.cancel()
+        forcedPickupTask?.cancel()
+        forcedPickupTask = nil
         tickTask?.cancel()
         tickTask = nil
         roundDeadline = nil
@@ -122,6 +126,7 @@ final class GameViewModel: ObservableObject {
         scheduleAITurnsIfNeeded()
         scheduleRoundTimerIfNeeded()
         scheduleMoveTimerIfNeeded()
+        scheduleForcedPickupIfNeeded()
     }
 
     // MARK: Internals
@@ -136,6 +141,7 @@ final class GameViewModel: ObservableObject {
         scheduleAITurnsIfNeeded()
         scheduleRoundTimerIfNeeded()
         scheduleMoveTimerIfNeeded()
+        scheduleForcedPickupIfNeeded()
     }
 
     /// Animates hand/table changes (card play/draw/turn pass — A9) unless the user has
@@ -195,6 +201,28 @@ final class GameViewModel: ObservableObject {
                 self.enforceTurnCapIfNeeded()
             }
             self.scheduleMoveTimerIfNeeded()
+            self.scheduleForcedPickupIfNeeded()
+        }
+    }
+
+    /// Forced pickup (Phase 15): when a draw stack lands on the local player and they hold
+    /// no card that can answer it, there is no decision to make — drawing is the only legal
+    /// move. Prompting them to tap the pile was pure friction, so the penalty is drawn
+    /// automatically after a short readable beat.
+    private func scheduleForcedPickupIfNeeded() {
+        forcedPickupTask?.cancel()
+        forcedPickupTask = nil
+        guard let count = viewState.forcedPickupCount,
+              presenter.state.phase == .playing,
+              presenter.state.pendingDecision == nil else { return }
+        announce("No card can answer the stack. Drawing \(count) cards.")
+        let delay: TimeInterval = settings.userSettings.animationSpeed == .normal ? 1.2 : 0.4
+        forcedPickupTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            guard let self, !Task.isCancelled,
+                  self.viewState.forcedPickupCount != nil else { return }
+            self.haptics.drawPenalty()
+            self.apply { self.presenter.draw() }
         }
     }
 

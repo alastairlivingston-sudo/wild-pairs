@@ -1,3 +1,8 @@
+---
+name: phase-gate
+description: Mandatory go/no-go checkpoint verifying every acceptance criterion for the current development phase — no phase advances without a GO. Invoke when a phase is declared complete, or on "run phase gate", "phase N is done", "can we advance".
+---
+
 # Skill: Phase Gate
 
 ## Purpose

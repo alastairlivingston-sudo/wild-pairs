@@ -60,6 +60,47 @@ struct GameViewStateTests {
                 "One card via an effect drop — grace declaration allowed")
     }
 
+    @Test("mustDrawNow and forcedPickup: stack with no answer flags the forced pickup")
+    func testForcedPickupDerivation() {
+        var state = GameStateBuilder()
+            .withPlayers()
+            .withCurrentColour(.crimson)
+            .withTopDiscard(CardFactory.drawTwo(.crimson))
+            .withCurrentPlayer(0)
+            .withHand(forPlayer: 0, cards: [CardFactory.number(5, .crimson)])   // no +2/+4 in hand
+            .build()
+        state.pendingDrawCount = 4
+        state.pendingDrawType = .drawTwo
+        let localID = state.players[0].id
+
+        let vs = GameViewState(from: state, localPlayerID: localID)
+        #expect(vs.mustDrawNow == true)
+        #expect(vs.forcedPickupCount == 4)
+        #expect(vs.prompt == .forcedPickup(count: 4))
+
+        // Holding a stackable card: no forced pickup — the stack-or-draw choice is real.
+        state.players[0].hand = [CardFactory.drawTwo(.cobalt)]
+        let vsStackable = GameViewState(from: state, localPlayerID: localID)
+        #expect(vsStackable.mustDrawNow == false)
+        #expect(vsStackable.forcedPickupCount == nil)
+        #expect(vsStackable.prompt == .stackOrDraw(count: 4))
+    }
+
+    @Test("mustDrawNow is set on a plain no-legal-play turn, without a forced pickup")
+    func testMustDrawNowWithoutStack() {
+        let state = GameStateBuilder()
+            .withPlayers()
+            .withCurrentColour(.crimson)
+            .withTopDiscard(CardFactory.number(3, .crimson))
+            .withCurrentPlayer(0)
+            .withHand(forPlayer: 0, cards: [CardFactory.number(8, .jade)])
+            .build()
+        let vs = GameViewState(from: state, localPlayerID: state.players[0].id)
+        #expect(vs.mustDrawNow == true)
+        #expect(vs.forcedPickupCount == nil)
+        #expect(vs.prompt == .mustDraw)
+    }
+
     @Test("Match hint names the colour and the top number")
     func testMatchHint() {
         let state = GameStateBuilder()

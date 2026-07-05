@@ -1,3 +1,8 @@
+---
+name: ai-balance-review
+description: Review AI simulation results in docs/ai-balance-report.md against the acceptance targets in docs/ai-strategy.md and recommend specific weight adjustments. Invoke after running scripts/run_simulations.sh, at phase gates that include AI work, or on "check balance", "review simulation results".
+---
+
 # Skill: AI Balance Review
 
 ## Purpose

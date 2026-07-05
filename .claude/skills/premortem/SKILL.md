@@ -1,3 +1,8 @@
+---
+name: premortem
+description: Persona-by-persona failure analysis — "six months from now this project failed because…" — turning risks into preventive spec additions, test gates, and design constraints. Invoke before any significant implementation phase, after a major cross-cutting design change, or on "premortem", "what could go wrong".
+---
+
 # Skill: Premortem
 
 ## Purpose

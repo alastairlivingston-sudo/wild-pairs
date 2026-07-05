@@ -1,3 +1,8 @@
+---
+name: ux-review
+description: Heuristic UX audit of a screen or flow against Apple HIG and docs/ux-spec.md — scored, ranked findings with specific improvements. Invoke when a screen spec is ready for review before implementation, when an implementation needs UX judgement before merge, or on "UX review", "HIG check".
+---
+
 # Skill: UX Review
 
 ## Purpose

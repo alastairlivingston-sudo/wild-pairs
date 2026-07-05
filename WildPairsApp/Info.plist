@@ -38,11 +38,18 @@
         <key>UIColorName</key>
         <string>LaunchBackground</string>
     </dict>
+    <!-- Phase 15: landscape reinstated for iPad only; iPhone stays portrait-locked per
+         KI-032. The base key must be permissive because iPadOS 26 ignores the ~ipad
+         variant; the per-idiom split is enforced in code
+         (OrientationLockDelegate.application(_:supportedInterfaceOrientationsFor:)). -->
     <key>UISupportedInterfaceOrientations</key>
     <array>
         <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationPortraitUpsideDown</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
     </array>
-    <key>UISupportedInterfaceOrientations~ipad</key>
+    <key>UISupportedInterfaceOrientations~iphone</key>
     <array>
         <string>UIInterfaceOrientationPortrait</string>
     </array>

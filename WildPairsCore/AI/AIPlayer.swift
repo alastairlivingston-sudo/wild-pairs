@@ -221,6 +221,11 @@ enum HardAI {
         static let actionConservation: Float = 1.5
         static let partnerPenalty:     Float = 3.0
         static let partnerSynergy:     Float = 0.4
+        /// Draw-penalty timing (ai-strategy.md §7): hold Draw Two/Four while the table is
+        /// calm, spend them when an opponent threatens to go out or the AI's own team is
+        /// about to end the round — a late penalty is held cards the losers are scored on.
+        static let drawCardTiming:       Float = 2.5
+        static let drawCardConservation: Float = 2.2
     }
 
     static func chooseMove(observation: AIObservation, rng: inout SeededRNG) -> GameAction {
@@ -266,8 +271,15 @@ enum HardAI {
 
         // Conservation of rare powerful cards when urgency is low
         switch card.type {
-        case .drawFour, .discardAll, .forcedSwap:
+        case .discardAll, .forcedSwap:
             if urgency < 0.5 { score -= Weight.actionConservation }
+        case .drawTwo, .drawFour:
+            // Draw penalties are worth most at the end of a round: they load an opponent
+            // with cards they'll be scored holding, and they block a near-winner. Early on
+            // they're spent for nothing, so hold them unless something better is happening.
+            let deploy = drawDeployFactor(observation)
+            score += Weight.drawCardTiming * deploy
+            if deploy < 0.5 { score -= Weight.drawCardConservation }
         default: break
         }
 
@@ -287,6 +299,18 @@ enum HardAI {
     static func computeUrgency(_ observation: AIObservation) -> Float {
         let count = Float(observation.myHand.count)
         return max(0.0, 1.0 - count / 7.0)
+    }
+
+    /// 0…1 — how much "now" is the right time to spend a Draw Two/Four. 1.0 when the AI's
+    /// own team is one card from ending the round (the penalty becomes scored points) or an
+    /// opponent is on their last card; ramping up as the nearest opponent approaches going out.
+    static func drawDeployFactor(_ observation: AIObservation) -> Float {
+        let projectedOwn = observation.myHand.count - 1
+        let partnerCount = observation.partnerID.flatMap { observation.cardCounts[$0] }
+        if projectedOwn <= 1 || (partnerCount ?? Int.max) <= 1 { return 1.0 }
+        guard let nearest = observation.nearestOpponentToWin else { return 0.0 }
+        let opponentCount = Float(observation.cardCounts[nearest, default: 7])
+        return max(0.0, 1.0 - (opponentCount - 1.0) / 5.0)
     }
 
     private static func isTargeting(_ card: Card) -> Bool {

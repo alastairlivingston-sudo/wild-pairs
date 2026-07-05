@@ -1,3 +1,8 @@
+---
+name: swiftui-quality-review
+description: Review SwiftUI view code for architecture, accessibility, adaptive layout, and performance safety — severity-rated findings with an APPROVED/NEEDS WORK/BLOCKED verdict. Invoke when a view implementation is ready for pre-merge review, or on "SwiftUI review", "review this view/screen implementation".
+---
+
 # Skill: SwiftUI Quality Review
 
 ## Purpose

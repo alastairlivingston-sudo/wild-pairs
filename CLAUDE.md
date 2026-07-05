@@ -191,6 +191,7 @@ Round-win points are multiplied by the toughest AI opponent's score multiplier.
 | privacy-brand-safety-lead | `.claude/agents/privacy-brand-safety-lead.md` | Offline guarantee, privacy |
 | enterprise-build-lead | `.claude/agents/enterprise-build-lead.md` | Entitlements, capabilities |
 | release-manager | `.claude/agents/release-manager.md` | Release checklist, docs |
+| flake-hardener | `.claude/agents/flake-hardener.md` | Flaky-test diagnosis and hardening |
 
 ## Key Documents
 | Document | Purpose |
@@ -210,6 +211,7 @@ Round-win points are multiplied by the toughest AI opponent's score multiplier.
 | `docs/premortem.md` | Failure mode analysis |
 | `docs/persona-review-log.md` | Persona-by-persona UX review |
 | `docs/promoter-score-review.md` | NPS-style review per persona |
+| `.claude/ROUTER.md` | Skill/agent routing table — consult before improvising a process |
 
 ## Testing Commands (macOS only)
 

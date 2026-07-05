@@ -15,6 +15,12 @@ struct TableCenterView: View {
     var pendingDrawCount: Int? = nil
     let turnDirection: TurnDirection
     let canDraw: Bool
+    /// The local player has no playable card — drawing is their only move. Lights up the
+    /// draw pile so "you must pick up" is unmissable (Phase 15).
+    var mustDraw: Bool = false
+    /// The pending stack cannot be answered and is being drawn automatically — the pile
+    /// shows a "picking up" state instead of asking for a tap.
+    var forcedPickup: Bool = false
     let showColourName: Bool
     var showPattern: Bool = false
     var reducedMotion: Bool = false
@@ -87,8 +93,29 @@ struct TableCenterView: View {
         .disabled(!canDraw)
         .opacity(canDraw ? 1 : 0.5)
         .frame(minHeight: 50)
+        .overlay {
+            if mustDraw && canDraw {
+                DrawAttentionRing(size: CGSize(width: drawCardSize.width + 10,
+                                               height: drawCardSize.height + 10),
+                                  reducedMotion: reducedMotion)
+            }
+        }
+        .overlay(alignment: .top) {
+            if mustDraw && canDraw {
+                Text(forcedPickup ? "Picking up…" : "Tap to draw")
+                    .font(.caption.bold())
+                    .foregroundStyle(Theme.Palette.onAccent)
+                    .padding(.horizontal, Theme.Space.s2).padding(.vertical, 3)
+                    .background(Capsule().fill(Theme.Palette.warning))
+                    .offset(y: -(drawCardSize.height * 0.075 + 26))
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
         .accessibilityLabel(pendingDrawCount.map { "Draw pile. Stack pending: \($0) cards" }
             ?? "Draw pile, \(drawPileCount) cards")
+        .accessibilityValue(forcedPickup ? "Picking up automatically"
+            : (mustDraw && canDraw ? "You must draw" : ""))
         .accessibilityHint(canDraw ? "Double tap to draw a card" : "")
         .accessibilityIdentifier("game-draw-card-button")
     }
@@ -199,6 +226,32 @@ struct TableCenterView: View {
         let target = turnDirection == .clockwise ? 0.0 : 180.0
         guard !reducedMotion else { arrowAngle = target; return }
         withAnimation(.easeInOut(duration: 0.3)) { arrowAngle = target }
+    }
+}
+
+/// Pulsing warning ring around the draw pile while drawing is the only legal move — the
+/// "where do I tap" cue the prompt banner alone never delivered (Phase 15). Static ring
+/// under Reduced Motion; the information is the ring, not the pulse.
+private struct DrawAttentionRing: View {
+    let size: CGSize
+    let reducedMotion: Bool
+    @State private var pulse = false
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: Theme.Radius.card + 3)
+            .strokeBorder(Theme.Palette.warning, lineWidth: 2.5)
+            .frame(width: size.width, height: size.height)
+            .shadow(color: Theme.Palette.warning.opacity(0.7), radius: pulse ? 12 : 4)
+            .opacity(reducedMotion ? 1 : (pulse ? 1 : 0.45))
+            .scaleEffect(reducedMotion ? 1 : (pulse ? 1.05 : 1))
+            .onAppear {
+                guard !reducedMotion else { return }
+                withAnimation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true)) {
+                    pulse = true
+                }
+            }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 }
 

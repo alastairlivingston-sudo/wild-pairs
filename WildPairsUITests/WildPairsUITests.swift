@@ -498,6 +498,43 @@ final class WildPairsScreenshotCapture: XCTestCase {
         try save(app, "06-pause")
     }
 
+    /// iPad landscape capture (Phase 15): rotates the device before reaching the table so
+    /// the landscape zone layout can be verified. Skips on iPhone, which is portrait-locked.
+    func testCaptureLandscapeTable() throws {
+        guard UIDevice.current.userInterfaceIdiom == .pad else {
+            throw XCTSkip("Landscape is iPad-only (KI-032 keeps iPhone portrait-locked)")
+        }
+        XCUIDevice.shared.orientation = .landscapeLeft
+
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest-reset-state"]
+        app.launch()
+
+        let skip = app.buttons["onboarding-skip"]
+        if skip.waitForExistence(timeout: 5) { skip.tap() }
+        XCTAssertTrue(app.buttons["home-new-game"].waitForExistence(timeout: 5))
+        try save(app, "09-home-landscape")
+
+        app.buttons["home-new-game"].tap()
+        XCTAssertTrue(app.buttons["newgame-start"].waitForExistence(timeout: 5))
+        try save(app, "10-new-game-landscape")
+
+        app.buttons["newgame-start"].tap()
+        XCTAssertTrue(app.buttons["game-pause-button"].waitForExistence(timeout: 5))
+        sleep(5)
+        try save(app, "11-table-landscape")
+
+        // Rotate mid-game: the table must survive a live orientation change intact.
+        XCUIDevice.shared.orientation = .portrait
+        sleep(2)
+        try save(app, "12-table-rotated-portrait")
+        XCUIDevice.shared.orientation = .landscapeRight
+        sleep(2)
+        try save(app, "13-table-rotated-landscape")
+        XCTAssertTrue(app.buttons["game-pause-button"].exists,
+                      "Pause button must survive rotation")
+    }
+
     /// Grows the hand by drawing on every local turn until the two-row layout engages
     /// (Phase 14), then captures it. A fresh deal can never show the second row.
     func testCaptureTwoRowHand() throws {

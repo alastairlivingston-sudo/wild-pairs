@@ -1,3 +1,8 @@
+---
+name: rules-engine-test-design
+description: Generate positive and negative Swift test stubs for every rule in docs/game-rules.md, grouped by rule area. Invoke after game-rules.md is written or changed, before any engine phase gate, or on "generate engine tests", "rules tests", "test stubs from rules".
+---
+
 # Skill: Rules Engine Test Design
 
 ## Purpose

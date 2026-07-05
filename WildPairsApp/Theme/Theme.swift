@@ -44,11 +44,20 @@ enum Theme {
         static let card: CGFloat = 14
     }
 
-    // MARK: Card dimensions (§6) — 2:3 ratio. Portrait-only; no landscape variants.
+    // MARK: Card dimensions (§6) — 2:3 ratio. iPhone is portrait-only; iPad adds landscape
+    // (Phase 15) and uses the larger `pad*` tokens so the wide canvas actually fills.
     enum CardSize {
         static let compactHand = CGSize(width: 60, height: 90)
         static let regularHand = CGSize(width: 80, height: 120)
         static let selected = CGSize(width: 100, height: 150)
+        /// iPad hand cards — bigger than `selected` so the hand reads as the protagonist on
+        /// a 1024pt+ canvas instead of a phone hand marooned in felt.
+        static let padHand = CGSize(width: 116, height: 174)
+        static let padHandLarge = CGSize(width: 136, height: 204)
+        /// iPad table-centre discard (draw back derives at 0.85×).
+        static let padTableFocus = CGSize(width: 112, height: 168)
+        /// iPad partner open-hand cards.
+        static let padPartnerHand = CGSize(width: 66, height: 99)
         static let opponentBack = CGSize(width: 44, height: 66)
         /// Partner's open hand row — a glanceable strip, smaller than `compactHand` but large
         /// enough that the partner's card faces (numbers/symbols) are actually readable, which

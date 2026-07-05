@@ -216,9 +216,27 @@ function scoreMove(card, observation) -> Float:
         score += Weight.colourAdvantage * Float(myColourCount)
     
     // Conservation of rare powerful cards
-    if card.type == .drawFour || card.type == .discardAll || card.type == .forcedSwap:
+    if card.type == .discardAll || card.type == .forcedSwap:
         if urgency < 0.5:
             score -= Weight.actionConservation
+
+    // Draw-penalty timing: hold Draw Two/Four early, deploy late.
+    // A late penalty is cards the losing team is scored holding, and it blocks a
+    // near-winner; an early one is spent for nothing.
+    if card.type == .drawTwo || card.type == .drawFour:
+        deploy = drawDeployFactor(observation)   // 0…1
+        score += Weight.drawCardTiming * deploy
+        if deploy < 0.5:
+            score -= Weight.drawCardConservation
+
+function drawDeployFactor(observation) -> Float:
+    // 1.0 when own team is one card from ending the round, or an opponent is on
+    // their last card; ramps toward 0 as the nearest opponent's hand grows.
+    projectedOwn = observation.myHand.count - 1
+    partnerCount = observation.cardCounts[partnerID]
+    if projectedOwn <= 1 || partnerCount <= 1: return 1.0
+    opponentCount = observation.cardCounts[nearestOpponentToWin]
+    return max(0.0, 1.0 - (opponentCount - 1.0) / 5.0)
     
     // Penalty for targeting partner
     if card.requiresTarget:
@@ -235,12 +253,14 @@ function computeUrgency(observation) -> Float:
 **Hard AI Weight Constants (in HardAI.swift):**
 ```swift
 enum Weight {
-    static let handReduction:      Float = 1.0
-    static let actionBonus:        Float = 0.5
-    static let opponentDisruption: Float = 2.0
-    static let colourAdvantage:    Float = 0.3
-    static let actionConservation: Float = 1.5
-    static let partnerPenalty:     Float = 3.0
+    static let handReduction:        Float = 1.0
+    static let actionBonus:          Float = 0.5
+    static let opponentDisruption:   Float = 2.0
+    static let colourAdvantage:      Float = 0.3
+    static let actionConservation:   Float = 1.5
+    static let partnerPenalty:       Float = 3.0
+    static let drawCardTiming:       Float = 2.5
+    static let drawCardConservation: Float = 2.2
 }
 ```
 
@@ -319,6 +339,8 @@ All Hard and Expert AI use a shared scoring framework with named weight dimensio
 | `opponentDisruption` | Reward for targeting nearest-to-win opponent | 2.0 | × 1.0 (no modifier) |
 | `colourAdvantage` | Reward proportional to own cards of chosen colour | 0.3 | × 1.0 |
 | `actionConservation` | Penalty for spending rare cards early | −1.5 | ÷ (1 + urgency) — penalty shrinks as urgency rises |
+| `drawCardTiming` | Reward for spending Draw Two/Four when it counts (own team near round end, or nearest opponent near going out) | +2.5 × deploy factor (0–1) | — |
+| `drawCardConservation` | Penalty for spending Draw Two/Four while the table is calm (deploy factor < 0.5) | −2.2 | — |
 | `winProbability` | Estimated probability of team winning after move (Expert only) | 5.0 | × 1.5 if winning |
 | `riskOfHelpingOpponent` | Penalty for reverse/skip that accidentally benefits opponent | −1.0 | × 1.0 |
 | `urgency` | Multiplier computed from own hand size | Computed | Applied to all dimensions |

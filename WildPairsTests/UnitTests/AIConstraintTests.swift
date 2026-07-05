@@ -248,6 +248,82 @@ struct AIConstraintTests {
         #expect(actionScore > numberScore)
     }
 
+    // MARK: Draw-penalty timing (hold +2/+4 for the endgame)
+
+    @Test("HardAI holds a Draw Two early: matching number card outscores it while opponents are far from out")
+    func testHardAIHoldsDrawTwoEarly() {
+        let hand: [Card] = (0..<6).map { CardFactory.number($0, .crimson) } + [CardFactory.drawTwo(.crimson)]
+        let state = GameStateBuilder()
+            .withPlayers()
+            .withCurrentColour(.crimson)
+            .withHand(forPlayer: 0, cards: hand)
+            .withHand(forPlayer: 1, cards: (0..<7).map { CardFactory.number($0, .jade) })
+            .withHand(forPlayer: 2, cards: (0..<7).map { CardFactory.number($0, .amber) })
+            .withHand(forPlayer: 3, cards: (0..<7).map { CardFactory.number($0, .cobalt) })
+            .withDrawPile([])
+            .build()
+        let observation = AIObservation(from: state, for: state.players[0].id)
+        let drawTwoScore = HardAI.scoreMove(hand[6], observation: observation)
+        let numberScore = HardAI.scoreMove(hand[0], observation: observation)
+        #expect(numberScore > drawTwoScore)
+    }
+
+    @Test("HardAI deploys a Draw Two when an opponent is down to one card")
+    func testHardAIDeploysDrawTwoAgainstThreat() {
+        let hand: [Card] = (0..<6).map { CardFactory.number($0, .crimson) } + [CardFactory.drawTwo(.crimson)]
+        let state = GameStateBuilder()
+            .withPlayers()
+            .withCurrentColour(.crimson)
+            .withHand(forPlayer: 0, cards: hand)
+            .withHand(forPlayer: 1, cards: [CardFactory.number(9, .jade)])   // opponent about to go out
+            .withHand(forPlayer: 2, cards: (0..<7).map { CardFactory.number($0, .amber) })
+            .withHand(forPlayer: 3, cards: (0..<7).map { CardFactory.number($0, .cobalt) })
+            .withDrawPile([])
+            .build()
+        let observation = AIObservation(from: state, for: state.players[0].id)
+        let drawTwoScore = HardAI.scoreMove(hand[6], observation: observation)
+        let numberScore = HardAI.scoreMove(hand[0], observation: observation)
+        #expect(drawTwoScore > numberScore)
+    }
+
+    @Test("HardAI deploys a Draw Two when its own team is about to end the round")
+    func testHardAIDeploysDrawTwoNearOwnWin() {
+        // Partner is on their last card: the round can end within a turn, so a draw penalty
+        // becomes points the opponents are scored holding.
+        let hand: [Card] = (0..<6).map { CardFactory.number($0, .crimson) } + [CardFactory.drawTwo(.crimson)]
+        let state = GameStateBuilder()
+            .withPlayers()
+            .withCurrentColour(.crimson)
+            .withHand(forPlayer: 0, cards: hand)
+            .withHand(forPlayer: 1, cards: (0..<7).map { CardFactory.number($0, .jade) })
+            .withHand(forPlayer: 2, cards: [CardFactory.number(3, .amber)])   // partner at one card
+            .withHand(forPlayer: 3, cards: (0..<7).map { CardFactory.number($0, .cobalt) })
+            .withDrawPile([])
+            .build()
+        let observation = AIObservation(from: state, for: state.players[0].id)
+        let drawTwoScore = HardAI.scoreMove(hand[6], observation: observation)
+        let numberScore = HardAI.scoreMove(hand[0], observation: observation)
+        #expect(drawTwoScore > numberScore)
+    }
+
+    @Test("drawDeployFactor ramps from 0 (calm table) to 1 (opponent on last card)")
+    func testDrawDeployFactorRamp() {
+        func factor(opponentCards: Int) -> Float {
+            let state = GameStateBuilder()
+                .withPlayers()
+                .withHand(forPlayer: 0, cards: (0..<7).map { CardFactory.number($0, .crimson) })
+                .withHand(forPlayer: 1, cards: (0..<opponentCards).map { CardFactory.number($0, .jade) })
+                .withHand(forPlayer: 2, cards: (0..<7).map { CardFactory.number($0, .amber) })
+                .withHand(forPlayer: 3, cards: (0..<7).map { CardFactory.number($0, .cobalt) })
+                .withDrawPile([])
+                .build()
+            return HardAI.drawDeployFactor(AIObservation(from: state, for: state.players[0].id))
+        }
+        #expect(factor(opponentCards: 1) == 1.0)
+        #expect(factor(opponentCards: 7) == 0.0)
+        #expect(factor(opponentCards: 2) > factor(opponentCards: 4))
+    }
+
     @Test("HardAI urgency increases as hand size decreases")
     func testHardAIUrgencyIncreasesWithFewerCards() {
         let stateMany = GameStateBuilder()
