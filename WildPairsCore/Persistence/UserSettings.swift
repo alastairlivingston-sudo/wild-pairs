@@ -31,6 +31,12 @@ public struct UserSettings: Codable, Equatable, Sendable {
     // Onboarding
     public var hasSeenOnboarding: Bool
 
+    // Two-player pass-and-play: recently used player names, most recent first, capped at
+    // `maxSavedPlayerNames`, offered as one-tap suggestions in the new-game name fields.
+    public var savedPlayerNames: [String]
+
+    public static let maxSavedPlayerNames = 8
+
     public init(
         animationSpeed: AnimationSpeed = .normal,
         confirmEndGame: Bool = true,
@@ -41,7 +47,8 @@ public struct UserSettings: Codable, Equatable, Sendable {
         patternFills: Bool = false,
         largeCards: Bool = false,
         hasSeenOnboarding: Bool = false,
-        stackingEnabled: Bool = true
+        stackingEnabled: Bool = true,
+        savedPlayerNames: [String] = []
     ) {
         self.animationSpeed = animationSpeed
         self.confirmEndGame = confirmEndGame
@@ -53,6 +60,20 @@ public struct UserSettings: Codable, Equatable, Sendable {
         self.largeCards = largeCards
         self.hasSeenOnboarding = hasSeenOnboarding
         self.stackingEnabled = stackingEnabled
+        self.savedPlayerNames = savedPlayerNames
+    }
+
+    /// Records names used to start a game: moved/inserted at the front, case-insensitively
+    /// de-duplicated, blanks dropped, capped at `maxSavedPlayerNames`.
+    public mutating func rememberPlayerNames(_ names: [String]) {
+        let cleaned = names.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        var result = cleaned
+        for existing in savedPlayerNames
+        where !result.contains(where: { $0.caseInsensitiveCompare(existing) == .orderedSame }) {
+            result.append(existing)
+        }
+        savedPlayerNames = Array(result.prefix(Self.maxSavedPlayerNames))
     }
 
     // Custom decode so settings files saved before a new field was added still load —
@@ -70,5 +91,6 @@ public struct UserSettings: Codable, Equatable, Sendable {
         largeCards = try c.decodeIfPresent(Bool.self, forKey: .largeCards) ?? false
         hasSeenOnboarding = try c.decodeIfPresent(Bool.self, forKey: .hasSeenOnboarding) ?? false
         stackingEnabled = try c.decodeIfPresent(Bool.self, forKey: .stackingEnabled) ?? true
+        savedPlayerNames = try c.decodeIfPresent([String].self, forKey: .savedPlayerNames) ?? []
     }
 }

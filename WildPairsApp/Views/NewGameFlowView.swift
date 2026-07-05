@@ -1,18 +1,27 @@
 import SwiftUI
 import WildPairsCore
 
-// Single configuration screen: mode, difficulty, and card set. Builds a GameConfig with the
-// canonical seat→team mapping and hands it back to start the game.
+// Single configuration screen: players (solo vs two-player pass-and-play), mode, difficulty,
+// and card set. Builds a GameConfig with the canonical seat→team mapping and hands it back to
+// start the game. Two-player mode adds name entry with one-tap saved-name suggestions.
+
+/// Who is at the table: one human + 3 AI, or two humans partnered (seats 0+2) vs 2 AI.
+enum PlayerSetup: Hashable {
+    case solo
+    case twoPlayer
+}
 
 struct NewGameFlowView: View {
-    /// Settings-screen house-rule toggle (Phase 11 F) — stacking is on by default at the
-    /// `RuleProfile` level; this lets a player opt out before starting a new game.
-    var stackingEnabled: Bool = true
+    @ObservedObject var settings: AppSettings
     let onStart: (GameConfig) -> Void
 
+    @State private var playerSetup: PlayerSetup = .solo
     @State private var mode: GameMode = .standardTeams
     @State private var difficulty: Difficulty = .medium
     @State private var cardSet: CardSet = .standard
+    @State private var playerOneName: String = ""
+    @State private var playerTwoName: String = ""
+    @FocusState private var focusedNameField: Int?
 
     var body: some View {
         ZStack {
@@ -55,6 +64,15 @@ struct NewGameFlowView: View {
                 .padding(.top, Theme.Space.s5)
                 .padding(.bottom, Theme.Space.s1)
 
+            NeonSegmented(title: "Players", options: [
+                (PlayerSetup.solo, "Solo"),
+                (PlayerSetup.twoPlayer, "Two Players")
+            ], selection: $playerSetup, blurb: playerSetupBlurb)
+
+            if playerSetup == .twoPlayer {
+                nameEntry
+            }
+
             NeonSegmented(title: "Mode", options: [
                 (GameMode.standardTeams, "Standard Teams"),
                 (GameMode.allWild, "All-Wild Teams"),
@@ -74,10 +92,90 @@ struct NewGameFlowView: View {
         .padding(.horizontal, Theme.Space.s4)
     }
 
+    // MARK: Two-player name entry
+
+    private var nameEntry: some View {
+        VStack(alignment: .leading, spacing: Theme.Space.s2) {
+            nameField("Player 1 (you)", text: $playerOneName, field: 1, identifier: "newgame-name-1")
+            nameField("Player 2 (partner)", text: $playerTwoName, field: 2, identifier: "newgame-name-2")
+            if !suggestedNames.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Theme.Space.s2) {
+                        ForEach(suggestedNames, id: \.self) { name in
+                            Button { fillSuggestion(name) } label: {
+                                Text(name)
+                                    .font(.caption).fontWeight(.semibold)
+                                    .padding(.horizontal, Theme.Space.s3)
+                                    .padding(.vertical, Theme.Space.s1)
+                                    .wpGlassCapsule()
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Use saved name \(name)")
+                        }
+                    }
+                }
+                .accessibilityIdentifier("newgame-name-suggestions")
+            }
+        }
+    }
+
+    private func nameField(_ label: String, text: Binding<String>, field: Int,
+                           identifier: String) -> some View {
+        TextField(label, text: text, prompt: Text(label).foregroundStyle(.secondary))
+            .textInputAutocapitalization(.words)
+            .autocorrectionDisabled()
+            .submitLabel(.done)
+            .focused($focusedNameField, equals: field)
+            .padding(Theme.Space.s3)
+            .wpGlass(cornerRadius: Theme.Radius.r3)
+            .foregroundStyle(.white)
+            .accessibilityIdentifier(identifier)
+    }
+
+    /// Saved names not already used by either field.
+    private var suggestedNames: [String] {
+        settings.userSettings.savedPlayerNames.filter { saved in
+            saved.caseInsensitiveCompare(playerOneName.trimmingCharacters(in: .whitespaces)) != .orderedSame
+                && saved.caseInsensitiveCompare(playerTwoName.trimmingCharacters(in: .whitespaces)) != .orderedSame
+        }
+    }
+
+    /// A tapped suggestion fills the focused field, else the first empty one.
+    private func fillSuggestion(_ name: String) {
+        switch focusedNameField {
+        case 1: playerOneName = name
+        case 2: playerTwoName = name
+        default:
+            if playerOneName.trimmingCharacters(in: .whitespaces).isEmpty {
+                playerOneName = name
+            } else {
+                playerTwoName = name
+            }
+        }
+    }
+
+    private var resolvedNames: (String, String) {
+        let one = playerOneName.trimmingCharacters(in: .whitespaces)
+        let two = playerTwoName.trimmingCharacters(in: .whitespaces)
+        return (one.isEmpty ? "Player 1" : one, two.isEmpty ? "Player 2" : two)
+    }
+
+    // MARK: Start
+
     private var startButton: some View {
         Button {
-            onStart(.standardFourPlayer(mode: mode, difficulty: difficulty, cardSet: cardSet,
-                                         stackingEnabled: stackingEnabled))
+            let stacking = settings.userSettings.stackingEnabled
+            switch playerSetup {
+            case .solo:
+                onStart(.standardFourPlayer(mode: mode, difficulty: difficulty, cardSet: cardSet,
+                                            stackingEnabled: stacking))
+            case .twoPlayer:
+                let (one, two) = resolvedNames
+                settings.userSettings.rememberPlayerNames([one, two])
+                onStart(.twoPlayerPartners(mode: mode, difficulty: difficulty, cardSet: cardSet,
+                                           stackingEnabled: stacking,
+                                           playerOneName: one, playerTwoName: two))
+            }
         } label: {
             Text("Start Game")
         }
@@ -87,6 +185,14 @@ struct NewGameFlowView: View {
         .padding(.bottom, Theme.Space.s4)
     }
 
+    // MARK: Blurbs
+
+    private var playerSetupBlurb: String {
+        switch playerSetup {
+        case .solo:      return "You and an AI partner vs. two AI opponents."
+        case .twoPlayer: return "Pass-and-play: you and a friend partner up vs. two AI opponents."
+        }
+    }
     private var modeBlurb: String {
         switch mode {
         case .standardTeams: return "Match by colour, number, or action type."
@@ -118,12 +224,7 @@ extension GameConfig {
         mode: GameMode, difficulty: Difficulty, cardSet: CardSet, stackingEnabled: Bool = true,
         seed: UInt64? = nil
     ) -> GameConfig {
-        var profile: RuleProfile
-        switch mode {
-        case .standardTeams: profile = .standardTeams()
-        case .allWild:       profile = .allWild()
-        case .sideToSide:    profile = .sideToSide()
-        }
+        var profile = ruleProfile(for: mode)
         profile.cardSet = cardSet
         profile.stackDrawCards = stackingEnabled
         return GameConfig(
@@ -137,5 +238,35 @@ extension GameConfig {
             ruleProfile: profile,
             seed: seed
         )
+    }
+
+    /// Two-player pass-and-play table (Phase 15): both humans on Team A in the canonical
+    /// partner seats (0 and 2), two AI opponents on Team B (seats 1 and 3).
+    static func twoPlayerPartners(
+        mode: GameMode, difficulty: Difficulty, cardSet: CardSet, stackingEnabled: Bool = true,
+        playerOneName: String, playerTwoName: String, seed: UInt64? = nil
+    ) -> GameConfig {
+        var profile = ruleProfile(for: mode)
+        profile.cardSet = cardSet
+        profile.stackDrawCards = stackingEnabled
+        return GameConfig(
+            mode: mode,
+            players: [
+                PlayerConfig(name: playerOneName, role: .human, teamID: .teamA, difficulty: difficulty, seatPosition: 0),
+                PlayerConfig(name: "Left Opponent", role: .ai, teamID: .teamB, difficulty: difficulty, seatPosition: 1),
+                PlayerConfig(name: playerTwoName, role: .human, teamID: .teamA, difficulty: difficulty, seatPosition: 2),
+                PlayerConfig(name: "Right Opponent", role: .ai, teamID: .teamB, difficulty: difficulty, seatPosition: 3)
+            ],
+            ruleProfile: profile,
+            seed: seed
+        )
+    }
+
+    private static func ruleProfile(for mode: GameMode) -> RuleProfile {
+        switch mode {
+        case .standardTeams: return .standardTeams()
+        case .allWild:       return .allWild()
+        case .sideToSide:    return .sideToSide()
+        }
     }
 }

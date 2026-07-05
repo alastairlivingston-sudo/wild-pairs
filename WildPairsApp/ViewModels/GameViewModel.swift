@@ -20,6 +20,10 @@ struct RoundResult {
 final class GameViewModel: ObservableObject {
 
     @Published private(set) var viewState: GameViewState
+    /// Pass-and-play (Phase 15): the human seat the game is waiting on when it is not the
+    /// one currently shown. Non-nil drives the "pass the device" overlay; `confirmHandoff()`
+    /// flips the displayed perspective. Always nil in single-human games.
+    @Published private(set) var pendingHandoffSeat: PlayerSeatViewState?
     /// A transient line for the illegal-move tooltip; cleared after a short delay.
     @Published var lastInvalidHint: String?
     /// Seconds left on the round-wide fallback timer; nil when not running (e.g. paused,
@@ -33,6 +37,9 @@ final class GameViewModel: ObservableObject {
 
     private let presenter: GamePresenter
     private let settings: AppSettings
+    /// Whose perspective the table renders (bottom seat, hand shown, intents dispatched).
+    /// Equal to `presenter.localPlayerID` until a pass-and-play handoff is confirmed.
+    private var displayedHumanID: UUID
     private let haptics: HapticEngine
     private let sound: SoundCoordinator
     private let onRoundEnd: (RoundResult) -> Void
@@ -57,7 +64,9 @@ final class GameViewModel: ObservableObject {
         self.haptics = HapticEngine(settings: settings)
         self.sound = SoundCoordinator(settings: settings)
         self.onRoundEnd = onRoundEnd
+        self.displayedHumanID = presenter.localPlayerID
         self.viewState = presenter.viewState
+        updateHandoff()
         scheduleAITurnsIfNeeded()
         scheduleRoundTimerIfNeeded()
         scheduleMoveTimerIfNeeded()
@@ -90,15 +99,26 @@ final class GameViewModel: ObservableObject {
             clearHintSoon()
             return
         }
-        apply { presenter.play(card.card) }
+        apply { presenter.play(card.card, as: displayedHumanID) }
     }
 
-    func drawCard()                       { apply { presenter.draw() } }
-    func chooseColour(_ c: CardColour)     { apply { presenter.chooseColour(c) } }
-    func chooseTarget(_ id: UUID)          { apply { presenter.chooseTarget(id) } }
-    func passTeamCard(_ card: Card?)       { apply { presenter.passTeamCard(card) } }
-    func callSolo()                        { haptics.soloCall(); sound.play(.soloCall); apply { presenter.callSolo() } }
-    func callOut(_ id: UUID)               { apply { presenter.callOut(id) } }
+    func drawCard()                       { apply { presenter.draw(as: displayedHumanID) } }
+    func chooseColour(_ c: CardColour)     { apply { presenter.chooseColour(c, as: displayedHumanID) } }
+    func chooseTarget(_ id: UUID)          { apply { presenter.chooseTarget(id, as: displayedHumanID) } }
+    func passTeamCard(_ card: Card?)       { apply { presenter.passTeamCard(card, as: displayedHumanID) } }
+    func callSolo()                        { haptics.soloCall(); sound.play(.soloCall); apply { presenter.callSolo(as: displayedHumanID) } }
+    func callOut(_ id: UUID)               { apply { presenter.callOut(id, as: displayedHumanID) } }
+
+    /// Pass-and-play: the receiving player has the device — flip the table to their
+    /// perspective and resume their timers.
+    func confirmHandoff() {
+        guard let seat = pendingHandoffSeat else { return }
+        displayedHumanID = seat.id
+        pendingHandoffSeat = nil
+        publishViewState()
+        scheduleMoveTimerIfNeeded()
+        scheduleForcedPickupIfNeeded()
+    }
 
     func beginNextRound() {
         turnsThisRound = 0
@@ -135,6 +155,7 @@ final class GameViewModel: ObservableObject {
         let effects = action()
         turnsThisRound += 1
         handle(effects)
+        updateHandoff()
         publishViewState()
         checkRoundEnd()
         enforceTurnCapIfNeeded()
@@ -142,6 +163,17 @@ final class GameViewModel: ObservableObject {
         scheduleRoundTimerIfNeeded()
         scheduleMoveTimerIfNeeded()
         scheduleForcedPickupIfNeeded()
+    }
+
+    /// Pass-and-play: when the game starts waiting on a human other than the one shown,
+    /// surface the handoff overlay (perspective flips only on `confirmHandoff`).
+    private func updateHandoff() {
+        let waiting = presenter.humanAwaitingInput()
+        if let waiting, waiting != displayedHumanID {
+            pendingHandoffSeat = presenter.viewState(for: waiting).seats.first { $0.id == waiting }
+        } else if pendingHandoffSeat != nil {
+            pendingHandoffSeat = nil
+        }
     }
 
     /// Animates hand/table changes (card play/draw/turn pass — A9) unless the user has
@@ -157,11 +189,12 @@ final class GameViewModel: ObservableObject {
     }
 
     private func publishViewState() {
+        let next = presenter.viewState(for: displayedHumanID)
         guard let animation = stateAnimation else {
-            viewState = presenter.viewState
+            viewState = next
             return
         }
-        withAnimation(animation) { viewState = presenter.viewState }
+        withAnimation(animation) { viewState = next }
     }
 
     /// Defensive turn cap (game-rules.md §Error Handling, playtest-review.md G4): the pure
@@ -176,6 +209,7 @@ final class GameViewModel: ObservableObject {
         let effects = presenter.roundTimerExpired()
         roundDeadline = nil
         handle(effects)
+        updateHandoff()
         publishViewState()
         checkRoundEnd()
     }
@@ -196,6 +230,7 @@ final class GameViewModel: ObservableObject {
                 guard let effects = self.presenter.advanceAutomatic() else { break }
                 self.turnsThisRound += 1
                 self.handle(effects)
+                self.updateHandoff()
                 self.publishViewState()
                 self.checkRoundEnd()
                 self.enforceTurnCapIfNeeded()
@@ -212,7 +247,9 @@ final class GameViewModel: ObservableObject {
     private func scheduleForcedPickupIfNeeded() {
         forcedPickupTask?.cancel()
         forcedPickupTask = nil
+        // Held back during a handoff so the receiving player sees their penalty drawn.
         guard let count = viewState.forcedPickupCount,
+              pendingHandoffSeat == nil,
               presenter.state.phase == .playing,
               presenter.state.pendingDecision == nil else { return }
         announce("No card can answer the stack. Drawing \(count) cards.")
@@ -242,6 +279,7 @@ final class GameViewModel: ObservableObject {
             let effects = self.presenter.roundTimerExpired()
             self.roundDeadline = nil
             self.handle(effects)
+            self.updateHandoff()
             self.publishViewState()
             self.checkRoundEnd()
         }
@@ -252,9 +290,13 @@ final class GameViewModel: ObservableObject {
     private func scheduleMoveTimerIfNeeded() {
         moveTimerTask?.cancel()
         moveDeadline = nil
+        // Paused while a pass-the-device handoff is on screen — the receiving player
+        // shouldn't lose move time before they've even taken the device.
         guard presenter.state.phase == .playing,
               presenter.state.pendingDecision == nil,
-              presenter.state.currentPlayer?.id == localPlayerID else { return }
+              pendingHandoffSeat == nil,
+              presenter.state.currentPlayer?.id == displayedHumanID else { return }
+        let actingID = displayedHumanID
         let seconds = presenter.state.ruleProfile.moveTimeLimitSeconds
         guard seconds > 0 else { return }
         moveDeadline = Date().addingTimeInterval(seconds)
@@ -262,10 +304,11 @@ final class GameViewModel: ObservableObject {
         moveTimerTask = Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
             guard let self, !Task.isCancelled else { return }
-            let effects = self.presenter.forceTimedOutMove(for: self.localPlayerID)
+            let effects = self.presenter.forceTimedOutMove(for: actingID)
             self.moveDeadline = nil
             self.turnsThisRound += 1
             self.handle(effects)
+            self.updateHandoff()
             self.publishViewState()
             self.checkRoundEnd()
             self.enforceTurnCapIfNeeded()
@@ -323,7 +366,7 @@ final class GameViewModel: ObservableObject {
                 haptics.cardPlay()
                 sound.play(soundEffect(forCardPlay: card))
             case .animateCardDraw(let to, _):
-                if to == localPlayerID { haptics.cardDrawn() }
+                if to == displayedHumanID { haptics.cardDrawn() }
                 sound.play(.cardDraw)
             case .animateCardShuffle:            sound.play(.cardShuffle)
             case .animateHandSwap:               sound.play(.swapHands)
@@ -353,8 +396,8 @@ final class GameViewModel: ObservableObject {
 
     private func relation(toPlayerNamed name: String) -> String {
         guard let player = presenter.state.players.first(where: { $0.name == name }) else { return name }
-        if player.id == localPlayerID { return "you" }
-        let localTeam = presenter.state.players.first { $0.id == localPlayerID }?.teamID
+        if player.id == displayedHumanID { return "you" }
+        let localTeam = presenter.state.players.first { $0.id == displayedHumanID }?.teamID
         return player.teamID == localTeam ? "partner" : name
     }
 

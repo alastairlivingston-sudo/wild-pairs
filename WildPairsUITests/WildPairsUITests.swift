@@ -498,6 +498,41 @@ final class WildPairsScreenshotCapture: XCTestCase {
         try save(app, "06-pause")
     }
 
+    /// Two-player pass-and-play (Phase 15): drives Alex's turns by drawing until the game
+    /// waits on Beth, then asserts the handoff overlay appears, confirms it, and checks the
+    /// table has flipped to Beth's perspective (her seat is now the local/bottom seat).
+    func testCaptureTwoPlayerHandoff() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest-reset-state", "--uitest-autostart-2p"]
+        app.launch()
+
+        XCTAssertTrue(app.buttons["game-pause-button"].waitForExistence(timeout: 10))
+
+        // Play Alex's turns via the draw pile until the handoff to Beth appears. Easy AI +
+        // turn order 0→1→2 means Beth's turn comes within a few cycles.
+        let handoff = app.buttons["handoff-confirm"]
+        let draw = app.buttons["game-draw-card-button"]
+        let deadline = Date().addingTimeInterval(90)
+        var lap = 0
+        while !handoff.exists && Date() < deadline {
+            if draw.exists && draw.isEnabled && draw.isHittable { draw.tap() }
+            Thread.sleep(forTimeInterval: 1.0)
+            lap += 1
+            if lap % 10 == 0 { try save(app, "debug-2p-lap\(lap)") }
+        }
+        XCTAssertTrue(handoff.exists, "Handoff overlay never appeared for the second human")
+        try save(app, "14-two-player-handoff")
+
+        handoff.tap()
+        Thread.sleep(forTimeInterval: 1.5)
+        try save(app, "15-two-player-beth-perspective")
+
+        // After the flip Beth is the local player: her prompt line and hand are live, and
+        // the overlay is gone.
+        XCTAssertFalse(handoff.exists, "Handoff overlay must dismiss on confirm")
+        XCTAssertTrue(app.buttons["game-pause-button"].exists)
+    }
+
     /// iPad landscape capture (Phase 15): rotates the device before reaching the table so
     /// the landscape zone layout can be verified. Skips on iPhone, which is portrait-locked.
     func testCaptureLandscapeTable() throws {

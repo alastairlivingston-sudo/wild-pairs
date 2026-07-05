@@ -293,3 +293,118 @@ struct GamePresenterTests {
         return "\(hands)|\(drawPile)|\(discardPile)|\(state.currentPlayerIndex)|\(state.currentColour)|\(state.currentCardType.map(String.init(describing:)) ?? "nil")|\(state.actionCount)"
     }
 }
+
+// MARK: - Two-player pass-and-play (Phase 15)
+
+@Suite("Two-player pass-and-play")
+struct TwoPlayerPassAndPlayTests {
+
+    /// Canonical two-human table: humans at seats 0 and 2 (Team A), AI at 1 and 3 (Team B).
+    private func twoHumanState(currentSeat: Int) -> GameState {
+        var state = GameStateBuilder()
+            .withPlayers()
+            .withCurrentColour(.crimson)
+            .withTopDiscard(CardFactory.number(3, .crimson))
+            .withCurrentPlayer(currentSeat)
+            .withDrawPile([CardFactory.number(1, .jade)])
+            .build()
+        let p2 = state.players[2]
+        state.players[2] = Player(id: p2.id, name: "Beth", role: .human, teamID: p2.teamID,
+                                  difficulty: p2.difficulty, seatPosition: p2.seatPosition,
+                                  hand: p2.hand)
+        return state
+    }
+
+    @Test("humanAwaitingInput names whichever human the game waits on, nil for AI turns")
+    func testHumanAwaitingInput() {
+        let onSeat0 = twoHumanState(currentSeat: 0)
+        let p0 = GamePresenter(state: onSeat0, localPlayerID: onSeat0.players[0].id)
+        #expect(p0.humanAwaitingInput() == onSeat0.players[0].id)
+
+        let onSeat2 = twoHumanState(currentSeat: 2)
+        let p2 = GamePresenter(state: onSeat2, localPlayerID: onSeat2.players[0].id)
+        #expect(p2.humanAwaitingInput() == onSeat2.players[2].id)
+        #expect(p2.nextAutomaticAction() == nil, "AI must never act for a human seat")
+
+        let onSeat1 = twoHumanState(currentSeat: 1)
+        let pAI = GamePresenter(state: onSeat1, localPlayerID: onSeat1.players[0].id)
+        #expect(pAI.humanAwaitingInput() == nil)
+        #expect(pAI.nextAutomaticAction() != nil)
+    }
+
+    @Test("humanAwaitingInput follows a pending decision owned by the second human")
+    func testHumanAwaitingInputPendingDecision() {
+        var state = twoHumanState(currentSeat: 2)
+        state.pendingDecision = .colourChoice(playerID: state.players[2].id)
+        let presenter = GamePresenter(state: state, localPlayerID: state.players[0].id)
+        #expect(presenter.humanAwaitingInput() == state.players[2].id)
+    }
+
+    @Test("viewState(for:) rotates tablePosition so the perspective player sits at the bottom")
+    func testPerspectiveRotation() {
+        let state = twoHumanState(currentSeat: 2)
+        let presenter = GamePresenter(state: state, localPlayerID: state.players[0].id)
+
+        // Seat 0's own view: identity mapping.
+        let vs0 = presenter.viewState(for: state.players[0].id)
+        #expect(vs0.seats.first { $0.seatPosition == 0 }?.tablePosition == 0)
+        #expect(vs0.seats.first { $0.seatPosition == 2 }?.tablePosition == 2)
+
+        // Seat 2's view: they sit at the bottom, seat 0 is across, 3 left, 1 right.
+        let vs2 = presenter.viewState(for: state.players[2].id)
+        #expect(vs2.seats.first { $0.seatPosition == 2 }?.tablePosition == 0)
+        #expect(vs2.seats.first { $0.seatPosition == 0 }?.tablePosition == 2)
+        #expect(vs2.seats.first { $0.seatPosition == 3 }?.tablePosition == 1)
+        #expect(vs2.seats.first { $0.seatPosition == 1 }?.tablePosition == 3)
+        #expect(vs2.seats.first { $0.seatPosition == 2 }?.isLocalPlayer == true)
+        #expect(vs2.isLocalPlayerTurn == true, "Seat 2's perspective on seat 2's turn")
+
+        // The partner's open hand follows the perspective: seat 2 sees seat 0's hand.
+        #expect(vs2.seats.first { $0.seatPosition == 0 }?.visiblePartnerHand != nil)
+        #expect(vs2.seats.first { $0.seatPosition == 1 }?.visiblePartnerHand == nil)
+    }
+
+    @Test("Intents dispatch as the acting human via the `as:` parameter")
+    func testActingPlayerIntents() {
+        var state = twoHumanState(currentSeat: 2)
+        let card = CardFactory.number(3, .crimson)
+        state.players[2].hand = [card, CardFactory.number(9, .cobalt)]
+        let presenter = GamePresenter(state: state, localPlayerID: state.players[0].id)
+        let beth = state.players[2].id
+
+        presenter.play(card, as: beth)
+        #expect(presenter.state.players[2].hand.count == 1)
+        #expect(presenter.state.deck.topDiscard?.id == card.id)
+    }
+
+    @Test("rememberPlayerNames keeps most-recent-first, dedupes case-insensitively, caps at 8")
+    func testRememberPlayerNames() {
+        var settings = UserSettings()
+        settings.rememberPlayerNames(["Alastair", "Beth"])
+        #expect(settings.savedPlayerNames == ["Alastair", "Beth"])
+
+        settings.rememberPlayerNames(["beth", "Carol"])
+        #expect(settings.savedPlayerNames == ["beth", "Carol", "Alastair"])
+
+        settings.rememberPlayerNames(["  ", "Dave"])
+        #expect(settings.savedPlayerNames.first == "Dave")
+        #expect(!settings.savedPlayerNames.contains(where: { $0.trimmingCharacters(in: .whitespaces).isEmpty }))
+
+        settings.rememberPlayerNames(["E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8"])
+        #expect(settings.savedPlayerNames.count == UserSettings.maxSavedPlayerNames)
+        #expect(settings.savedPlayerNames.prefix(2) == ["E1", "E2"])
+    }
+
+    @Test("Saved names round-trip through the settings JSON; older files decode to empty")
+    func testSavedNamesPersistence() throws {
+        var settings = UserSettings()
+        settings.rememberPlayerNames(["Alastair", "Beth"])
+        let data = try JSONEncoder().encode(settings)
+        let decoded = try JSONDecoder().decode(UserSettings.self, from: data)
+        #expect(decoded.savedPlayerNames == ["Alastair", "Beth"])
+
+        let legacy = #"{"animationSpeed":"normal"}"#.data(using: .utf8)!
+        let old = try JSONDecoder().decode(UserSettings.self, from: legacy)
+        #expect(old.savedPlayerNames.isEmpty)
+    }
+}

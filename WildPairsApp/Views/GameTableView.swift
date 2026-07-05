@@ -128,6 +128,10 @@ struct GameTableView: View {
 
                     if let hint = vm.lastInvalidHint { invalidTooltip(hint, handCardSize: handCardSize) }
 
+                    if let handoff = vm.pendingHandoffSeat {
+                        HandoffOverlay(seat: handoff, onReady: vm.confirmHandoff)
+                    }
+
                     if vs.phase == .roundEnded || vs.phase == .gameEnded {
                         RoundEndView(vs: vs, settings: settings, onNext: vm.beginNextRound, onExit: onExit)
                     }
@@ -314,8 +318,10 @@ struct GameTableView: View {
 
     // MARK: Helpers
 
+    /// Seats are placed by `tablePosition` (relative to the displayed player), not absolute
+    /// seat number, so a pass-and-play perspective flip rotates the whole table.
     private func seat(at position: Int) -> PlayerSeatViewState? {
-        vs.seats.first { $0.seatPosition == position }
+        vs.seats.first { $0.tablePosition == position }
     }
 
     private var targetCandidates: [PlayerSeatViewState] {

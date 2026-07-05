@@ -63,7 +63,7 @@ struct HomeView: View {
                 }
             }
             .navigationDestination(isPresented: $showNewGame) {
-                NewGameFlowView(stackingEnabled: settings.userSettings.stackingEnabled) { config in
+                NewGameFlowView(settings: settings) { config in
                     showNewGame = false
                     onStart(config)
                 }

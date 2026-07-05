@@ -29,6 +29,11 @@ public struct PlayerSeatViewState: Equatable, Sendable, Identifiable {
     public let name: String
     public let teamID: TeamID
     public let seatPosition: Int
+    /// The seat's position relative to the local player's perspective: 0 = bottom (the local
+    /// player), 1 = left, 2 = across, 3 = right. Equal to `seatPosition` when the local player
+    /// sits at seat 0; rotated for pass-and-play perspectives so the active human always
+    /// renders at the bottom of the table.
+    public let tablePosition: Int
     public let handCount: Int
     public let isCurrentPlayer: Bool
     public let hasFinishedRound: Bool
@@ -42,12 +47,13 @@ public struct PlayerSeatViewState: Equatable, Sendable, Identifiable {
     public let visiblePartnerHand: [Card]?
 
     public init(
-        id: UUID, name: String, teamID: TeamID, seatPosition: Int,
+        id: UUID, name: String, teamID: TeamID, seatPosition: Int, tablePosition: Int? = nil,
         handCount: Int, isCurrentPlayer: Bool, hasFinishedRound: Bool,
         isLocalPlayer: Bool, needsSoloCall: Bool, visiblePartnerHand: [Card]? = nil
     ) {
         self.id = id; self.name = name; self.teamID = teamID
-        self.seatPosition = seatPosition; self.handCount = handCount
+        self.seatPosition = seatPosition; self.tablePosition = tablePosition ?? seatPosition
+        self.handCount = handCount
         self.isCurrentPlayer = isCurrentPlayer; self.hasFinishedRound = hasFinishedRound
         self.isLocalPlayer = isLocalPlayer; self.needsSoloCall = needsSoloCall
         self.visiblePartnerHand = visiblePartnerHand
@@ -153,12 +159,15 @@ public struct GameViewState: Equatable, Sendable {
         let local = state.players.first { $0.id == localPlayerID }
         let localTeam = local?.teamID
         let partnerID = state.teamState.partnerID(for: localPlayerID)
+        let localSeat = local?.seatPosition ?? 0
+        let seatCount = max(state.players.count, 1)
 
         self.seats = state.players
             .sorted { $0.seatPosition < $1.seatPosition }
             .map { p in
                 PlayerSeatViewState(
                     id: p.id, name: p.name, teamID: p.teamID, seatPosition: p.seatPosition,
+                    tablePosition: ((p.seatPosition - localSeat) % seatCount + seatCount) % seatCount,
                     handCount: p.hand.count,
                     isCurrentPlayer: state.currentPlayer?.id == p.id,
                     hasFinishedRound: p.hasFinishedRound,

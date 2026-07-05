@@ -36,7 +36,9 @@ struct RootView: View {
 
     /// Design-capture hooks: jump straight to a live table / the card gallery (skipping
     /// onboarding and home) so unattended screenshot runs don't need scripted taps.
+    /// `-2p` starts a two-human pass-and-play table for handoff verification.
     private let autostart = ProcessInfo.processInfo.arguments.contains("--uitest-autostart")
+    private let autostartTwoPlayer = ProcessInfo.processInfo.arguments.contains("--uitest-autostart-2p")
     private let showGallery = ProcessInfo.processInfo.arguments.contains("--uitest-cardgallery")
 
     init() {
@@ -65,15 +67,24 @@ struct RootView: View {
             OnboardingView(onDismiss: dismissOnboarding)
         }
         .onAppear {
-            guard autostart, game == nil else { return }
-            startGame(.standardFourPlayer(mode: .standardTeams, difficulty: .medium,
-                                          cardSet: .standard))
+            guard game == nil else { return }
+            if autostartTwoPlayer {
+                startGame(.twoPlayerPartners(mode: .standardTeams, difficulty: .easy,
+                                             cardSet: .standard,
+                                             playerOneName: "Alex", playerTwoName: "Beth"))
+            } else if autostart {
+                startGame(.standardFourPlayer(mode: .standardTeams, difficulty: .medium,
+                                              cardSet: .standard))
+            }
         }
     }
 
     private var showOnboardingBinding: Binding<Bool> {
         Binding(
-            get: { !settings.userSettings.hasSeenOnboarding && !autostart && !showGallery },
+            get: {
+                !settings.userSettings.hasSeenOnboarding && !autostart
+                    && !autostartTwoPlayer && !showGallery
+            },
             set: { _ in }
         )
     }

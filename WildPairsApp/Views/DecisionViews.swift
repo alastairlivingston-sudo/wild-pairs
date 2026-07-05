@@ -133,6 +133,48 @@ struct TeamPassPickerView: View {
     }
 }
 
+// Pass-and-play turn handoff (Phase 15): shown when the game is waiting on the other human
+// at the table. Partner hands are open by design, so this is a turn-clarity gate, not a
+// privacy screen — the table stays visible (dimmed) behind it.
+struct HandoffOverlay: View {
+    let seat: PlayerSeatViewState
+    let onReady: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.62).ignoresSafeArea()
+            VStack(spacing: Theme.Space.s4) {
+                Image(systemName: "arrow.left.arrow.right.circle.fill")
+                    .font(.system(size: 44))
+                    .foregroundStyle(Theme.Palette.accent)
+                Text("Pass the device to \(seat.name)")
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+                Text("It's \(seat.name)'s turn.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Button {
+                    onReady()
+                } label: {
+                    Text("I'm \(seat.name) — show my hand")
+                }
+                .buttonStyle(.wpPrimary)
+                .accessibilityIdentifier("handoff-confirm")
+            }
+            .padding(Theme.Space.s6)
+            .frame(maxWidth: 420)
+            .wpGlass(cornerRadius: Theme.Radius.r4, tint: Theme.Palette.accent)
+            .padding(Theme.Space.s5)
+        }
+        .transition(.opacity)
+        // `.contain` keeps the confirm button individually reachable/queryable; adding the
+        // modal trait directly to the container would swallow the children (KI-034 lesson).
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("handoff-overlay")
+    }
+}
+
 // The single guidance line above the hand (§ux tone of voice).
 struct PromptBanner: View {
     let prompt: PromptKind

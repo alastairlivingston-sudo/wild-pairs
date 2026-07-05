@@ -44,6 +44,32 @@ public final class GamePresenter {
         GameViewState(from: state, localPlayerID: localPlayerID)
     }
 
+    /// Perspective-flipped view-state for pass-and-play: derive the table as seen by any
+    /// human seat (the active human renders at the bottom via `tablePosition`).
+    public func viewState(for playerID: UUID) -> GameViewState {
+        GameViewState(from: state, localPlayerID: playerID)
+    }
+
+    /// The human player the game is currently waiting on — their turn, or a pending
+    /// decision they own. Nil while an AI acts or the round is over. Drives the
+    /// pass-the-device handoff in two-human games; in single-human games this is always
+    /// either `localPlayerID` or nil.
+    public func humanAwaitingInput() -> UUID? {
+        guard state.phase == .playing || state.phase == .teamPass else { return nil }
+        switch state.pendingDecision {
+        case .colourChoice(let pid), .teamPass(let pid):
+            return humanPlayer(pid)?.id
+        case .targetChoice(let pid, _):
+            return humanPlayer(pid)?.id
+        case .drawFourChallenge:
+            return nil
+        case .none:
+            break
+        }
+        guard let current = state.currentPlayer, current.role == .human else { return nil }
+        return current.id
+    }
+
     // MARK: Dispatch
 
     /// Applies an action through the engine, updates state, and autosaves when requested.
@@ -112,29 +138,31 @@ public final class GamePresenter {
     }
 
     // MARK: Local player intents (thin wrappers for clarity at the call site)
+    // `as playerID:` selects which human acts — pass-and-play forwards the displayed
+    // human's ID; the default keeps single-human call sites unchanged.
 
-    @discardableResult public func play(_ card: Card) -> [GameEffect] {
-        dispatch(.playCard(card, playerID: localPlayerID))
+    @discardableResult public func play(_ card: Card, as playerID: UUID? = nil) -> [GameEffect] {
+        dispatch(.playCard(card, playerID: playerID ?? localPlayerID))
     }
-    @discardableResult public func draw() -> [GameEffect] {
-        dispatch(.drawCard(playerID: localPlayerID))
+    @discardableResult public func draw(as playerID: UUID? = nil) -> [GameEffect] {
+        dispatch(.drawCard(playerID: playerID ?? localPlayerID))
     }
-    @discardableResult public func chooseColour(_ colour: CardColour) -> [GameEffect] {
-        dispatch(.selectColour(colour, playerID: localPlayerID))
+    @discardableResult public func chooseColour(_ colour: CardColour, as playerID: UUID? = nil) -> [GameEffect] {
+        dispatch(.selectColour(colour, playerID: playerID ?? localPlayerID))
     }
-    @discardableResult public func chooseTarget(_ targetID: UUID) -> [GameEffect] {
-        dispatch(.selectTarget(targetPlayerID: targetID, playerID: localPlayerID))
+    @discardableResult public func chooseTarget(_ targetID: UUID, as playerID: UUID? = nil) -> [GameEffect] {
+        dispatch(.selectTarget(targetPlayerID: targetID, playerID: playerID ?? localPlayerID))
     }
-    /// Submits the local player's Side-to-Side Team Pass choice — `card` from their hand to
+    /// Submits a Side-to-Side Team Pass choice — `card` from the acting player's hand to
     /// give to their partner, or nil to decline.
-    @discardableResult public func passTeamCard(_ card: Card?) -> [GameEffect] {
-        dispatch(.submitTeamPass(playerID: localPlayerID, card: card))
+    @discardableResult public func passTeamCard(_ card: Card?, as playerID: UUID? = nil) -> [GameEffect] {
+        dispatch(.submitTeamPass(playerID: playerID ?? localPlayerID, card: card))
     }
-    @discardableResult public func callSolo() -> [GameEffect] {
-        dispatch(.callSolo(playerID: localPlayerID))
+    @discardableResult public func callSolo(as playerID: UUID? = nil) -> [GameEffect] {
+        dispatch(.callSolo(playerID: playerID ?? localPlayerID))
     }
-    @discardableResult public func callOut(_ targetID: UUID) -> [GameEffect] {
-        dispatch(.callOutSolo(targetPlayerID: targetID, callerID: localPlayerID))
+    @discardableResult public func callOut(_ targetID: UUID, as playerID: UUID? = nil) -> [GameEffect] {
+        dispatch(.callOutSolo(targetPlayerID: targetID, callerID: playerID ?? localPlayerID))
     }
     @discardableResult public func beginNewRound() -> [GameEffect] {
         dispatch(.beginNewRound)
@@ -171,5 +199,9 @@ public final class GamePresenter {
 
     private func aiPlayer(_ id: UUID) -> Player? {
         state.players.first { $0.id == id && $0.role == .ai }
+    }
+
+    private func humanPlayer(_ id: UUID) -> Player? {
+        state.players.first { $0.id == id && $0.role == .human }
     }
 }
