@@ -70,8 +70,8 @@ struct RootView: View {
     }
 
     private func makeViewModel(_ presenter: GamePresenter) -> GameViewModel {
-        GameViewModel(presenter: presenter, settings: settings) { won, difficulty, turns in
-            settings.recordRoundResult(localTeamWon: won, difficulty: difficulty, turns: turns)
+        GameViewModel(presenter: presenter, settings: settings) { result in
+            settings.recordRoundResult(result)
         }
     }
 

@@ -15,9 +15,12 @@ struct HandView: View {
     let onPlay: (CardViewModel) -> Void
 
     @State private var shakingCardID: UUID?
+    /// Echoed out of the GeometryReader so the outer frame can grow for the second row.
+    /// Stable: the row count depends only on the width and hand size, never on height.
+    @State private var rowsShown = 1
 
-    /// Below this overlap step, cards become unreadable / untappable — fall back to a
-    /// scrollable row instead of compressing further (A5 "extreme counts" fallback).
+    /// Below this overlap step, cards become unreadable / untappable — split into a second
+    /// row, and only past what two rows can hold fall back to a scrollable row (A5).
     private let minimumStep: CGFloat
 
     init(hand: [CardViewModel], cardSize: CGSize, showColourName: Bool, showPattern: Bool = false,
@@ -28,7 +31,14 @@ struct HandView: View {
         self.showPattern = showPattern
         self.reducedMotion = reducedMotion
         self.onPlay = onPlay
-        self.minimumStep = cardSize.width * 0.32
+        self.minimumStep = cardSize.width * 0.36
+    }
+
+    /// The back row tucks behind the front row like a second rank of held cards, so two rows
+    /// cost half a card of extra height, not a full one.
+    private var rowGap: CGFloat { cardSize.height * 0.5 }
+    private func height(forRows rows: Int) -> CGFloat {
+        cardSize.height + rowGap * CGFloat(rows - 1) + Theme.Space.s3 * 2
     }
 
     var body: some View {
@@ -37,36 +47,40 @@ struct HandView: View {
             // extend past the layout frame, so the fan needs bleed room beyond the text
             // margin or edge cards clip at the screen boundary.
             let available = geo.size.width - Theme.Space.s4 * 2 - cardSize.width * 0.24
-            let step = fanStep(available: available)
-            if step >= minimumStep || hand.count <= 1 {
-                // `.offset(x:)` is a render-time transform that does NOT contribute to layout, so
-                // the ZStack's intrinsic width is a single card — not the full fan. The inner
-                // frame must therefore be **leading-anchored**: that pins the offset origin (and
-                // card 0) to the fan's true left edge, so the fan occupies exactly [0, fanWidth].
-                // A default (centre) alignment here centres a one-card-wide box inside the wider
-                // fanWidth frame, shifting the whole fan right by (fanWidth − cardWidth)/2 and
-                // clipping the trailing cards off the right edge (the bug fixed here). The outer
-                // frame then centres the real fan width within the reader with symmetric margins.
-                ZStack(alignment: .leading) {
-                    ForEach(Array(hand.enumerated()), id: \.element.id) { index, item in
-                        card(item, index: index)
-                            .offset(x: CGFloat(index) * step)
-                            .zIndex(item.isPlayable ? Double(index) + 100 : Double(index))
+            let step = fanStep(count: hand.count, available: available)
+            let backCount = hand.count / 2
+            let frontStep = fanStep(count: hand.count - backCount, available: available)
+
+            Group {
+                if step >= minimumStep || hand.count <= 1 {
+                    fanRow(Array(hand.enumerated()), step: step, fullWidth: geo.size.width)
+                } else if frontStep >= minimumStep {
+                    // Two ranks (Phase 14): the first half of the hand sits behind and above,
+                    // the rest in front — reading order left-to-right, back rank then front.
+                    ZStack(alignment: .top) {
+                        fanRow(Array(hand.enumerated().prefix(backCount)), step: frontStep,
+                               fullWidth: geo.size.width)
+                        fanRow(Array(hand.enumerated().dropFirst(backCount)), step: frontStep,
+                               fullWidth: geo.size.width)
+                            .offset(y: rowGap)
                     }
-                }
-                .frame(width: fanWidth(step: step), height: cardSize.height + Theme.Space.s3 * 2, alignment: .leading)
-                .frame(width: geo.size.width, height: cardSize.height + Theme.Space.s3 * 2, alignment: .center)
-            } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: Theme.Space.s2) {
-                        ForEach(Array(hand.enumerated()), id: \.element.id) { index, item in card(item, index: index) }
+                } else {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: Theme.Space.s2) {
+                            ForEach(Array(hand.enumerated()), id: \.element.id) { index, item in
+                                card(item, indexInRow: index, rowCount: hand.count, staggerIndex: index)
+                            }
+                        }
+                        .padding(.horizontal, Theme.Space.s4)
+                        .padding(.vertical, Theme.Space.s3)
                     }
-                    .padding(.horizontal, Theme.Space.s4)
-                    .padding(.vertical, Theme.Space.s3)
                 }
             }
+            .onAppear { rowsShown = rowCount(step: step, frontStep: frontStep) }
+            .onChange(of: rowCount(step: step, frontStep: frontStep)) { _, rows in rowsShown = rows }
         }
-        .frame(height: cardSize.height + Theme.Space.s3 * 2)
+        .frame(height: height(forRows: rowsShown))
+        .animation(reducedMotion ? nil : Theme.Motion.moderate, value: rowsShown)
         // `GeometryReader` has no view identity of its own, so an `.accessibilityLabel` applied
         // directly to it "leaks" down and overwrites each card's own label instead of labelling
         // a single container (regression found via the UI test suite — every hand card was
@@ -77,30 +91,58 @@ struct HandView: View {
         .accessibilityLabel("Your hand, \(hand.count) cards")
     }
 
-    private func fanWidth(step: CGFloat) -> CGFloat {
-        guard hand.count > 0 else { return cardSize.width }
-        return cardSize.width + step * CGFloat(hand.count - 1)
+    private func rowCount(step: CGFloat, frontStep: CGFloat) -> Int {
+        if step >= minimumStep || hand.count <= 1 { return 1 }
+        return frontStep >= minimumStep ? 2 : 1
+    }
+
+    /// One leading-anchored fan, centred in the full width. `.offset(x:)` is a render-time
+    /// transform that does NOT contribute to layout, so the ZStack's intrinsic width is a
+    /// single card — not the full fan. The inner frame must therefore be **leading-anchored**:
+    /// that pins the offset origin (and the row's first card) to the fan's true left edge, so
+    /// the fan occupies exactly [0, fanWidth]. A default (centre) alignment here centres a
+    /// one-card-wide box inside the wider fanWidth frame, shifting the whole fan right and
+    /// clipping the trailing cards off the right edge (bug fixed in Phase 10). The outer frame
+    /// then centres the real fan width within the reader with symmetric margins.
+    private func fanRow(_ items: [(offset: Int, element: CardViewModel)], step: CGFloat,
+                        fullWidth: CGFloat) -> some View {
+        ZStack(alignment: .leading) {
+            ForEach(Array(items.enumerated()), id: \.element.element.id) { rowIndex, pair in
+                card(pair.element, indexInRow: rowIndex, rowCount: items.count, staggerIndex: pair.offset)
+                    .offset(x: CGFloat(rowIndex) * step)
+                    .zIndex(pair.element.isPlayable ? Double(rowIndex) + 100 : Double(rowIndex))
+            }
+        }
+        .frame(width: fanWidth(count: items.count, step: step),
+               height: cardSize.height + Theme.Space.s3 * 2, alignment: .leading)
+        .frame(width: fullWidth, height: cardSize.height + Theme.Space.s3 * 2, alignment: .center)
+    }
+
+    private func fanWidth(count: Int, step: CGFloat) -> CGFloat {
+        guard count > 0 else { return cardSize.width }
+        return cardSize.width + step * CGFloat(count - 1)
     }
 
     /// The per-card horizontal advance: a ~44% overlap (neon-final.html spec) when everything
     /// fits, shrinking (overlapping further) only as far as needed to keep the whole fan
     /// inside `available`.
-    private func fanStep(available: CGFloat) -> CGFloat {
-        guard hand.count > 1 else { return cardSize.width }
+    private func fanStep(count: Int, available: CGFloat) -> CGFloat {
+        guard count > 1 else { return cardSize.width }
         let comfortable = cardSize.width * 0.56
-        let neededForComfortable = cardSize.width + comfortable * CGFloat(hand.count - 1)
+        let neededForComfortable = cardSize.width + comfortable * CGFloat(count - 1)
         if neededForComfortable <= available { return comfortable }
-        let step = (available - cardSize.width) / CGFloat(hand.count - 1)
+        let step = (available - cardSize.width) / CGFloat(count - 1)
         return max(step, 1)
     }
 
-    private func card(_ item: CardViewModel, index: Int) -> some View {
+    private func card(_ item: CardViewModel, indexInRow: Int, rowCount: Int,
+                      staggerIndex: Int) -> some View {
         // Held-fan arc (Phase 12b): cards rotate around a shared low pivot and bow downward
         // toward the edges, like cards actually held in a hand. Static layout, not motion,
         // so it applies under Reduce Motion too.
-        let centred = Double(index) - Double(hand.count - 1) / 2
-        let anglePerCard = min(3.5, 14.0 / Double(max(hand.count, 1)))
-        let halfSpan = max(1.0, Double(hand.count - 1) / 2)
+        let centred = Double(indexInRow) - Double(rowCount - 1) / 2
+        let anglePerCard = min(3.5, 14.0 / Double(max(rowCount, 1)))
+        let halfSpan = max(1.0, Double(rowCount - 1) / 2)
         let bow = CGFloat((centred * centred) / (halfSpan * halfSpan)) * 8
         return CardView(card: item.card, size: cardSize,
                  isPlayable: item.isPlayable, showColourName: showColourName,
@@ -115,7 +157,7 @@ struct HandView: View {
             .transition(reducedMotion ? .identity : .scale(scale: 0.5).combined(with: .opacity))
             // Deal-in stagger (Phase 11 B): each new card (a fresh deal, or one drawn mid-round)
             // fades/scales in with a per-index delay instead of every card popping at once.
-            .modifier(DealStaggerModifier(index: index, reducedMotion: reducedMotion))
+            .modifier(DealStaggerModifier(index: staggerIndex, reducedMotion: reducedMotion))
     }
 
     private func tap(_ item: CardViewModel) {

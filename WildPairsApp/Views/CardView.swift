@@ -26,7 +26,6 @@ struct CardView: View {
 
     /// The colour the face prints in — the card's own, or a resolved wild's chosen tint.
     private var displayColour: CardColour? { card.colour ?? wildTint }
-    private var isWildStock: Bool { displayColour == nil }
     /// Real playing cards show both corner indices (top-left + mirrored bottom-right) at any
     /// size large enough to render them legibly; smaller cards show just the top-left index.
     private var showSecondCorner: Bool { size.width >= 46 }
@@ -57,6 +56,7 @@ struct CardView: View {
                 }
                 faceContent
                 cornerIndices
+                colourNamePlate
                 PrintGrain()
                     .clipShape(RoundedRectangle(cornerRadius: faceRadius))
                 glossSweep
@@ -93,12 +93,13 @@ struct CardView: View {
             startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
-    /// Large tilted suit mark printed as a tonal watermark behind the content.
+    /// Large tilted suit mark printed as a tonal watermark behind the content — sized to stay
+    /// clear of the corner indices so it never muddies them.
     @ViewBuilder private var ghostWatermark: some View {
         if let colour = displayColour {
             SuitSymbol(colour: colour, lineWidth: max(1.5, size.width * 0.05))
-                .frame(width: size.width * 0.66, height: size.width * 0.66)
-                .foregroundStyle(.white.opacity(0.14))
+                .frame(width: size.width * 0.6, height: size.width * 0.6)
+                .foregroundStyle(.white.opacity(0.12))
                 .rotationEffect(.degrees(-12))
                 .offset(x: size.width * 0.05, y: -size.height * 0.01)
         }
@@ -126,6 +127,8 @@ struct CardView: View {
 
     // MARK: Printed content
 
+    // One dominant centre mark per card, no caption text — the production-card discipline
+    // that keeps faces legible in a tight fan. Draw cards print "+2"/"+4" as the mark itself.
     @ViewBuilder private var faceContent: some View {
         switch card.type {
         case .number(let value):
@@ -133,20 +136,36 @@ struct CardView: View {
                 Text("\(value)")
                     .font(.system(size: size.width * 0.52, weight: .heavy, design: .rounded))
             }
-        default:
-            VStack(spacing: size.height * 0.02) {
-                if isWildStock { wildMotif }
+        case .drawTwo:
+            printedMark {
+                Text("+2")
+                    .font(.system(size: size.width * 0.42, weight: .heavy, design: .rounded))
+            }
+        case .drawFour:
+            VStack(spacing: size.height * 0.015) {
+                wildMotif(fraction: 0.44)
                 printedMark {
-                    Image(systemName: card.type.centerSymbol ?? "questionmark")
-                        .font(.system(size: size.width * (isWildStock ? 0.24 : 0.34), weight: .heavy))
+                    Text("+4")
+                        .font(.system(size: size.width * 0.36, weight: .heavy, design: .rounded))
                 }
-                if let caption = centreCaption {
-                    printedMark {
-                        Text(caption)
-                            .font(.system(size: max(7, size.height * 0.07), weight: .bold, design: .rounded))
-                            .minimumScaleFactor(0.6).lineLimit(1)
-                    }
+            }
+        case .changeColour:
+            wildMotif(fraction: 0.78)
+        case .skipTwo:
+            VStack(spacing: size.height * 0.008) {
+                printedMark {
+                    Image(systemName: "nosign")
+                        .font(.system(size: size.width * 0.36, weight: .heavy))
                 }
+                printedMark {
+                    Text("×2")
+                        .font(.system(size: size.width * 0.17, weight: .heavy, design: .rounded))
+                }
+            }
+        default:
+            printedMark {
+                Image(systemName: card.type.centerSymbol ?? "questionmark")
+                    .font(.system(size: size.width * 0.4, weight: .heavy))
             }
         }
     }
@@ -161,29 +180,31 @@ struct CardView: View {
     }
 
     /// Wild motif: the four element chips set in a diamond — "plays on anything", printed
-    /// in this deck's own trade dress.
-    private var wildMotif: some View {
-        ZStack {
+    /// in this deck's own trade dress. `fraction` is the motif's footprint as a fraction of
+    /// the card width (full-face on Wild, compact above the "+4" on Draw Four).
+    private func wildMotif(fraction: CGFloat) -> some View {
+        let k = fraction / 0.72
+        return ZStack {
             ForEach(Array(CardColour.allCases.enumerated()), id: \.offset) { index, colour in
                 let angle = Double(index) * 90.0 - 90.0
-                RoundedRectangle(cornerRadius: size.width * 0.045)
+                RoundedRectangle(cornerRadius: size.width * 0.045 * k)
                     .fill(
                         LinearGradient(colors: [colour.highlightColor(scheme), colour.fillColor(scheme)],
                                        startPoint: .topLeading, endPoint: .bottomTrailing)
                     )
-                    .frame(width: size.width * 0.19, height: size.width * 0.19)
+                    .frame(width: size.width * 0.19 * k, height: size.width * 0.19 * k)
                     .rotationEffect(.degrees(45))
                     .overlay(
-                        SuitSymbol(colour: colour, lineWidth: max(1, size.width * 0.02))
-                            .frame(width: size.width * 0.1, height: size.width * 0.1)
+                        SuitSymbol(colour: colour, lineWidth: max(1, size.width * 0.02 * k))
+                            .frame(width: size.width * 0.1 * k, height: size.width * 0.1 * k)
                             .foregroundStyle(.white.opacity(0.9))
                     )
                     .shadow(color: .black.opacity(0.35), radius: 0, x: size.width * 0.012, y: size.width * 0.016)
-                    .offset(x: cos(angle * .pi / 180) * size.width * 0.24,
-                            y: sin(angle * .pi / 180) * size.width * 0.24)
+                    .offset(x: cos(angle * .pi / 180) * size.width * 0.24 * k,
+                            y: sin(angle * .pi / 180) * size.width * 0.24 * k)
             }
         }
-        .frame(width: size.width * 0.72, height: size.width * 0.72)
+        .frame(width: size.width * fraction, height: size.width * fraction)
     }
 
     // MARK: Corner indices
@@ -200,33 +221,72 @@ struct CardView: View {
     }
 
     private var cornerIndex: some View {
-        VStack(spacing: size.height * 0.004) {
-            printedMark {
-                Text(cornerLabel)
-                    .font(.system(size: max(9, size.width * 0.17), weight: .heavy, design: .rounded))
-                    .minimumScaleFactor(0.6).lineLimit(1)
-            }
+        VStack(spacing: size.height * 0.006) {
+            printedMark { cornerMark }
             if let colour = card.colour {
-                SuitSymbol(colour: colour, lineWidth: max(1, size.width * 0.024))
-                    .frame(width: size.width * 0.12, height: size.width * 0.12)
+                SuitSymbol(colour: colour, lineWidth: max(1, size.width * 0.022))
+                    .frame(width: size.width * 0.105, height: size.width * 0.105)
                     .foregroundStyle(.white.opacity(0.95))
             }
         }
         .fixedSize()
     }
 
-    private var cornerLabel: String {
-        if case .number(let v) = card.type { return "\(v)" }
-        return card.type.abbreviation
+    /// The corner index is the centre mark in miniature — never a text abbreviation, which
+    /// piled up as word soup wherever fanned cards overlapped.
+    @ViewBuilder private var cornerMark: some View {
+        switch card.type {
+        case .number(let v):
+            Text("\(v)").font(cornerTextFont)
+        case .drawTwo:
+            Text("+2").font(cornerTextFont)
+        case .drawFour:
+            Text("+4").font(cornerTextFont)
+        case .changeColour:
+            miniWildDiamond
+        case .skipTwo:
+            HStack(spacing: 0) {
+                Image(systemName: "nosign").font(cornerIconFont)
+                Text("2").font(.system(size: max(7, size.width * 0.1), weight: .heavy, design: .rounded))
+            }
+        default:
+            Image(systemName: card.type.centerSymbol ?? "questionmark").font(cornerIconFont)
+        }
     }
 
-    /// Action cards caption their name; in colour-blind mode every card captions its colour.
-    /// Hidden on the smallest cards (partner strip) where it would be unreadable.
-    private var centreCaption: String? {
-        guard size.width >= 56 else { return nil }
-        if showColourName, let colour = card.colour { return colour.displayName.uppercased() }
-        if case .number = card.type { return nil }
-        return card.type.readableName
+    private var cornerTextFont: Font { .system(size: max(9, size.width * 0.16), weight: .heavy, design: .rounded) }
+    private var cornerIconFont: Font { .system(size: max(8, size.width * 0.13), weight: .heavy) }
+
+    /// Tiny four-chip diamond marking a wild's corners (kept even once a wild is tinted, so a
+    /// resolved wild still reads as one).
+    private var miniWildDiamond: some View {
+        ZStack {
+            ForEach(Array(CardColour.allCases.enumerated()), id: \.offset) { index, colour in
+                let angle = Double(index) * 90.0 - 90.0
+                RoundedRectangle(cornerRadius: size.width * 0.014)
+                    .fill(colour.fillColor(scheme))
+                    .frame(width: size.width * 0.06, height: size.width * 0.06)
+                    .rotationEffect(.degrees(45))
+                    .offset(x: cos(angle * .pi / 180) * size.width * 0.055,
+                            y: sin(angle * .pi / 180) * size.width * 0.055)
+            }
+        }
+        .frame(width: size.width * 0.17, height: size.width * 0.17)
+    }
+
+    /// Colour-blind mode names the printed colour on a small plate at the foot of the face —
+    /// clear of both corner indices, and reflecting a resolved wild's chosen colour.
+    @ViewBuilder private var colourNamePlate: some View {
+        if showColourName, let colour = displayColour, size.width >= 56 {
+            printedMark {
+                Text(colour.displayName.uppercased())
+                    .font(.system(size: max(7, size.height * 0.055), weight: .bold, design: .rounded))
+                    .minimumScaleFactor(0.6).lineLimit(1)
+            }
+            .frame(maxWidth: size.width * 0.5)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            .padding(.bottom, size.height * 0.05)
+        }
     }
 
     /// Suit-coloured glow on playable/selected cards; falls back to a subtle resting shadow

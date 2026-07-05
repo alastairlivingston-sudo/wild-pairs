@@ -21,24 +21,25 @@ final class AppSettings: ObservableObject {
         self.stats = (try? persistence.loadStats()) ?? .empty
     }
 
-    func recordRoundResult(localTeamWon: Bool, difficulty: Difficulty, turns: Int) {
+    func recordRoundResult(_ result: RoundResult) {
         var s = stats
         s.totalGamesPlayed += 1
-        if localTeamWon {
+        if result.localTeamWon {
             s.totalWins += 1
             s.currentWinStreak += 1
             s.bestWinStreak = max(s.bestWinStreak, s.currentWinStreak)
+            s.recordWin(points: result.roundPoints, multiplier: result.multiplier)
         } else {
             s.currentWinStreak = 0
         }
         // Rolling average of turns per round.
         let n = Double(s.totalGamesPlayed)
-        s.averageTurnsPerRound = ((s.averageTurnsPerRound * (n - 1)) + Double(turns)) / n
+        s.averageTurnsPerRound = ((s.averageTurnsPerRound * (n - 1)) + Double(result.turns)) / n
 
-        var byDiff = s.byDifficulty[difficulty.rawValue] ?? DifficultyStats()
+        var byDiff = s.byDifficulty[result.difficulty.rawValue] ?? DifficultyStats()
         byDiff.gamesPlayed += 1
-        if localTeamWon { byDiff.wins += 1 }
-        s.byDifficulty[difficulty.rawValue] = byDiff
+        if result.localTeamWon { byDiff.wins += 1 }
+        s.byDifficulty[result.difficulty.rawValue] = byDiff
 
         stats = s
         try? persistence.saveStats(s)

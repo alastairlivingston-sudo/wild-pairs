@@ -546,24 +546,6 @@ extension CardType {
         }
     }
 
-    /// Short, human-readable name shown on action cards instead of the cryptic abbreviation
-    /// (Phase 9 A3: "Draw +2" not "D2").
-    var readableName: String {
-        switch self {
-        case .number(let v): return "\(v)"
-        case .skip:          return "Skip"
-        case .skipTwo:       return "Skip 2"
-        case .reverse:       return "Reverse"
-        case .drawTwo:       return "Draw +2"
-        case .drawFour:      return "Draw +4"
-        case .changeColour:  return "Wild"
-        case .discardAll:    return "Discard All"
-        case .targetedDraw:  return "Target"
-        case .forcedSwap:    return "Swap"
-        case .teamPlay:      return "Team"
-        }
-    }
-
     /// Centre glyph (SF Symbol) for action cards; numbers render the digit instead.
     var centerSymbol: String? {
         switch self {

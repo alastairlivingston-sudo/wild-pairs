@@ -6,6 +6,16 @@ import WildPairsCore
 // it forwards intents, republishes the derived GameViewState, schedules AI turns with a
 // think-delay, and plays effects (haptics / VoiceOver). All decisions live in WildPairsCore.
 
+/// What one finished round means for the local statistics.
+struct RoundResult {
+    let localTeamWon: Bool
+    let difficulty: Difficulty
+    let turns: Int
+    /// Raw card points the round awarded, before the difficulty multiplier.
+    let roundPoints: Int
+    let multiplier: Int
+}
+
 @MainActor
 final class GameViewModel: ObservableObject {
 
@@ -25,7 +35,7 @@ final class GameViewModel: ObservableObject {
     private let settings: AppSettings
     private let haptics: HapticEngine
     private let sound: SoundCoordinator
-    private let onRoundEnd: (_ localTeamWon: Bool, _ difficulty: Difficulty, _ turns: Int) -> Void
+    private let onRoundEnd: (RoundResult) -> Void
 
     private var aiTask: Task<Void, Never>?
     private var roundTimerTask: Task<Void, Never>?
@@ -39,7 +49,7 @@ final class GameViewModel: ObservableObject {
     init(
         presenter: GamePresenter,
         settings: AppSettings,
-        onRoundEnd: @escaping (Bool, Difficulty, Int) -> Void = { _, _, _ in }
+        onRoundEnd: @escaping (RoundResult) -> Void = { _ in }
     ) {
         self.presenter = presenter
         self.settings = settings
@@ -56,7 +66,7 @@ final class GameViewModel: ObservableObject {
         config: GameConfig,
         settings: AppSettings,
         persistence: PersistenceService = PersistenceService(),
-        onRoundEnd: @escaping (Bool, Difficulty, Int) -> Void = { _, _, _ in }
+        onRoundEnd: @escaping (RoundResult) -> Void = { _ in }
     ) {
         self.init(presenter: GamePresenter(config: config, persistence: persistence),
                   settings: settings, onRoundEnd: onRoundEnd)
@@ -266,11 +276,16 @@ final class GameViewModel: ObservableObject {
     private func checkRoundEnd() {
         guard !roundResultRecorded,
               presenter.state.phase != .playing,
-              let winner = presenter.state.winState?.winningTeam else { return }
+              let winState = presenter.state.winState else { return }
         roundResultRecorded = true
         let localTeam = presenter.state.players.first { $0.id == localPlayerID }?.teamID
         let difficulty = presenter.state.players.first { $0.role == .ai }?.difficulty ?? .easy
-        onRoundEnd(winner == localTeam, difficulty, turnsThisRound)
+        onRoundEnd(RoundResult(
+            localTeamWon: winState.winningTeam == localTeam,
+            difficulty: difficulty,
+            turns: turnsThisRound,
+            roundPoints: winState.roundPoints ?? 0,
+            multiplier: winState.scoreMultiplier ?? 1))
     }
 
     private func handle(_ effects: [GameEffect]) {

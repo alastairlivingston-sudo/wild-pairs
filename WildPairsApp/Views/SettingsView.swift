@@ -89,6 +89,11 @@ struct StatisticsView: View {
                     row("Best win streak", "\(stats.bestWinStreak)")
                 }
                 .listRowBackground(Color.black.opacity(0.25))
+                Section("Biggest wins") {
+                    recordRow("Most points in a round", stats.biggestRawWin, showing: \.points)
+                    recordRow("Best score with multiplier", stats.biggestMultipliedWin, showing: \.total)
+                }
+                .listRowBackground(Color.black.opacity(0.25))
                 Section("By difficulty") {
                     ForEach(Difficulty.allCases, id: \.self) { d in
                         let ds = stats.byDifficulty[d.rawValue] ?? DifficultyStats()
@@ -111,6 +116,26 @@ struct StatisticsView: View {
 
     private func row(_ label: String, _ value: String) -> some View {
         HStack { Text(label); Spacer(); Text(value).foregroundStyle(.secondary).monospacedDigit() }
+    }
+
+    /// A record row: headline points plus how and when the record was set.
+    @ViewBuilder private func recordRow(_ label: String, _ record: WinRecord?,
+                                        showing points: KeyPath<WinRecord, Int>) -> some View {
+        if let record {
+            HStack(alignment: .firstTextBaseline) {
+                Text(label)
+                Spacer()
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("\(record[keyPath: points]) pts")
+                        .fontWeight(.semibold).monospacedDigit()
+                        .foregroundStyle(Theme.Palette.accent)
+                    Text("\(record.points) × \(record.multiplier) · \(record.date.formatted(date: .abbreviated, time: .omitted))")
+                        .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+                }
+            }
+        } else {
+            row(label, "—")
+        }
     }
     private func percent(_ n: Int, _ d: Int) -> String {
         d == 0 ? "—" : "\(Int((Double(n) / Double(d) * 100).rounded()))%"

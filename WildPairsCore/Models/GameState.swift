@@ -47,17 +47,25 @@ public struct WinState: Codable, Equatable, Sendable {
     public let winningPlayerID: UUID?  // nil if team win not triggered by single player
     public let reason: WinReason
     public let finalScores: [TeamID: Int]
+    /// Raw card points the round awarded and the difficulty multiplier applied to them
+    /// (Phase 14 biggest-win records). Optional so pre-Phase-14 snapshots still decode.
+    public let roundPoints: Int?
+    public let scoreMultiplier: Int?
 
     public init(
         winningTeam: TeamID,
         winningPlayerID: UUID?,
         reason: WinReason,
-        finalScores: [TeamID: Int]
+        finalScores: [TeamID: Int],
+        roundPoints: Int? = nil,
+        scoreMultiplier: Int? = nil
     ) {
         self.winningTeam = winningTeam
         self.winningPlayerID = winningPlayerID
         self.reason = reason
         self.finalScores = finalScores
+        self.roundPoints = roundPoints
+        self.scoreMultiplier = scoreMultiplier
     }
 }
 

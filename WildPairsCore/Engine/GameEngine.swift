@@ -854,7 +854,9 @@ public struct GameEngine {
             winningTeam: winner.teamID,
             winningPlayerID: winner.id,
             reason: .roundTimerExpired,
-            finalScores: s.teamScores
+            finalScores: s.teamScores,
+            roundPoints: basePoints,
+            scoreMultiplier: multiplier
         )
         if s.ruleProfile.scoringEnabled && s.ruleProfile.targetScore > 0 {
             let winningScore = s.teamScores[winner.teamID, default: 0]
@@ -881,7 +883,9 @@ public struct GameEngine {
             winningTeam: team,
             winningPlayerID: winningPlayerID,
             reason: reason,
-            finalScores: state.teamScores
+            finalScores: state.teamScores,
+            roundPoints: points,
+            scoreMultiplier: multiplier
         )
         if state.ruleProfile.scoringEnabled && state.ruleProfile.targetScore > 0 {
             let winningScore = state.teamScores[team, default: 0]

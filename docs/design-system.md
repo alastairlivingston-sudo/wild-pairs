@@ -190,12 +190,12 @@ Each card is a rounded rectangle (`radius3`) with:
 └─────────────────┘
 ```
 
-- **Background:** Game colour fill (Fire, Rain, Earth, Wind) for coloured cards; white/near-white for wild cards.
+- **Background:** Game colour fill (Fire, Rain, Earth, Wind) for coloured cards; charcoal stock for unresolved wilds (a resolved wild re-prints in the chosen colour).
 - **Number:** Large, bold, centred — `.display` font style.
-- **Suit symbol:** Appears in all four corners (small) and can appear large behind the number as a watermark at reduced opacity (optional decorative element).
-- **Action name:** Shown as abbreviated text at the top and bottom corners (e.g., "SKIP", "REV", "D2", "D4").
-- **Wild card background:** White card face with the Wild Pairs wordmark or a distinctive multi-colour design (not rainbow — use a geometric pattern incorporating all four game colours).
-- **Colour name label:** Always shown in colour-blind mode; can be optionally shown in normal mode via settings.
+- **Suit symbol:** Appears under each corner index (small) and large behind the centre mark as a reduced-opacity watermark.
+- **Corner index (Phase 14):** the centre mark in miniature — the digit for numbers, "+2"/"+4" for draw cards, the action glyph for other actions, a four-chip mini diamond for wilds. Never a text abbreviation ("SKIP"/"REV"/"D2" piled into word soup wherever fanned cards overlapped) and no caption text anywhere on the face — one dominant centre mark per card, production-card style. Mirrored bottom-right corner appears at ≥46pt width.
+- **Wild card design:** four element chips set in a diamond (the deck's own trade dress); Draw Four pairs a compact diamond with a large "+4".
+- **Colour name label:** In colour-blind mode a small plate at the foot of the face names the printed colour (including a resolved wild's chosen colour) on cards ≥56pt wide.
 
 ---
 

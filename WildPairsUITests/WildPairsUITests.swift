@@ -497,4 +497,33 @@ final class WildPairsScreenshotCapture: XCTestCase {
         XCTAssertTrue(app.buttons["Resume"].waitForExistence(timeout: 3))
         try save(app, "06-pause")
     }
+
+    /// Grows the hand by drawing on every local turn until the two-row layout engages
+    /// (Phase 14), then captures it. A fresh deal can never show the second row.
+    func testCaptureTwoRowHand() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest-reset-state"]
+        app.launch()
+
+        let skip = app.buttons["onboarding-skip"]
+        if skip.waitForExistence(timeout: 5) { skip.tap() }
+        XCTAssertTrue(app.buttons["home-new-game"].waitForExistence(timeout: 5))
+        app.buttons["home-new-game"].tap()
+        XCTAssertTrue(app.buttons["newgame-start"].waitForExistence(timeout: 5))
+        app.buttons["newgame-start"].tap()
+        XCTAssertTrue(app.buttons["game-pause-button"].waitForExistence(timeout: 5))
+
+        let draw = app.buttons["game-draw-card-button"]
+        var taps = 0
+        let deadline = Date().addingTimeInterval(120)
+        while taps < 14 && Date() < deadline {
+            if draw.exists && draw.isEnabled {
+                draw.tap()
+                taps += 1
+            }
+            Thread.sleep(forTimeInterval: 1.5)
+        }
+        sleep(2)
+        try save(app, "07-two-row-hand")
+    }
 }
