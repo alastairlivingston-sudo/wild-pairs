@@ -285,7 +285,7 @@ struct GameTableView: View {
             topDiscard: vs.topDiscard, currentColour: vs.currentColour,
             drawPileCount: vs.drawPileCount, pendingDrawCount: vs.pendingDrawCount,
             turnDirection: vs.turnDirection,
-            canDraw: vs.isLocalPlayerTurn,
+            canDraw: vs.canDrawNow,
             mustDraw: vs.mustDrawNow, forcedPickup: vs.forcedPickupCount != nil,
             showColourName: showColourName, showPattern: showPattern,
             reducedMotion: reducedMotion, cardSize: size,

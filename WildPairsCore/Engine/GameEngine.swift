@@ -551,6 +551,16 @@ public struct GameEngine {
             ])
         }
 
+        // Canonical rule (game-rules.md §Draw Procedure): you may draw only when you have no
+        // legal play. This both forbids voluntarily drawing with a playable card in hand and —
+        // because a playable drawn card is itself a legal play — caps a turn at a single draw,
+        // after which you must play the drawn card or pass. Without it a player could keep
+        // picking up cards indefinitely.
+        if !GameRules.legalPlaysConsideringDrawFour(
+            hand: state.players[playerIndex].hand, state: state).isEmpty {
+            return (state, [.accessibilityAnnounce("You have a card you can play.")])
+        }
+
         guard let drawn = s.deck.draw(rng: &rng) else {
             // Nothing to draw — pass turn
             s.currentPlayerIndex = GameRules.nextIndex(

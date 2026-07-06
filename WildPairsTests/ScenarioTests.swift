@@ -99,6 +99,50 @@ struct ScenarioTests {
         #expect(GameEngine.legalPlays(state: next, for: p0id).contains { $0.id == playable.id })
     }
 
+    @Test("A player holding a legal play cannot draw — no endless pickup (game-rules.md §Draw Procedure)")
+    func testCannotDrawWithLegalPlay() {
+        // The cobalt 5 in hand legally matches the cobalt colour, so a draw must be refused.
+        let state = GameStateBuilder()
+            .withPlayers()
+            .withCurrentColour(.cobalt)
+            .withTopDiscard(CardFactory.number(3, .cobalt))
+            .withCurrentPlayer(0)
+            .withHand(forPlayer: 0, cards: [CardFactory.number(5, .cobalt), CardFactory.number(9, .amber)])
+            .withDrawPile([CardFactory.number(1, .jade)])
+            .build()
+        let p0id = state.players[0].id
+        let pileBefore = state.deck.drawPile.count
+        let (next, _) = GameEngine.reduce(state: state, action: .drawCard(playerID: p0id))
+        #expect(next.players[0].hand.count == 2)                 // hand unchanged
+        #expect(next.deck.drawPile.count == pileBefore)          // nothing drawn
+        #expect(next.currentPlayerIndex == 0)                    // still their turn
+    }
+
+    @Test("Only one card may be drawn per turn — a second draw is refused (game-rules.md §Draw Procedure)")
+    func testSingleDrawPerTurn() {
+        let playable = CardFactory.number(8, .cobalt)
+        let state = GameStateBuilder()
+            .withPlayers()
+            .withCurrentColour(.cobalt)
+            .withTopDiscard(CardFactory.number(3, .cobalt))
+            .withCurrentPlayer(0)
+            .withHand(forPlayer: 0, cards: [CardFactory.number(7, .crimson)])  // no legal play
+            .withDrawPile([playable, CardFactory.number(2, .cobalt)])
+            .build()
+        let p0id = state.players[0].id
+
+        // First draw is forced and yields a playable cobalt 8; the turn stays so it can be played.
+        let (afterDraw, _) = GameEngine.reduce(state: state, action: .drawCard(playerID: p0id))
+        #expect(afterDraw.players[0].hand.count == 2)
+        #expect(afterDraw.currentPlayerIndex == 0)
+
+        // The drawn card is now a legal play, so a second draw is refused — no card stacking up.
+        let pileAfterFirst = afterDraw.deck.drawPile.count
+        let (afterSecond, _) = GameEngine.reduce(state: afterDraw, action: .drawCard(playerID: p0id))
+        #expect(afterSecond.deck.drawPile.count == pileAfterFirst)
+        #expect(afterSecond.players[0].hand.count == 2)
+    }
+
     // MARK: Deck conservation
 
     @Test("No card leaks out of the deck when a new game is dealt (standard = 72 cards)")

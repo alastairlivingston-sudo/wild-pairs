@@ -123,6 +123,10 @@ public struct GameViewState: Equatable, Sendable {
     /// True when it's the local player's turn and nothing in their hand is playable — the
     /// only move is the draw pile. Drives the draw-pile attention treatment.
     public let mustDrawNow: Bool
+    /// Whether a draw is legal right now — mirrors GameEngine.handleDrawCard's guard so the
+    /// draw pile is only tappable when the player must draw (no legal play) or may absorb a
+    /// pending draw stack. Prevents the "keep picking up cards" bug (game-rules.md §Draw Procedure).
+    public let canDrawNow: Bool
     /// Non-nil when `mustDrawNow` and a draw stack is pending: the number of penalty cards
     /// the local player is forced to pick up (they hold no card that can answer the stack).
     /// The ViewModel auto-draws this — the player is never prompted to tap for a forced pickup.
@@ -204,6 +208,8 @@ public struct GameViewState: Equatable, Sendable {
 
         self.isLocalPlayerTurn = isLocalTurn
         self.mustDrawNow = isLocalTurn && legalIDs.isEmpty && !(local?.hand.isEmpty ?? true)
+        self.canDrawNow = isLocalTurn && !(local?.hand.isEmpty ?? true)
+            && (state.pendingDrawCount != nil || legalIDs.isEmpty)
         self.forcedPickupCount = (isLocalTurn && legalIDs.isEmpty && state.ruleProfile.stackDrawCards)
             ? state.pendingDrawCount : nil
         self.soloButtonVisible = {
