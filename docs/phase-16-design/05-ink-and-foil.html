@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>05 — Ink &amp; Foil</title>
+<style>
+  :root {
+    --fire:#E8431F; --fire-hi:#FF8A3D; --rain:#1B5FD9; --rain-hi:#4FD2F0;
+    --earth:#2F8F5B; --earth-hi:#8FAE99; --wind:#C9A227; --wind-hi:#D8C77E;
+    --wild:#232030; --wild-hi:#3A3550; --ink:#EEF0FF; --stock:#16121E; --stock2:#0D0A13;
+  }
+  body { margin:0; padding:40px 48px 80px;
+    background: radial-gradient(1200px 800px at 50% 20%, #1A1242, #0D0820);
+    color:var(--ink); font-family:-apple-system,'SF Pro Display',Helvetica,Arial,sans-serif; }
+  h1 { font-size:22px; font-weight:700; margin:0 0 4px; }
+  .thesis { color:#9BA0C8; margin:0 0 36px; font-size:15px; }
+  h2 { font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:.12em;
+       color:#8A8FB8; margin:42px 0 14px; }
+  .row { display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; }
+  .card { position:relative; border-radius:13px; overflow:hidden; flex:none;
+    background:linear-gradient(170deg, var(--stock), var(--stock2));
+    box-shadow: 0 1px 1px #000d, 0 12px 28px #00000080; }
+  /* The element is jewellery: a luminous foil frame on black-glass stock. */
+  .frame { position:absolute; border-radius:9px; pointer-events:none; }
+  .gloss { position:absolute; inset:0;
+    background: linear-gradient(155deg, #ffffff24 0%, #ffffff05 28%, transparent 46%); }
+  .emboss { position:absolute; right:-14%; bottom:-8%; opacity:.16; }
+  .hero { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-weight:800; line-height:1; letter-spacing:-.03em; }
+  .foil { background-clip:text; -webkit-background-clip:text; color:transparent; }
+  .idx { position:absolute; display:flex; flex-direction:column; align-items:center; gap:3px;
+    font-weight:800; line-height:1; }
+  .idx.tl { top:0; left:0; } .idx.br { bottom:0; right:0; transform:rotate(180deg); }
+  .patt { position:absolute; inset:0; opacity:.10; }
+  .fan { position:relative; height:250px; }
+</style>
+</head>
+<body>
+<h1>05 · Ink &amp; Foil</h1>
+<p class="thesis">A collector's black-glass deck — colour as jewellery: luminous foil frames and gradient-foil marks on near-black gloss stock.</p>
+
+<svg width="0" height="0" style="position:absolute" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <g id="flame-f"><path d="M12 2.2C9 6 6.2 8.7 6.2 13a5.8 5.8 0 0 0 11.6 0c0-4.3-2.8-7-5.8-10.8Z" fill="currentColor"/></g>
+    <g id="wave-f"><path d="M2 8.8c3-4 6.5-4 10 0 3 3.4 5.8 3.6 10 .4V15c-4 3-7.5 2.8-10-.4-3-3.6-6-3.6-10 0Zm0 6.6c3-3.8 6.5-3.8 10 0 2.8 3 5.8 3.2 10 .2V20H2Z" fill="currentColor"/></g>
+    <g id="crystal-f"><path d="M12 1.6 19.4 9.5 12 22.4 4.6 9.5Z" fill="currentColor"/></g>
+    <g id="gust-f"><path d="M3 7.4h9.3a3.1 3.1 0 1 0-3.1-3.1M3 12.6h14.6a3.3 3.3 0 1 1-3.3 3.3M3 17.8h7.6"
+      fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/></g>
+    <linearGradient id="foil-fire" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FF8A3D"/><stop offset=".5" stop-color="#E8431F"/><stop offset="1" stop-color="#FF8A3D"/></linearGradient>
+    <linearGradient id="foil-rain" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4FD2F0"/><stop offset=".5" stop-color="#1B5FD9"/><stop offset="1" stop-color="#4FD2F0"/></linearGradient>
+    <linearGradient id="foil-earth" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5ADf9B"/><stop offset=".5" stop-color="#2F8F5B"/><stop offset="1" stop-color="#8FAE99"/></linearGradient>
+    <linearGradient id="foil-wind" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFE08A"/><stop offset=".5" stop-color="#C9A227"/><stop offset="1" stop-color="#FFE08A"/></linearGradient>
+    <pattern id="p-hatch" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="7" stroke="#fff" stroke-width="2"/></pattern>
+    <pattern id="p-horiz" width="8" height="8" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="2" x2="8" y2="2" stroke="#fff" stroke-width="2"/></pattern>
+    <pattern id="p-vert" width="8" height="8" patternUnits="userSpaceOnUse">
+      <line x1="2" y1="0" x2="2" y2="8" stroke="#fff" stroke-width="2"/></pattern>
+    <pattern id="p-dots" width="9" height="9" patternUnits="userSpaceOnUse">
+      <circle cx="3" cy="3" r="1.6" fill="#fff"/></pattern>
+  </defs>
+</svg>
+
+<div id="app"></div>
+
+<script>
+const SUITF = { fire:'flame-f', rain:'wave-f', earth:'crystal-f', wind:'gust-f' };
+const PATTERNS = { fire:'p-hatch', rain:'p-horiz', earth:'p-vert', wind:'p-dots' };
+const HI = { fire:'#FF8A3D', rain:'#4FD2F0', earth:'#5ADF9B', wind:'#FFE08A' };
+const GRAD = { fire:'linear-gradient(120deg,#FF8A3D,#E8431F,#FF8A3D)', rain:'linear-gradient(120deg,#4FD2F0,#1B5FD9,#4FD2F0)',
+  earth:'linear-gradient(120deg,#5ADF9B,#2F8F5B,#8FAE99)', wind:'linear-gradient(120deg,#FFE08A,#C9A227,#FFE08A)' };
+function pip(suit, sz, col) {
+  return `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" style="color:${col||HI[suit]}"><use href="#${SUITF[suit]}"/></svg>`;
+}
+function foilSvgGlyph(kind, u, suit) {
+  const g = suit ? `url(#foil-${suit})` : '#EEF0FF';
+  const f = `fill="${g}"`;
+  const ring = (sw) => `fill="none" stroke="${g}" stroke-width="${sw}" stroke-linecap="round"`;
+  const person = (cx,cy,k) => `<circle cx="${cx}" cy="${cy-k*0.9}" r="${k*0.52}" ${f}/>
+    <path d="M${cx-k} ${cy+k*1.2} a${k} ${k} 0 0 1 ${2*k} 0 Z" ${f}/>`;
+  const mini = (x,y,w,r) => `<rect x="${x}" y="${y}" width="${w}" height="${w*1.4}" rx="${w*0.14}" ${f}
+    transform="rotate(${r} ${x+w/2} ${y+w*0.7})"/>`;
+  let body = '';
+  switch (kind) {
+    case 'skip': body = `${person(24,26,8)}<circle cx="24" cy="24" r="19" ${ring(4.6)}/><line x1="11" y1="10.5" x2="37.5" y2="37" ${ring(4.6)}/>`; break;
+    case 'skipTwo': body = `${person(15,26,6)}${person(33,26,6)}<circle cx="24" cy="24" r="20.5" ${ring(4.2)}/><line x1="10" y1="10" x2="38.5" y2="38.5" ${ring(4.2)}/>`; break;
+    case 'reverse': body = `<path d="M37 19a14.5 14.5 0 0 0-24-5" ${ring(4.6)}/><path d="M11 29a14.5 14.5 0 0 0 24 5" ${ring(4.6)}/>
+      <path d="M13 5.5v9h9Z" ${f}/><path d="M35 42.5v-9h-9Z" ${f}/>`; break;
+    case 'targetedDraw': body = `<circle cx="22" cy="22" r="12.5" ${ring(4)}/><circle cx="22" cy="22" r="3" ${f}/>
+      <path d="M22 4v7M22 33v7M4 22h7M33 22h7" ${ring(4)}/>${mini(33,31,11,12)}`; break;
+    case 'forcedSwap': body = `${mini(5,5,13,-8)}${mini(30,25,13,8)}
+      <path d="M31 11h10M37 6.5 41.5 11 37 15.5M17 37H7M11.5 32.5 7 37l4.5 4.5" ${ring(3.4)}/>`; break;
+    case 'teamPlay': body = `${person(11,19,5.8)}${person(37,19,5.8)}${mini(18,25,12,0)}`; break;
+    case 'discardAll': body = `${mini(7,15,12,-24)}${mini(18.5,9,12,0)}${mini(30,15,12,24)}<path d="M11 41h26" ${ring(4)}/>`; break;
+  }
+  return `<svg width="${u}" height="${u}" viewBox="0 0 48 48">${body}</svg>`;
+}
+function chips(sz, withIcons) {
+  const names = ['fire','rain','earth','wind'];
+  const r = sz/2, chip = sz*0.36;
+  let out = `<div style="position:relative;width:${sz}px;height:${sz}px">`;
+  [[r-chip/2,0],[sz-chip,r-chip/2],[r-chip/2,sz-chip],[0,r-chip/2]].forEach(([x,y],i) => {
+    out += `<div style="position:absolute;left:${x}px;top:${y}px;width:${chip}px;height:${chip}px;border-radius:22%;
+      background:${GRAD[names[i]]};box-shadow:0 0 ${sz*0.18}px ${HI[names[i]]}55;
+      display:flex;align-items:center;justify-content:center">
+      ${withIcons ? pip(names[i], chip*0.6, '#0D0A13') : ''}</div>`;
+  });
+  return out + '</div>';
+}
+
+function card(spec, w, patterned) {
+  const h = Math.round(w*1.4), k = w/150;
+  const isWild = spec.suit === 'wild';
+  const inset = Math.round(7*k);
+  // Foil frame: wilds get the four-element conic ring; suits get their gradient.
+  const frame = isWild
+    ? `<div class="frame" style="inset:${inset}px;border:${Math.max(1.5,2.4*k)}px solid transparent;
+        background:conic-gradient(#FF8A3D,#4FD2F0,#5ADF9B,#FFE08A,#FF8A3D) border-box;
+        -webkit-mask:linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite:xor; mask-composite:exclude;
+        box-shadow:0 0 ${14*k}px #ffffff26 inset, 0 0 ${10*k}px #ffffff1f"></div>`
+    : `<div class="frame" style="inset:${inset}px;border:${Math.max(1.5,2.4*k)}px solid transparent;
+        background:${GRAD[spec.suit]} border-box;
+        -webkit-mask:linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite:xor; mask-composite:exclude;
+        box-shadow:0 0 ${16*k}px ${HI[spec.suit]}40 inset, 0 0 ${12*k}px ${HI[spec.suit]}2e"></div>`;
+  // Giant tone-on-tone embossed suit mark.
+  const emboss = isWild ? '' :
+    `<div class="emboss" style="color:${HI[spec.suit]}">${pip(spec.suit, Math.round(150*k), HI[spec.suit])}</div>`;
+  let hero = '';
+  if (spec.kind === 'number') hero = `<div class="hero foil" style="font-size:${Math.round(104*k)}px;background-image:${GRAD[spec.suit]}">${spec.value}</div>`;
+  else if (spec.kind === 'drawTwo') hero = `<div class="hero foil" style="font-size:${Math.round(78*k)}px;background-image:${GRAD[spec.suit]}">+2</div>`;
+  else if (spec.kind === 'drawFour') hero = `<div class="hero" style="flex-direction:column;gap:${8*k}px">
+      ${chips(Math.round(50*k), false)}
+      <div class="foil" style="font-weight:800;font-size:${Math.round(56*k)}px;
+        background-image:linear-gradient(120deg,#FF8A3D,#4FD2F0,#5ADF9B,#FFE08A)">+4</div></div>`;
+  else if (spec.kind === 'changeColour') hero = `<div class="hero">${chips(Math.round(88*k), w>=100)}</div>`;
+  else hero = `<div class="hero">${foilSvgGlyph(spec.kind, Math.round(94*k), spec.suit)}</div>`;
+
+  const idxTxt = spec.kind === 'number' ? spec.value : spec.kind === 'drawTwo' ? '+2' : spec.kind === 'drawFour' ? '+4' : '';
+  const idxMini = idxTxt === '' && spec.kind !== 'changeColour' ? foilSvgGlyph(spec.kind, Math.round(15*k), spec.suit) : '';
+  const suitMark = isWild ? chips(12*k, false) : pip(spec.suit, Math.round(14*k));
+  const idxCol = isWild ? '#EEF0FF' : HI[spec.suit];
+  const idx = (pos) => `<div class="idx ${pos}" style="padding:${inset+6*k}px ${inset+7*k}px;
+      font-size:${19*k}px;color:${idxCol}">${idxTxt !== '' ? `<div>${idxTxt}</div>` : idxMini}${suitMark}</div>`;
+  const patt = patterned && !isWild
+    ? `<svg class="patt" width="100%" height="100%"><rect width="100%" height="100%" fill="url(#${PATTERNS[spec.suit]})" style="color:${HI[spec.suit]}"/></svg>` : '';
+  return `<div class="card" style="width:${w}px;height:${h}px">
+    ${emboss}${patt}${hero}${frame}${idx('tl')}${idx('br')}<div class="gloss"></div></div>`;
+}
+
+const numbers = [ {suit:'fire',kind:'number',value:7}, {suit:'rain',kind:'number',value:3},
+  {suit:'earth',kind:'number',value:0}, {suit:'wind',kind:'number',value:9} ];
+const actions = [ {suit:'fire',kind:'skip'}, {suit:'rain',kind:'reverse'}, {suit:'earth',kind:'drawTwo'},
+  {suit:'wind',kind:'skipTwo'}, {suit:'fire',kind:'targetedDraw'}, {suit:'rain',kind:'forcedSwap'},
+  {suit:'earth',kind:'teamPlay'}, {suit:'wind',kind:'discardAll'} ];
+const wilds = [ {suit:'wild',kind:'changeColour'}, {suit:'wild',kind:'drawFour'} ];
+function row(t, specs, w, p) { return `<h2>${t}</h2><div class="row">` + specs.map(s => card(s,w,p)).join('') + '</div>'; }
+const fanSpecs = [ {suit:'fire',kind:'number',value:7}, {suit:'fire',kind:'skip'},
+  {suit:'rain',kind:'number',value:3}, {suit:'wind',kind:'number',value:9}, {suit:'earth',kind:'drawTwo'} ];
+function fan() {
+  let out = '<h2>Fan test — foil index carries colour on black</h2><div class="fan" style="width:540px">';
+  fanSpecs.forEach((s,i) => {
+    out += `<div style="position:absolute;left:${i*80}px;bottom:0;transform:rotate(${(i-2)*4}deg);transform-origin:50% 130%">${card(s,150,false)}</div>`;
+  });
+  return out + '</div>';
+}
+document.getElementById('app').innerHTML =
+  row('Numbers', numbers, 150, false) +
+  row('Actions — foil linework', actions, 150, false) +
+  row('Wilds — the loudest cards in the deck', wilds, 150, false) +
+  fan() +
+  row('Small scale (opponents / discard)', [...numbers.slice(0,2), wilds[0]], 64, false) +
+  row('Colour-blind patterns on (printed in element ink)', numbers, 150, true);
+</script>
+</body>
+</html>

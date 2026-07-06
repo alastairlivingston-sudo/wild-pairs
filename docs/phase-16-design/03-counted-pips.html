@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>03 — Counted Pips</title>
+<style>
+  :root {
+    --fire:#E8431F; --fire-hi:#FF8A3D; --rain:#1B5FD9; --rain-hi:#4FD2F0;
+    --earth:#2F8F5B; --earth-hi:#8FAE99; --wind:#C9A227; --wind-hi:#D8C77E;
+    --wild:#232030; --wild-hi:#3A3550; --ink:#EEF0FF;
+  }
+  body { margin:0; padding:40px 48px 80px;
+    background: radial-gradient(1200px 800px at 50% 20%, #1A1242, #0D0820);
+    color:var(--ink); font-family:-apple-system,'SF Pro Display',Helvetica,Arial,sans-serif; }
+  h1 { font-size:22px; font-weight:700; margin:0 0 4px; }
+  .thesis { color:#9BA0C8; margin:0 0 36px; font-size:15px; }
+  h2 { font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:.12em;
+       color:#8A8FB8; margin:42px 0 14px; }
+  .row { display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; }
+  .card { position:relative; border-radius:12px; overflow:hidden; flex:none;
+    box-shadow: 0 1px 1px #000c, 0 10px 24px #00000073; }
+  /* White die-cut border retained from the shipped anatomy — this direction keeps the
+     production card construction and replaces only the printed content. */
+  .border { position:absolute; inset:0; background:linear-gradient(135deg,#fff,#E9E6EF); }
+  .face { position:absolute; border-radius:8px; overflow:hidden; }
+  .gloss { position:absolute; inset:0;
+    background: linear-gradient(157deg, #ffffff30 0%, #ffffff09 32%, transparent 54%); }
+  .fire  .face { background:linear-gradient(150deg, var(--fire-hi) -25%, var(--fire) 45%, #A32C12); }
+  .rain  .face { background:linear-gradient(150deg, var(--rain-hi) -25%, var(--rain) 45%, #123F94); }
+  .earth .face { background:linear-gradient(150deg, #52B37E -25%, var(--earth) 45%, #1F6740); }
+  .wind  .face { background:linear-gradient(150deg, var(--wind-hi) -25%, var(--wind) 45%, #8F7418); }
+  .wildc .face { background:linear-gradient(150deg, var(--wild-hi), var(--wild) 65%); }
+  .pips { position:absolute; inset:14% 22%; display:grid; justify-items:center; align-items:center; }
+  .idx { position:absolute; display:flex; flex-direction:column; align-items:center; color:#fff;
+    font-weight:800; line-height:1; }
+  .idx.tl { top:0; left:0; } .idx.br { bottom:0; right:0; transform:rotate(180deg); }
+  .patt { position:absolute; inset:0; opacity:.13; }
+  .fan { position:relative; height:250px; }
+</style>
+</head>
+<body>
+<h1>03 · Counted Pips</h1>
+<p class="thesis">Rank you can count, like a real deck — the number card's face IS its value in suit pips; structure replaces decoration. Gloss production construction unchanged.</p>
+
+<svg width="0" height="0" style="position:absolute" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <g id="flame-f"><path d="M12 2.2C9 6 6.2 8.7 6.2 13a5.8 5.8 0 0 0 11.6 0c0-4.3-2.8-7-5.8-10.8Z" fill="currentColor"/>
+      <path d="M12 12.2c-1.3 1.6-2.4 2.7-2.4 4.4a2.4 2.4 0 0 0 4.8 0c0-1.7-1.1-2.8-2.4-4.4Z" fill="#00000038"/></g>
+    <g id="wave-f"><path d="M2 8.8c3-4 6.5-4 10 0 3 3.4 5.8 3.6 10 .4V15c-4 3-7.5 2.8-10-.4-3-3.6-6-3.6-10 0Z" fill="currentColor"/>
+      <path d="M2 15.4c3-3.8 6.5-3.8 10 0 2.8 3 5.8 3.2 10 .2V20H2Z" fill="currentColor" opacity=".65"/></g>
+    <g id="crystal-f"><path d="M12 1.6 19.4 9.5 12 22.4 4.6 9.5Z" fill="currentColor"/>
+      <path d="M4.6 9.5h14.8L12 22.4Z" fill="#00000030"/><path d="M12 1.6 9.4 9.5h5.2Z" fill="#ffffff45"/></g>
+    <g id="gust-f"><path d="M3 7.4h9.3a3.1 3.1 0 1 0-3.1-3.1M3 12.6h14.6a3.3 3.3 0 1 1-3.3 3.3M3 17.8h7.6"
+      fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></g>
+    <pattern id="p-hatch" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="7" stroke="#fff" stroke-width="2"/></pattern>
+    <pattern id="p-horiz" width="8" height="8" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="2" x2="8" y2="2" stroke="#fff" stroke-width="2"/></pattern>
+    <pattern id="p-vert" width="8" height="8" patternUnits="userSpaceOnUse">
+      <line x1="2" y1="0" x2="2" y2="8" stroke="#fff" stroke-width="2"/></pattern>
+    <pattern id="p-dots" width="9" height="9" patternUnits="userSpaceOnUse">
+      <circle cx="3" cy="3" r="1.6" fill="#fff"/></pattern>
+  </defs>
+</svg>
+
+<div id="app"></div>
+
+<script>
+const SUITF = { fire:'flame-f', rain:'wave-f', earth:'crystal-f', wind:'gust-f' };
+const PATTERNS = { fire:'p-hatch', rain:'p-horiz', earth:'p-vert', wind:'p-dots' };
+function pip(suit, sz, col) {
+  return `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" style="color:${col || '#fff'}"><use href="#${SUITF[suit]}"/></svg>`;
+}
+
+// Classic pip layouts on a 3-column grid (row lists per value, playing-card style).
+const LAYOUTS = {
+  1:[[1]], 2:[[1],[1]], 3:[[1],[1],[1]], 4:[[2],[2]], 5:[[2],[1],[2]],
+  6:[[2],[2],[2]], 7:[[2],[1],[2],[2]], 8:[[2],[2],[2],[2]], 9:[[3],[3],[3]]
+};
+function pipGrid(suit, value, w) {
+  const k = w/150;
+  if (value === 0) {
+    // Zero prints an empty counting ring — nothing to count.
+    return `<div class="pips" style="display:flex;align-items:center;justify-content:center">
+      <div style="width:${64*k}px;height:${64*k}px;border-radius:50%;border:${5*k}px solid #ffffffd9;
+        box-shadow:${2.2*k}px ${2.8*k}px 0 #00000045"></div></div>`;
+  }
+  const rows = LAYOUTS[value];
+  const pipSz = value <= 3 ? 34*k : value <= 6 ? 30*k : 25*k;
+  let out = `<div class="pips" style="grid-template-rows:repeat(${rows.length},1fr)">`;
+  rows.forEach((r, ri) => {
+    out += `<div style="display:flex;gap:${12*k}px;transform:rotate(${ri >= rows.length/2 && rows.length > 2 ? 180 : 0}deg)">`;
+    for (let i=0;i<r[0];i++) out += `<span style="filter:drop-shadow(${1.8*k}px ${2.2*k}px 0 #00000045)">${pip(suit, pipSz)}</span>`;
+    out += '</div>';
+  });
+  return out + '</div>';
+}
+
+// One fat print-white silhouette per action, hard offset print shadow (production discipline).
+function glyph(kind, u) {
+  const f = 'fill="#fff"';
+  const ring = (sw) => `fill="none" stroke="#fff" stroke-width="${sw}" stroke-linecap="round"`;
+  const person = (cx,cy,k) => `<circle cx="${cx}" cy="${cy-k*0.9}" r="${k*0.52}" ${f}/>
+    <path d="M${cx-k} ${cy+k*1.2} a${k} ${k} 0 0 1 ${2*k} 0 Z" ${f}/>`;
+  const mini = (x,y,w,r) => `<rect x="${x}" y="${y}" width="${w}" height="${w*1.4}" rx="${w*0.14}" ${f}
+    transform="rotate(${r} ${x+w/2} ${y+w*0.7})"/>`;
+  let body = '';
+  switch (kind) {
+    case 'skip': body = `${person(24,26,8)}<circle cx="24" cy="24" r="19" ${ring(5)}/><line x1="11" y1="10.5" x2="37.5" y2="37" ${ring(5)}/>`; break;
+    case 'skipTwo': body = `${person(15,26,6)}${person(33,26,6)}<circle cx="24" cy="24" r="20.5" ${ring(4.6)}/><line x1="10" y1="10" x2="38.5" y2="38.5" ${ring(4.6)}/>`; break;
+    case 'reverse': body = `<path d="M37 19a14.5 14.5 0 0 0-24-5" ${ring(5)}/><path d="M11 29a14.5 14.5 0 0 0 24 5" ${ring(5)}/>
+      <path d="M13 5.5v9h9Z" ${f}/><path d="M35 42.5v-9h-9Z" ${f}/>`; break;
+    case 'targetedDraw': body = `<circle cx="22" cy="22" r="12.5" ${ring(4.4)}/><circle cx="22" cy="22" r="3" ${f}/>
+      <path d="M22 4v7M22 33v7M4 22h7M33 22h7" ${ring(4.4)}/>${mini(33,31,11,12)}`; break;
+    case 'forcedSwap': body = `${mini(5,5,13,-8)}${mini(30,25,13,8)}
+      <path d="M31 11h10M37 6.5 41.5 11 37 15.5M17 37H7M11.5 32.5 7 37l4.5 4.5" ${ring(3.8)}/>`; break;
+    case 'teamPlay': body = `${person(11,19,5.8)}${person(37,19,5.8)}${mini(18,25,12,0)}`; break;
+    case 'discardAll': body = `${mini(7,15,12,-24)}${mini(18.5,9,12,0)}${mini(30,15,12,24)}<path d="M11 41h26" ${ring(4.4)}/>`; break;
+  }
+  return `<svg width="${u}" height="${u}" viewBox="0 0 48 48" style="filter:drop-shadow(2.5px 3px 0 #00000045)">${body}</svg>`;
+}
+
+function chips(sz, withIcons) {
+  const c = ['var(--fire)','var(--rain)','var(--earth)','var(--wind)'];
+  const names = ['fire','rain','earth','wind'];
+  const r = sz/2, chip = sz*0.36;
+  let out = `<div style="position:relative;width:${sz}px;height:${sz}px">`;
+  [[r-chip/2,0],[sz-chip,r-chip/2],[r-chip/2,sz-chip],[0,r-chip/2]].forEach(([x,y],i) => {
+    out += `<div style="position:absolute;left:${x}px;top:${y}px;width:${chip}px;height:${chip}px;border-radius:20%;
+      background:${c[i]};border:${Math.max(1,sz*0.02)}px solid #ffffffe6;transform:rotate(45deg);
+      display:flex;align-items:center;justify-content:center;box-shadow:1.5px 2px 0 #00000045">
+      <span style="transform:rotate(-45deg);display:flex">${withIcons ? pip(names[i], chip*0.6) : ''}</span></div>`;
+  });
+  return out + '</div>';
+}
+
+function card(spec, w, patterned) {
+  const h = Math.round(w*1.4), k = w/150;
+  const isWild = spec.suit === 'wild';
+  const cls = isWild ? 'wildc' : spec.suit;
+  const bw = Math.round(9*k);
+  let content = '';
+  if (spec.kind === 'number') content = pipGrid(spec.suit, spec.value, w);
+  else if (spec.kind === 'drawTwo') content = `<div style="position:absolute;inset:0;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;gap:${6*k}px">
+      <div style="display:flex;gap:${8*k}px">${`<div style="width:${30*k}px;height:${42*k}px;border-radius:${5*k}px;background:#fff;box-shadow:2px 2.5px 0 #00000045"></div>`.repeat(2)}</div>
+      <div style="font-weight:900;color:#fff;font-size:${40*k}px;text-shadow:${2.2*k}px ${2.8*k}px 0 #00000045">+2</div></div>`;
+  else if (spec.kind === 'drawFour') content = `<div style="position:absolute;inset:0;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;gap:${6*k}px">
+      <div style="display:flex;gap:${6*k}px">${['fire','rain','earth','wind'].map(s =>
+        `<div style="width:${24*k}px;height:${34*k}px;border-radius:${4*k}px;background:var(--${s});border:${1.6*k}px solid #ffffffe6;box-shadow:2px 2.5px 0 #00000045"></div>`).join('')}</div>
+      <div style="font-weight:900;color:#fff;font-size:${40*k}px;text-shadow:${2.2*k}px ${2.8*k}px 0 #00000045">+4</div></div>`;
+  else if (spec.kind === 'changeColour') content = `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">${chips(90*k, w>=100)}</div>`;
+  else content = `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">${glyph(spec.kind, Math.round(92*k))}</div>`;
+
+  const idxTxt = spec.kind === 'number' ? spec.value : spec.kind === 'drawTwo' ? '+2' : spec.kind === 'drawFour' ? '+4' : '';
+  const idxMini = idxTxt === '' && spec.kind !== 'changeColour' ? glyph(spec.kind, Math.round(15*k)) : '';
+  const suitMark = isWild ? chips(13*k, false) : pip(spec.suit, Math.round(14*k));
+  const idx = (pos) => `<div class="idx ${pos}" style="gap:${3*k}px;padding:${bw + 4*k}px ${bw + 5*k}px;
+      font-size:${20*k}px;text-shadow:${1.6*k}px ${2*k}px 0 #00000045">
+      ${idxTxt !== '' ? `<div>${idxTxt}</div>` : idxMini}${suitMark}</div>`;
+  const patt = patterned && !isWild
+    ? `<svg class="patt" style="border-radius:${8*k}px;inset:${bw}px" width="100%" height="100%"><rect width="100%" height="100%" fill="url(#${PATTERNS[spec.suit]})"/></svg>` : '';
+  return `<div class="card ${cls}" style="width:${w}px;height:${h}px">
+    <div class="border"></div>
+    <div class="face" style="inset:${bw}px">${''}</div>${content}${patt}${idx('tl')}${idx('br')}<div class="gloss"></div></div>`;
+}
+
+const numbers = [ {suit:'fire',kind:'number',value:7}, {suit:'rain',kind:'number',value:3},
+  {suit:'earth',kind:'number',value:0}, {suit:'wind',kind:'number',value:9} ];
+const actions = [ {suit:'fire',kind:'skip'}, {suit:'rain',kind:'reverse'}, {suit:'earth',kind:'drawTwo'},
+  {suit:'wind',kind:'skipTwo'}, {suit:'fire',kind:'targetedDraw'}, {suit:'rain',kind:'forcedSwap'},
+  {suit:'earth',kind:'teamPlay'}, {suit:'wind',kind:'discardAll'} ];
+const wilds = [ {suit:'wild',kind:'changeColour'}, {suit:'wild',kind:'drawFour'} ];
+function row(t, specs, w, p) { return `<h2>${t}</h2><div class="row">` + specs.map(s => card(s,w,p)).join('') + '</div>'; }
+const fanSpecs = [ {suit:'fire',kind:'number',value:7}, {suit:'fire',kind:'skip'},
+  {suit:'rain',kind:'number',value:3}, {suit:'wind',kind:'number',value:9}, {suit:'earth',kind:'drawTwo'} ];
+function fan() {
+  let out = '<h2>Fan test — only the corner survives overlap</h2><div class="fan" style="width:540px">';
+  fanSpecs.forEach((s,i) => {
+    out += `<div style="position:absolute;left:${i*80}px;bottom:0;transform:rotate(${(i-2)*4}deg);transform-origin:50% 130%">${card(s,150,false)}</div>`;
+  });
+  return out + '</div>';
+}
+document.getElementById('app').innerHTML =
+  row('Numbers — the face is the count', numbers.concat([{suit:'earth',kind:'number',value:5},{suit:'rain',kind:'number',value:8}]), 150, false) +
+  row('Actions', actions, 150, false) +
+  row('Wilds', wilds, 150, false) +
+  fan() +
+  row('Small scale (opponents / discard)', [...numbers.slice(0,2), wilds[0]], 64, false) +
+  row('Colour-blind patterns on', numbers, 150, true);
+</script>
+</body>
+</html>

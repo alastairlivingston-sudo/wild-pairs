@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>07 — Woodblock Bold</title>
+<style>
+  :root {
+    --fire:#E8431F; --fire-hi:#FF8A3D; --rain:#1B5FD9; --rain-hi:#4FD2F0;
+    --earth:#2F8F5B; --earth-hi:#8FAE99; --wind:#C9A227; --wind-hi:#D8C77E;
+    --wild:#232030; --wild-hi:#3A3550; --ink:#EEF0FF; --sumi:#171221;
+  }
+  body { margin:0; padding:40px 48px 80px;
+    background: radial-gradient(1200px 800px at 50% 20%, #1A1242, #0D0820);
+    color:var(--ink); font-family:-apple-system,'SF Pro Display',Helvetica,Arial,sans-serif; }
+  h1 { font-size:22px; font-weight:700; margin:0 0 4px; }
+  .thesis { color:#9BA0C8; margin:0 0 36px; font-size:15px; }
+  h2 { font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:.12em;
+       color:#8A8FB8; margin:42px 0 14px; }
+  .row { display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; }
+  .card { position:relative; border-radius:12px; overflow:hidden; flex:none;
+    border:3px solid var(--sumi);
+    box-shadow: 0 1px 1px #000c, 0 10px 24px #00000073; }
+  .gloss { position:absolute; inset:0; z-index:6; pointer-events:none;
+    background: linear-gradient(157deg, #ffffff22 0%, #ffffff06 30%, transparent 50%); }
+  .art { position:absolute; inset:0; }
+  .art svg { position:absolute; inset:0; width:100%; height:100%; }
+  /* Rank chip: solid sumi block, white numeral, suit mark under — hanafuda corner. */
+  .chip { position:absolute; z-index:5; background:var(--sumi); color:#fff; font-weight:900;
+    display:flex; flex-direction:column; align-items:center; line-height:1; }
+  .chip.tl { top:0; left:0; border-radius:0 0 10px 0; }
+  .chip.br { bottom:0; right:0; border-radius:10px 0 0 0; transform:rotate(180deg); }
+  .patt { position:absolute; inset:0; opacity:.13; z-index:4; }
+  .fan { position:relative; height:250px; }
+</style>
+</head>
+<body>
+<h1>07 · Woodblock Bold</h1>
+<p class="thesis">Hanafuda boldness — the element fills the card edge-to-edge in three flat tones held by thick ink keylines; the rank lives in a solid corner chip.</p>
+
+<svg width="0" height="0" style="position:absolute" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <g id="flame-f"><path d="M12 2.2C9 6 6.2 8.7 6.2 13a5.8 5.8 0 0 0 11.6 0c0-4.3-2.8-7-5.8-10.8Z" fill="currentColor"/></g>
+    <g id="wave-f"><path d="M2 8.8c3-4 6.5-4 10 0 3 3.4 5.8 3.6 10 .4V15c-4 3-7.5 2.8-10-.4-3-3.6-6-3.6-10 0Zm0 6.6c3-3.8 6.5-3.8 10 0 2.8 3 5.8 3.2 10 .2V20H2Z" fill="currentColor"/></g>
+    <g id="crystal-f"><path d="M12 1.6 19.4 9.5 12 22.4 4.6 9.5Z" fill="currentColor"/></g>
+    <g id="gust-f"><path d="M3 7.4h9.3a3.1 3.1 0 1 0-3.1-3.1M3 12.6h14.6a3.3 3.3 0 1 1-3.3 3.3M3 17.8h7.6"
+      fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/></g>
+    <pattern id="p-hatch" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="7" stroke="#fff" stroke-width="2"/></pattern>
+    <pattern id="p-horiz" width="8" height="8" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="2" x2="8" y2="2" stroke="#fff" stroke-width="2"/></pattern>
+    <pattern id="p-vert" width="8" height="8" patternUnits="userSpaceOnUse">
+      <line x1="2" y1="0" x2="2" y2="8" stroke="#fff" stroke-width="2"/></pattern>
+    <pattern id="p-dots" width="9" height="9" patternUnits="userSpaceOnUse">
+      <circle cx="3" cy="3" r="1.6" fill="#fff"/></pattern>
+  </defs>
+</svg>
+
+<div id="app"></div>
+
+<script>
+const SUITF = { fire:'flame-f', rain:'wave-f', earth:'crystal-f', wind:'gust-f' };
+const PATTERNS = { fire:'p-hatch', rain:'p-horiz', earth:'p-vert', wind:'p-dots' };
+function pip(suit, sz, col) {
+  return `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" style="color:${col||'#fff'}"><use href="#${SUITF[suit]}"/></svg>`;
+}
+
+// Edge-to-edge woodblock art per suit (viewBox 100x140, preserveAspectRatio none-ish slice).
+// Three tones: fill, highlight, sumi ink keylines.
+function blockArt(suit) {
+  const K = 'stroke="#171221" stroke-width="3.2" stroke-linejoin="round"';
+  switch (suit) {
+    case 'fire': return `<svg viewBox="0 0 100 140" preserveAspectRatio="xMidYMid slice">
+      <rect width="100" height="140" fill="var(--fire)"/>
+      <path d="M78 140C60 118 74 96 58 78 66 104 44 108 50 140Z" fill="#B23012" ${K}/>
+      <path d="M30 140c-22-30 8-44-4-74 20 16 8 34 24 46 12 10 12 20 4 28Z" fill="var(--fire-hi)" ${K}/>
+      <path d="M46 140c-10-14 4-22-2-38 12 10 4 20 12 28 5 5 4 8-1 10Z" fill="#FFD9A8" ${K}/></svg>`;
+    case 'rain': return `<svg viewBox="0 0 100 140" preserveAspectRatio="xMidYMid slice">
+      <rect width="100" height="140" fill="var(--rain)"/>
+      <path d="M-4 96c14-18 30-18 44 0s30 18 44 0 22-14 24-10V140H-4Z" fill="#123F94" ${K}/>
+      <path d="M-4 112c14-18 30-18 44 0s30 18 44 0c8-10 16-12 24-8V140H-4Z" fill="var(--rain-hi)" ${K}/>
+      <circle cx="70" cy="34" r="17" fill="#fff" opacity=".92" stroke="#171221" stroke-width="3.2"/>
+      <path d="M22 22c4 8 4 14 0 22M34 14c5 10 5 20 0 32" fill="none" ${K} stroke-linecap="round"/></svg>`;
+    case 'earth': return `<svg viewBox="0 0 100 140" preserveAspectRatio="xMidYMid slice">
+      <rect width="100" height="140" fill="var(--earth)"/>
+      <path d="M12 140 40 66l24 74Z" fill="#1F6740" ${K}/>
+      <path d="M40 140 66 44l30 96Z" fill="var(--earth-hi)" ${K}/>
+      <path d="M66 44 56 88l10 52 12-56Z" fill="#D7E4DB" ${K}/>
+      <path d="M6 52l10-14 10 14-10 12Z" fill="#D7E4DB" ${K}/></svg>`;
+    case 'wind': return `<svg viewBox="0 0 100 140" preserveAspectRatio="xMidYMid slice">
+      <rect width="100" height="140" fill="var(--wind)"/>
+      <path d="M-6 44c26-18 50 8 76-8 12-7 22-8 34-2v22c-26 14-50-10-76 4-12 7-24 8-34 2Z" fill="var(--wind-hi)" ${K}/>
+      <path d="M-6 96c26-18 50 8 76-8 12-7 22-8 34-2v20c-26 14-50-10-76 4-12 7-24 8-34 2Z" fill="#8F7418" ${K}/>
+      <circle cx="26" cy="26" r="4.5" fill="#fff" stroke="#171221" stroke-width="2.6"/>
+      <circle cx="84" cy="120" r="4.5" fill="#fff" stroke="#171221" stroke-width="2.6"/></svg>`;
+  }
+  return '';
+}
+
+// Ink-block glyphs: fat white marks with sumi outlines, sitting on the art.
+function glyph(kind, u) {
+  const f = 'fill="#fff" stroke="#171221" stroke-width="2.4" stroke-linejoin="round"';
+  const ring = (sw) => `fill="none" stroke="#fff" stroke-width="${sw}" stroke-linecap="round"`;
+  const ringK = (sw) => `fill="none" stroke="#171221" stroke-width="${sw+4}" stroke-linecap="round"`;
+  const person = (cx,cy,k) => `<circle cx="${cx}" cy="${cy-k*0.9}" r="${k*0.55}" ${f}/>
+    <path d="M${cx-k} ${cy+k*1.25} a${k} ${k} 0 0 1 ${2*k} 0 Z" ${f}/>`;
+  const mini = (x,y,w,r) => `<rect x="${x}" y="${y}" width="${w}" height="${w*1.4}" rx="${w*0.14}" ${f}
+    transform="rotate(${r} ${x+w/2} ${y+w*0.7})"/>`;
+  const both = (d, sw) => `<path d="${d}" ${ringK(sw)}/><path d="${d}" ${ring(sw)}/>`;
+  let body = '';
+  switch (kind) {
+    case 'skip': body = `${person(24,26,8.2)}${both('M37.4 10.6A19 19 0 1 0 37.4 37.4M10.6 10.6l26.8 26.8',4.6)}
+      <circle cx="24" cy="24" r="19" ${ringK(4.6)}/><circle cx="24" cy="24" r="19" ${ring(4.6)}/>
+      <line x1="10.6" y1="10.6" x2="37.4" y2="37.4" ${ringK(4.6)}/><line x1="10.6" y1="10.6" x2="37.4" y2="37.4" ${ring(4.6)}/>`; break;
+    case 'skipTwo': body = `${person(15,26,6)}${person(33,26,6)}
+      <circle cx="24" cy="24" r="20.5" ${ringK(4.2)}/><circle cx="24" cy="24" r="20.5" ${ring(4.2)}/>
+      <line x1="9.8" y1="9.8" x2="38.2" y2="38.2" ${ringK(4.2)}/><line x1="9.8" y1="9.8" x2="38.2" y2="38.2" ${ring(4.2)}/>`; break;
+    case 'reverse': body = `${both('M37 19a14.5 14.5 0 0 0-24-5',4.6)}${both('M11 29a14.5 14.5 0 0 0 24 5',4.6)}
+      <path d="M12.5 4.5v10h10Z" ${f}/><path d="M35.5 43.5v-10h-10Z" ${f}/>`; break;
+    case 'targetedDraw': body = `<circle cx="22" cy="22" r="12.5" ${ringK(4)}/><circle cx="22" cy="22" r="12.5" ${ring(4)}/>
+      ${both('M22 4v7M22 33v7M4 22h7M33 22h7',4)}<circle cx="22" cy="22" r="3.4" ${f}/>${mini(33,31,11.5,12)}`; break;
+    case 'forcedSwap': body = `${mini(4.5,4.5,13.5,-8)}${mini(30,25,13.5,8)}
+      ${both('M31 11h10M37 6.5 41.5 11 37 15.5M17 37H7M11.5 32.5 7 37l4.5 4.5',3)}`; break;
+    case 'teamPlay': body = `${person(11,19,6)}${person(37,19,6)}${mini(17.5,24.5,13,0)}`; break;
+    case 'discardAll': body = `${mini(6.5,15,12.5,-24)}${mini(18,8.5,12.5,0)}${mini(29.5,15,12.5,24)}${both('M11 41.5h26',4.2)}`; break;
+  }
+  return `<svg width="${u}" height="${u}" viewBox="0 0 48 48">${body}</svg>`;
+}
+
+function chips(sz, withIcons) {
+  const c = ['var(--fire)','var(--rain)','var(--earth)','var(--wind)'];
+  const names = ['fire','rain','earth','wind'];
+  let out = `<div style="position:relative;width:${sz}px;height:${sz}px;display:grid;grid-template-columns:1fr 1fr;
+    border:${Math.max(2,sz*0.045)}px solid #171221;border-radius:${sz*0.14}px;overflow:hidden">`;
+  names.forEach((n,i) => {
+    out += `<div style="background:${c[i]};display:flex;align-items:center;justify-content:center;
+      ${i<2?'border-bottom':''}:${Math.max(1.5,sz*0.03)}px solid #171221;
+      ${i%2===0?'border-right':''}:${Math.max(1.5,sz*0.03)}px solid #171221">
+      ${withIcons ? pip(n, sz*0.3) : ''}</div>`;
+  });
+  return out + '</div>';
+}
+
+function card(spec, w, patterned) {
+  const h = Math.round(w*1.4), k = w/150;
+  const isWild = spec.suit === 'wild';
+  let art, centre = '';
+  if (isWild) {
+    art = `<div class="art"><svg viewBox="0 0 100 140" preserveAspectRatio="xMidYMid slice">
+      <rect width="100" height="140" fill="var(--wild)"/>
+      <path d="M50 0C28 26 10 34 10 70s18 44 40 70c22-26 40-34 40-70S72 26 50 0Z"
+        fill="var(--wild-hi)" stroke="#171221" stroke-width="3.2"/></svg></div>`;
+  } else {
+    art = `<div class="art">${blockArt(spec.suit)}</div>`;
+  }
+  if (spec.kind === 'number')
+    centre = `<div style="position:absolute;z-index:5;top:8%;right:7%;font-weight:900;color:#fff;
+      font-size:${Math.round(74*k)}px;line-height:1;-webkit-text-stroke:${2.6*k}px #171221;
+      text-shadow:${3*k}px ${3.5*k}px 0 #17122159">${spec.value}</div>`;
+  else if (spec.kind === 'drawTwo' || spec.kind === 'drawFour')
+    centre = `<div style="position:absolute;z-index:5;top:8%;right:7%;font-weight:900;color:#fff;
+      font-size:${Math.round(58*k)}px;line-height:1;-webkit-text-stroke:${2.4*k}px #171221;
+      text-shadow:${3*k}px ${3.5*k}px 0 #17122159">${spec.kind === 'drawTwo' ? '+2' : '+4'}</div>`
+      + (spec.kind === 'drawFour'
+        ? `<div style="position:absolute;z-index:5;left:10%;bottom:9%">${chips(Math.round(44*k), false)}</div>` : '');
+  else if (spec.kind === 'changeColour')
+    centre = `<div style="position:absolute;z-index:5;inset:0;display:flex;align-items:center;justify-content:center">
+      ${chips(Math.round(86*k), w>=100)}</div>`;
+  else
+    centre = `<div style="position:absolute;z-index:5;inset:0;display:flex;align-items:center;justify-content:center">
+      ${glyph(spec.kind, Math.round(94*k))}</div>`;
+
+  const idxTxt = spec.kind === 'number' ? spec.value : spec.kind === 'drawTwo' ? '+2' : spec.kind === 'drawFour' ? '+4' : '';
+  const idxMini = idxTxt === '' && spec.kind !== 'changeColour' ? glyph(spec.kind, Math.round(16*k)) : '';
+  const suitMark = isWild ? chips(12*k, false) : pip(spec.suit, Math.round(13*k));
+  const chipEl = (pos) => `<div class="chip ${pos}" style="padding:${6*k}px ${8*k}px ${5*k}px;gap:${3*k}px;
+    font-size:${19*k}px">${idxTxt !== '' ? `<div>${idxTxt}</div>` : idxMini}${suitMark}</div>`;
+  const patt = patterned && !isWild
+    ? `<svg class="patt" width="100%" height="100%"><rect width="100%" height="100%" fill="url(#${PATTERNS[spec.suit]})"/></svg>` : '';
+  return `<div class="card" style="width:${w}px;height:${h}px">
+    ${art}${patt}${centre}${chipEl('tl')}${chipEl('br')}<div class="gloss"></div></div>`;
+}
+
+const numbers = [ {suit:'fire',kind:'number',value:7}, {suit:'rain',kind:'number',value:3},
+  {suit:'earth',kind:'number',value:0}, {suit:'wind',kind:'number',value:9} ];
+const actions = [ {suit:'fire',kind:'skip'}, {suit:'rain',kind:'reverse'}, {suit:'earth',kind:'drawTwo'},
+  {suit:'wind',kind:'skipTwo'}, {suit:'fire',kind:'targetedDraw'}, {suit:'rain',kind:'forcedSwap'},
+  {suit:'earth',kind:'teamPlay'}, {suit:'wind',kind:'discardAll'} ];
+const wilds = [ {suit:'wild',kind:'changeColour'}, {suit:'wild',kind:'drawFour'} ];
+function row(t, specs, w, p) { return `<h2>${t}</h2><div class="row">` + specs.map(s => card(s,w,p)).join('') + '</div>'; }
+const fanSpecs = [ {suit:'fire',kind:'number',value:7}, {suit:'fire',kind:'skip'},
+  {suit:'rain',kind:'number',value:3}, {suit:'wind',kind:'number',value:9}, {suit:'earth',kind:'drawTwo'} ];
+function fan() {
+  let out = '<h2>Fan test — the sumi chip is the read</h2><div class="fan" style="width:540px">';
+  fanSpecs.forEach((s,i) => {
+    out += `<div style="position:absolute;left:${i*80}px;bottom:0;transform:rotate(${(i-2)*4}deg);transform-origin:50% 130%">${card(s,150,false)}</div>`;
+  });
+  return out + '</div>';
+}
+document.getElementById('app').innerHTML =
+  row('Numbers — the element is the face', numbers, 150, false) +
+  row('Actions', actions, 150, false) +
+  row('Wilds', wilds, 150, false) +
+  fan() +
+  row('Small scale (opponents / discard)', [...numbers.slice(0,2), wilds[0]], 64, false) +
+  row('Colour-blind patterns on', numbers, 150, true);
+</script>
+</body>
+</html>

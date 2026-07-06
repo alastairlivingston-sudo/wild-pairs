@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>02 — Poster Bleed</title>
+<style>
+  :root {
+    --fire:#E8431F; --fire-hi:#FF8A3D; --rain:#1B5FD9; --rain-hi:#4FD2F0;
+    --earth:#2F8F5B; --earth-hi:#8FAE99; --wind:#C9A227; --wind-hi:#D8C77E;
+    --wild:#232030; --wild-hi:#3A3550; --ink:#EEF0FF;
+  }
+  body { margin:0; padding:40px 48px 80px;
+    background: radial-gradient(1200px 800px at 50% 20%, #1A1242, #0D0820);
+    color:var(--ink); font-family:-apple-system,'SF Pro Display',Helvetica,Arial,sans-serif; }
+  h1 { font-size:22px; font-weight:700; margin:0 0 4px; }
+  .thesis { color:#9BA0C8; margin:0 0 36px; font-size:15px; }
+  h2 { font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:.12em;
+       color:#8A8FB8; margin:42px 0 14px; }
+  .row { display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; }
+  .card { position:relative; border-radius:13px; overflow:hidden; flex:none;
+    box-shadow: 0 1px 1px #000c, 0 10px 24px #00000073; }
+  .face { position:absolute; inset:0; }
+  .gloss { position:absolute; inset:0;
+    background: linear-gradient(160deg, #ffffff26 0%, #ffffff07 30%, transparent 52%); }
+  .fire  .face { background:var(--fire); }  .fire  .band { background:var(--fire-hi); }
+  .rain  .face { background:var(--rain); }  .rain  .band { background:var(--rain-hi); }
+  .earth .face { background:var(--earth); } .earth .band { background:var(--earth-hi); }
+  .wind  .face { background:var(--wind); }  .wind  .band { background:var(--wind-hi); }
+  .wildc .face { background:var(--wild); }
+  /* Lower third: the element as flat geometry — the "poster" of the poster. */
+  .band { position:absolute; left:0; right:0; bottom:0; height:33%; }
+  .band svg { position:absolute; inset:0; width:100%; height:100%; }
+  /* Type as image: a massive black-weight numeral bleeding off the top-left. */
+  .hero { position:absolute; top:0; left:0; transform:translate(-12%,-16%);
+    font-weight:900; color:#fff; line-height:.85; letter-spacing:-.06em; }
+  .heroG { position:absolute; top:8%; left:6%; }
+  .idx { position:absolute; display:flex; align-items:center; gap:4px; color:#fff; font-weight:800; }
+  .idx.tr { top:0; right:0; }
+  .idx.bl { bottom:0; left:0; transform:rotate(180deg); }
+  .patt { position:absolute; inset:0; opacity:.14; }
+  .fan { position:relative; height:250px; }
+</style>
+</head>
+<body>
+<h1>02 · Poster Bleed</h1>
+<p class="thesis">Every card is a tiny Swiss element poster — type as image, the element as flat geometry in the footer band.</p>
+
+<svg width="0" height="0" style="position:absolute" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <g id="flame"><path d="M12 2.5C9.2 6.1 6.5 8.8 6.5 13a5.5 5.5 0 0 0 11 0c0-4.2-2.7-6.9-5.5-10.5Z"
+      fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></g>
+    <g id="wave"><path d="M3 9.5c3-4.2 6-4.2 9 0s6 4.2 9 0M3 15.5c3-4.2 6-4.2 9 0s6 4.2 9 0"
+      fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></g>
+    <g id="crystal"><path d="M12 2 19 9.5 12 22 5 9.5Z M5 9.5h14 M12 2 9.6 9.5 12 22l2.4-12.5L12 2Z"
+      fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></g>
+    <g id="gust"><path d="M3 8h9.5a3 3 0 1 0-3-3M3 13h14.5a3.2 3.2 0 1 1-3.2 3.2M3 18h7.5"
+      fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></g>
+    <pattern id="p-hatch" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="7" stroke="#fff" stroke-width="2"/></pattern>
+    <pattern id="p-horiz" width="8" height="8" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="2" x2="8" y2="2" stroke="#fff" stroke-width="2"/></pattern>
+    <pattern id="p-vert" width="8" height="8" patternUnits="userSpaceOnUse">
+      <line x1="2" y1="0" x2="2" y2="8" stroke="#fff" stroke-width="2"/></pattern>
+    <pattern id="p-dots" width="9" height="9" patternUnits="userSpaceOnUse">
+      <circle cx="3" cy="3" r="1.6" fill="#fff"/></pattern>
+  </defs>
+</svg>
+
+<div id="app"></div>
+
+<script>
+const SUITS = { fire:'flame', rain:'wave', earth:'crystal', wind:'gust' };
+const PATTERNS = { fire:'p-hatch', rain:'p-horiz', earth:'p-vert', wind:'p-dots' };
+
+// The element rendered as flat poster geometry (fills the footer band, viewBox 100x50).
+function bandArt(suit) {
+  switch (suit) {
+    case 'fire': // flame teeth
+      return `<svg viewBox="0 0 100 50" preserveAspectRatio="none">
+        <path d="M0 50V22L9 6l9 16 7-12 8 14 8-20 9 18 7-10 8 12 9-16 8 14 9-12 9 8V50Z" fill="#00000030"/>
+        <path d="M0 50V30L10 16l8 12 8-8 8 10 8-14 9 12 8-6 8 8 9-12 8 10 9-8 7 6V50Z" fill="#ffffff2e"/></svg>`;
+    case 'rain': // stacked arcs
+      return `<svg viewBox="0 0 100 50" preserveAspectRatio="none">
+        <path d="M0 34c10-14 23-14 33 0s23 14 34 0 22-14 33 0V50H0Z" fill="#00000030"/>
+        <path d="M0 42c10-14 23-14 33 0s23 14 34 0 22-14 33 0V50H0Z" fill="#ffffff2e"/></svg>`;
+    case 'earth': // facet triangles
+      return `<svg viewBox="0 0 100 50" preserveAspectRatio="none">
+        <path d="M0 50 18 12l16 26 14-32 17 32 13-22 22 34Z" fill="#00000030"/>
+        <path d="M0 50l14-20 13 16 15-26 15 24 12-14 17 20Z" fill="#ffffff2e"/></svg>`;
+    case 'wind': // layered sweeps
+      return `<svg viewBox="0 0 100 50" preserveAspectRatio="none">
+        <path d="M0 28c22-16 44 8 66-6 14-9 24-6 34-14V50H0Z" fill="#00000030"/>
+        <path d="M0 40c24-14 46 6 68-8 12-8 22-4 32-10V50H0Z" fill="#ffffff2e"/></svg>`;
+  }
+  return '';
+}
+
+function suitIcon(suit, sz, col) {
+  return `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" style="color:${col}"><use href="#${SUITS[suit]}"/></svg>`;
+}
+
+// Fat filled silhouettes for actions — poster marks, entering from the left like the numeral.
+function glyph(kind, u) {
+  const f = 'fill="#fff"';
+  const person = (cx,cy,k) => `<circle cx="${cx}" cy="${cy-k*0.9}" r="${k*0.52}" ${f}/>
+    <path d="M${cx-k} ${cy+k*1.2} a${k} ${k} 0 0 1 ${2*k} 0 Z" ${f}/>`;
+  const mini = (x,y,w,r) => `<rect x="${x}" y="${y}" width="${w}" height="${w*1.4}" rx="${w*0.14}" ${f}
+    transform="rotate(${r} ${x+w/2} ${y+w*0.7})"/>`;
+  const ring = (sw) => `fill="none" stroke="#fff" stroke-width="${sw}" stroke-linecap="round"`;
+  switch (kind) {
+    case 'skip': return `<svg width="${u}" height="${u}" viewBox="0 0 48 48">${person(24,26,8)}
+      <circle cx="24" cy="24" r="19" ${ring(5)}/><line x1="11" y1="10.5" x2="37.5" y2="37" ${ring(5)}/></svg>`;
+    case 'skipTwo': return `<svg width="${u}" height="${u}" viewBox="0 0 48 48">${person(15,26,6)}${person(33,26,6)}
+      <circle cx="24" cy="24" r="20.5" ${ring(4.6)}/><line x1="10" y1="10" x2="38.5" y2="38.5" ${ring(4.6)}/></svg>`;
+    case 'reverse': return `<svg width="${u}" height="${u}" viewBox="0 0 48 48">
+      <path d="M37 19a14.5 14.5 0 0 0-24-5" ${ring(5)}/><path d="M11 29a14.5 14.5 0 0 0 24 5" ${ring(5)}/>
+      <path d="M13 5.5v9h9Z" ${f}/><path d="M35 42.5v-9h-9Z" ${f}/></svg>`;
+    case 'targetedDraw': return `<svg width="${u}" height="${u}" viewBox="0 0 48 48">
+      <circle cx="22" cy="22" r="12.5" ${ring(4.4)}/><circle cx="22" cy="22" r="3" ${f}/>
+      <path d="M22 4v7M22 33v7M4 22h7M33 22h7" ${ring(4.4)}/>${mini(33,31,11,12)}</svg>`;
+    case 'forcedSwap': return `<svg width="${u}" height="${u}" viewBox="0 0 48 48">${mini(5,5,13,-8)}${mini(30,25,13,8)}
+      <path d="M31 11h10M37 6.5 41.5 11 37 15.5M17 37H7M11.5 32.5 7 37l4.5 4.5" ${ring(3.8)}/></svg>`;
+    case 'teamPlay': return `<svg width="${u}" height="${u}" viewBox="0 0 48 48">${person(11,19,5.8)}${person(37,19,5.8)}${mini(18,25,12,0)}</svg>`;
+    case 'discardAll': return `<svg width="${u}" height="${u}" viewBox="0 0 48 48">${mini(7,15,12,-24)}${mini(18.5,9,12,0)}${mini(30,15,12,24)}
+      <path d="M11 41h26" ${ring(4.4)}/></svg>`;
+  }
+  return '';
+}
+
+function chips(sz, withIcons) {
+  const c = ['var(--fire)','var(--rain)','var(--earth)','var(--wind)'];
+  const names = ['fire','rain','earth','wind'];
+  const r = sz/2, chip = sz*0.36;
+  let out = `<div style="position:relative;width:${sz}px;height:${sz}px">`;
+  [[r-chip/2,0],[sz-chip,r-chip/2],[r-chip/2,sz-chip],[0,r-chip/2]].forEach(([x,y],i) => {
+    out += `<div style="position:absolute;left:${x}px;top:${y}px;width:${chip}px;height:${chip}px;
+      background:${c[i]};display:flex;align-items:center;justify-content:center">
+      ${withIcons ? suitIcon(names[i], chip*0.6, '#fff') : ''}</div>`;
+  });
+  return out + '</div>';
+}
+
+function card(spec, w, patterned) {
+  const h = Math.round(w*1.4), k = w/150;
+  const isWild = spec.suit === 'wild';
+  const cls = isWild ? 'wildc' : spec.suit;
+  let hero = '', band;
+  if (isWild) {
+    // Wild band: all four elements share the footer.
+    band = `<div class="band" style="display:flex">
+      ${['fire','rain','earth','wind'].map(s => `<div style="flex:1;background:var(--${s})"></div>`).join('')}</div>`;
+  } else {
+    band = `<div class="band">${bandArt(spec.suit)}</div>`;
+  }
+  if (spec.kind === 'number') hero = `<div class="hero" style="font-size:${Math.round(168*k)}px">${spec.value}</div>`;
+  else if (spec.kind === 'drawTwo') hero = `<div class="hero" style="font-size:${Math.round(120*k)}px;transform:translate(-8%,-12%)">+2</div>`;
+  else if (spec.kind === 'drawFour') hero = `<div class="hero" style="font-size:${Math.round(120*k)}px;transform:translate(-8%,-12%)">+4</div>`;
+  else if (spec.kind === 'changeColour') hero = `<div class="heroG">${chips(Math.round(88*k), w>=100)}</div>`;
+  else hero = `<div class="heroG">${glyph(spec.kind, Math.round(96*k))}</div>`;
+  const suitMark = isWild ? chips(Math.round(14*k), false) : suitIcon(spec.suit, Math.round(15*k), '#fff');
+  const idxTxt = spec.kind === 'number' ? spec.value : spec.kind === 'drawTwo' ? '+2' : spec.kind === 'drawFour' ? '+4' : '';
+  const idxMini = idxTxt === '' && !isWild && spec.kind !== 'changeColour' ? glyph(spec.kind, Math.round(16*k)) : '';
+  const idx = (pos) => `<div class="idx ${pos}" style="padding:${9*k}px ${10*k}px;font-size:${21*k}px">
+    ${idxTxt !== '' ? idxTxt : idxMini}${suitMark}</div>`;
+  const patt = patterned && !isWild
+    ? `<svg class="patt" width="100%" height="100%"><rect width="100%" height="100%" fill="url(#${PATTERNS[spec.suit]})"/></svg>` : '';
+  return `<div class="card ${cls}" style="width:${w}px;height:${h}px">
+    <div class="face"></div>${band}${patt}${hero}${idx('tr')}${idx('bl')}<div class="gloss"></div></div>`;
+}
+
+const numbers = [ {suit:'fire',kind:'number',value:7}, {suit:'rain',kind:'number',value:3},
+  {suit:'earth',kind:'number',value:0}, {suit:'wind',kind:'number',value:9} ];
+const actions = [ {suit:'fire',kind:'skip'}, {suit:'rain',kind:'reverse'}, {suit:'earth',kind:'drawTwo'},
+  {suit:'wind',kind:'skipTwo'}, {suit:'fire',kind:'targetedDraw'}, {suit:'rain',kind:'forcedSwap'},
+  {suit:'earth',kind:'teamPlay'}, {suit:'wind',kind:'discardAll'} ];
+const wilds = [ {suit:'wild',kind:'changeColour'}, {suit:'wild',kind:'drawFour'} ];
+function row(t, specs, w, p) {
+  return `<h2>${t}</h2><div class="row">` + specs.map(s => card(s, w, p)).join('') + '</div>';
+}
+const fanSpecs = [ {suit:'fire',kind:'number',value:7}, {suit:'fire',kind:'skip'},
+  {suit:'rain',kind:'number',value:3}, {suit:'wind',kind:'number',value:9}, {suit:'earth',kind:'drawTwo'} ];
+function fan() {
+  let out = '<h2>Fan test — only the corner survives overlap</h2><div class="fan" style="width:540px">';
+  fanSpecs.forEach((s,i) => {
+    out += `<div style="position:absolute;left:${i*80}px;bottom:0;transform:rotate(${(i-2)*4}deg);transform-origin:50% 130%">${card(s,150,false)}</div>`;
+  });
+  return out + '</div>';
+}
+document.getElementById('app').innerHTML =
+  row('Numbers', numbers, 150, false) +
+  row('Actions — poster silhouettes', actions, 150, false) +
+  row('Wilds', wilds, 150, false) +
+  fan() +
+  row('Small scale (opponents / discard)', [...numbers.slice(0,2), wilds[0]], 64, false) +
+  row('Colour-blind patterns on', numbers, 150, true);
+</script>
+</body>
+</html>
