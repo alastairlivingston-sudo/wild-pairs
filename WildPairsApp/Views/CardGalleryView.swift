@@ -9,7 +9,7 @@ struct CardGalleryView: View {
     private let colours = CardColour.allCases
     private let colouredTypes: [CardType] = [
         .number(7), .number(0), .skip, .skipTwo, .reverse, .drawTwo,
-        .targetedDraw, .forcedSwap, .teamPlay
+        .targetedDraw, .forcedSwap, .teamPlay, .discardColour
     ]
     private let wildTypes: [CardType] = [.changeColour, .drawFour, .discardAll]
 

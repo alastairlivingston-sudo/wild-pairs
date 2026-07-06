@@ -34,6 +34,41 @@ struct CardView: View {
 
     var body: some View {
         ZStack {
+            // The face is skin-specific; everything below (playable ring, sizing, shadows,
+            // scale, accessibility) is shell that stays constant across skins. Swap the deck
+            // look by flipping `Theme.activeCardSkin` — see CardSkin.swift.
+            switch Theme.activeCardSkin {
+            case .glossPrint: glossPrintFace
+            case .inkFoil:    InkFoilFace(context: faceContext)
+            }
+
+            // Playable ring (accent when the card is legal to play) — skin-independent.
+            if isPlayable {
+                RoundedRectangle(cornerRadius: Theme.Radius.card)
+                    .strokeBorder(Theme.Palette.accent, lineWidth: 3)
+            }
+        }
+        .frame(width: size.width, height: size.height)
+        .shadow(color: .black.opacity(0.22), radius: 1, y: 1)
+        .shadow(color: shadowColor, radius: shadowRadius, x: 0, y: shadowY)
+        .scaleEffect((isSelected || isPlayable) ? 1.07 : 1)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint(announcePlayability ? (isPlayable ? "Double tap to select" : "Double tap for more information") : "")
+        .accessibilityAddTraits(isPlayable ? .isButton : [])
+    }
+
+    /// Everything a skin needs to draw a face, so a new skin is one file + one enum case.
+    private var faceContext: CardFaceContext {
+        CardFaceContext(card: card, size: size, showColourName: showColourName,
+                        showPattern: showPattern, wildTint: wildTint,
+                        reducedMotion: reducedMotion, scheme: scheme)
+    }
+
+    /// The Phase 15c photoreal gloss-print skin (border + printed colour face). Kept intact as
+    /// the `.glossPrint` branch — the instant rollback if a new skin regresses.
+    private var glossPrintFace: some View {
+        ZStack {
             // 1. White die-cut cardstock border, lit from the top-left.
             RoundedRectangle(cornerRadius: Theme.Radius.card)
                 .fill(
@@ -65,21 +100,7 @@ struct CardView: View {
                     .strokeBorder(.black.opacity(0.28), lineWidth: max(0.6, size.width * 0.008))
             }
             .padding(borderWidth)
-
-            // 3. Playable ring (accent when the card is legal to play).
-            if isPlayable {
-                RoundedRectangle(cornerRadius: Theme.Radius.card)
-                    .strokeBorder(Theme.Palette.accent, lineWidth: 3)
-            }
         }
-        .frame(width: size.width, height: size.height)
-        .shadow(color: .black.opacity(0.22), radius: 1, y: 1)
-        .shadow(color: shadowColor, radius: shadowRadius, x: 0, y: shadowY)
-        .scaleEffect((isSelected || isPlayable) ? 1.07 : 1)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityLabel)
-        .accessibilityHint(announcePlayability ? (isPlayable ? "Double tap to select" : "Double tap for more information") : "")
-        .accessibilityAddTraits(isPlayable ? .isButton : [])
     }
 
     // MARK: Face surface
