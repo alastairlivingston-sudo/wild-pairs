@@ -108,6 +108,9 @@ public struct GameViewState: Equatable, Sendable {
     /// The local player's hand, sorted for display, each tagged with playability.
     public let localHand: [CardViewModel]
     public let topDiscard: Card?
+    /// Up to three real discards beneath the top card (oldest→newest), so the pile can be
+    /// drawn as a played history rather than blank ghost stock (Phase 16 discard memory).
+    public let recentDiscards: [Card]
     public let currentColour: CardColour
     public let turnDirection: TurnDirection
     public let drawPileCount: Int
@@ -195,6 +198,8 @@ public struct GameViewState: Equatable, Sendable {
             .map { CardViewModel(card: $0, isPlayable: legalIDs.contains($0.id)) }
 
         self.topDiscard = state.deck.topDiscard
+        self.recentDiscards = state.deck.discardPile.count > 1
+            ? Array(state.deck.discardPile.dropLast().suffix(3)) : []
         self.currentColour = state.currentColour
         self.turnDirection = state.turnDirection
         self.drawPileCount = state.deck.drawPile.count

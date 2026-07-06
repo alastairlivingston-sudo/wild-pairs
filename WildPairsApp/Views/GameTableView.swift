@@ -289,7 +289,8 @@ struct GameTableView: View {
             mustDraw: vs.mustDrawNow, forcedPickup: vs.forcedPickupCount != nil,
             showColourName: showColourName, showPattern: showPattern,
             reducedMotion: reducedMotion, cardSize: size,
-            colourChoicePending: vs.colourChoicePending, onDraw: vm.drawCard
+            colourChoicePending: vs.colourChoicePending,
+            recentDiscards: vs.recentDiscards, onDraw: vm.drawCard
         )
     }
 
