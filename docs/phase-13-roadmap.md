@@ -6,6 +6,13 @@ impact-per-effort within each tier. All items respect the offline/enterprise con
 
 ## Tier 1 — Feel (the remaining gap to "next-generation")
 
+**Status (Phase 16, 2026-07-06): delivered.** 1 Card travel — played cards fly to the pile
+(directional removal transition). 2 Sound + haptic — every effect already carries a distinct
+signature (GameViewModel.handle). 3 Turn hand-off — strengthened active-seat glow + a per-seat
+arrival pop (the cross-table travelling ring remains a future refinement). 4 Discard memory —
+the last 3 real discards fan under the top card. 5 Win/loss moments — confetti/trophy/team wash
+on a win, quiet loss (RoundEndView). Deck also fully reskinned (Ink & Foil) + Colour Burst card.
+
 1. **Card travel animations.** Played cards should fly from the hand to the discard (and
    drawn cards from the pile to the hand) along `Theme.Motion.playArc`, not appear/disappear
    in place. `GameEffect` already exists in the reducer contract — add a `matchedGeometryEffect`
