@@ -109,7 +109,11 @@ it, so no other code needed to change.
 Both-teammates-out is a supported house rule (`RuleProfile.winCondition = .bothTeammatesOut`), not the default.
 
 ### Card types
-`number`, `skip`, `reverse`, `drawTwo`, `drawFour`, `changeColour`, `discardAll`, `targetedDraw`, `forcedSwap`, `skipTwo`, `teamPlay`
+`number`, `skip`, `reverse`, `drawTwo`, `drawFour`, `changeColour`, `discardAll`, `discardColour`, `targetedDraw`, `forcedSwap`, `skipTwo`, `teamPlay`
+
+`discardColour` (Colour Burst, Phase 16) is the coloured cousin of `discardAll`: a coloured
+action card that, on play, discards every card of its own colour from the hand — no colour
+prompt. Advanced set, 1 per colour.
 
 ### Difficulty levels
 | ID | Strategy | Score multiplier |

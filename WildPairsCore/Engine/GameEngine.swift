@@ -182,6 +182,11 @@ public struct GameEngine {
 
         effects.append(.animateCardPlay(card: card, fromPlayerID: playerID))
 
+        // Hand size after the played card left but before the effect runs — lets us tell a
+        // Colour Burst that swept away extra same-colour cards (an effect drop, grace window)
+        // from one that removed nothing and merely played down (declare-at-two rules).
+        let handCountBeforeEffect = s.players[playerIndex].hand.count
+
         // Apply card effect
         var rng = SeededRNG(seed: s.rngSeed &+ UInt64(s.actionCount))
         let (withEffect, effectEffects) = applyCardEffect(
@@ -210,8 +215,18 @@ public struct GameEngine {
                 return (finalState, effects)
             }
         } else if s.players[playerIndex].hand.count == 1 {
-            effects.append(contentsOf: applySoloRequirementViaPlay(
-                toPlayerAt: playerIndex, in: &s, rng: &rng))
+            // A Colour Burst that removed extra same-colour cards drops the player to one with
+            // no chance to have pre-declared — treat it as an effect drop (grace window). A
+            // burst that removed nothing, and every ordinary play, follows declare-at-two.
+            let burstRemovedExtras = card.type == .discardColour
+                && s.players[playerIndex].hand.count < handCountBeforeEffect
+            if burstRemovedExtras {
+                effects.append(contentsOf: applySoloRequirementViaEffect(
+                    toPlayerAt: playerIndex, in: &s))
+            } else {
+                effects.append(contentsOf: applySoloRequirementViaPlay(
+                    toPlayerAt: playerIndex, in: &s, rng: &rng))
+            }
         }
 
         effects.append(.triggerAutosave)
@@ -292,6 +307,22 @@ public struct GameEngine {
             // Wild card: colour selection determines which colour to discard
             s.pendingDecision = .colourChoice(playerID: s.players[playedByIndex].id)
             effects.append(.promptColourChoice(playerID: s.players[playedByIndex].id))
+
+        case .discardColour:
+            // Colour Burst: discard every card of this card's OWN colour from the hand. The
+            // colour is fixed, so unlike wild Discard All there is no colour prompt — it
+            // resolves inline. Win / Solo! are evaluated by handlePlayCard on the final hand.
+            if let colour = card.colour {
+                let removed = s.players[playedByIndex].hand.filter { $0.colour == colour }
+                if !removed.isEmpty {
+                    s.players[playedByIndex].hand.removeAll { $0.colour == colour }
+                    for c in removed { s.deck.discard(c) }
+                    effects.append(.animateDiscardAll(
+                        playerID: s.players[playedByIndex].id, colour: colour))
+                }
+            }
+            s.currentPlayerIndex = GameRules.nextIndex(
+                from: playedByIndex, direction: s.turnDirection, playerCount: n)
 
         case .targetedDraw:
             let validTargets = opponents(of: playedByIndex, in: s)
@@ -917,7 +948,7 @@ public struct GameEngine {
         case .number(let v): return v
         case .skip, .reverse, .drawTwo, .skipTwo, .targetedDraw,
              .forcedSwap, .teamPlay: return 20
-        case .discardAll: return 20
+        case .discardAll, .discardColour: return 20
         case .drawFour, .changeColour: return 50
         }
     }

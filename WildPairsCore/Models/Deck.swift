@@ -69,6 +69,7 @@ public struct Deck: Codable, Equatable, Sendable {
                 cards.append(Card(type: .forcedSwap, colour: colour))
                 cards.append(Card(type: .skipTwo, colour: colour))
                 cards.append(Card(type: .teamPlay, colour: colour))
+                cards.append(Card(type: .discardColour, colour: colour))
             }
         }
 

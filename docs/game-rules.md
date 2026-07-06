@@ -50,7 +50,7 @@ Choose the card set before the game begins:
 |---|---|
 | Beginner | Number cards (0–9), Skip, Reverse, Change Colour |
 | Standard | All Beginner cards, plus Draw Two and Draw Four |
-| Advanced | All Standard cards, plus Discard All, Targeted Draw, Forced Swap, Skip Two, and Team Play |
+| Advanced | All Standard cards, plus Discard All, Colour Burst, Targeted Draw, Forced Swap, Skip Two, and Team Play |
 
 ### Deck Composition
 
@@ -75,21 +75,22 @@ The following table gives the **canonical card count** for each set. `CardFactor
 | Draw Four | — (wild, no colour) | — | 4 |
 | **Standard total** | | | **72** |
 
-#### Advanced Deck — 96 cards (Standard + 24)
+#### Advanced Deck — 100 cards (Standard + 28)
 
 | Card type | Count per colour | Colours | Total added |
 |---|---|---|---|
 | Discard All | — (wild, no colour) | — | 4 |
+| Colour Burst | 1 | 4 | 4 |
 | Targeted Draw | 2 | 4 | 8 |
 | Forced Swap | 1 | 4 | 4 |
 | Skip Two | 1 | 4 | 4 |
 | Team Play | 1 | 4 | 4 |
-| **Advanced total** | | | **96** |
+| **Advanced total** | | | **100** |
 
 **Draw pile after dealing** (4 players × 7 cards = 28 dealt):
 - Beginner: 60 − 28 = 32 cards in draw pile
 - Standard: 72 − 28 = 44 cards in draw pile
-- Advanced: 96 − 28 = 68 cards in draw pile
+- Advanced: 100 − 28 = 72 cards in draw pile
 
 > **Gate:** `DeckTests` must assert these exact counts per set and confirm that Advanced-only card types are absent from Beginner and Standard decks.
 
@@ -290,6 +291,24 @@ score includes those cards.
 
 Note: The player chooses the colour to discard after playing the card, not before. The engine must prompt for colour selection mid-resolution.
 
+### Colour Burst
+
+The coloured cousin of Discard All. A Colour Burst card is itself printed in one of the four
+colours; playing it discards **every card of its own colour** from your hand along with it.
+Because the colour is fixed (the card's own), there is **no** colour-selection prompt — it
+resolves the instant it is played.
+
+| Property | Value |
+|---|---|
+| Available in | Advanced (1 per colour = 4 cards) |
+| Colour | The card's own colour (crimson / cobalt / jade / amber) — a coloured action card, not a wild |
+| Matching rule | Standard colour/number/type matching. Plays on its own colour, or on another Colour Burst by type match (like any coloured action card). |
+| Effect | On play, every card in the player's hand sharing the Burst's colour is discarded together with it. The played Burst is placed first, then the swept cards; the active colour stays the Burst's colour. If no other same-colour cards are held, only the Burst itself is played. |
+| Win interaction | If the sweep empties the hand, that is a valid win, crediting the team. |
+| Solo!/penalty interaction | If the sweep removes extra same-colour cards and leaves exactly 1, the player had no chance to pre-declare — they get the **effect-drop grace window** to call Solo! at one card (same as Discard All / Forced Swap). If the Burst removed no extra cards and the player simply played down to 1, normal declare-at-two rules apply (immediately catchable). |
+| VoiceOver label | "Colour Burst — discards every card of its colour" |
+| In-app rules text | "Discards every card of its own colour from your hand along with it. If your hand is now empty, you go out." |
+
 ### Targeted Draw
 
 | Property | Value |
@@ -444,7 +463,7 @@ When scoring is enabled:
 | Card type | Points |
 |---|---|
 | Number cards (0–9) | Face value (0 = 0 pts, 9 = 9 pts) |
-| Action cards (Skip, Reverse, Draw Two, Skip Two, Targeted Draw, Forced Swap, Team Play, Discard All) | 20 points each |
+| Action cards (Skip, Reverse, Draw Two, Skip Two, Targeted Draw, Forced Swap, Team Play, Discard All, Colour Burst) | 20 points each |
 | Wild cards (Change Colour, Draw Four) | 50 points each |
 
 Points are tallied from the losing side's remaining cards and multiplied by the
@@ -469,9 +488,11 @@ A player must declare "Solo!" **while still holding two cards, before playing th
 takes them down to one**. Arriving at one card without having declared makes the player
 immediately catchable — there is no post-play grace for a normal play.
 
-**Effect-drop grace:** when a card *effect* (Forced Swap, or Discard All leaving exactly one
-card) drops a player straight to one card, no pre-declaration was possible, so that player may
-still declare "Solo!" at one card until caught or until their next turn begins.
+**Effect-drop grace:** when a card *effect* (Forced Swap, Discard All, or a Colour Burst that
+sweeps away extra same-colour cards) drops a player straight to one card, no pre-declaration
+was possible, so that player may still declare "Solo!" at one card until caught or until their
+next turn begins. A Colour Burst that removed no extra cards is an ordinary play down to one —
+no grace.
 
 A declaration is invalidated whenever the declarer's hand grows above two cards (penalty draws,
 swaps, Team Play) — they must declare again next time they are about to go to one card.

@@ -176,6 +176,10 @@ struct CardView: View {
             printedMark { TeamPlayGlyph(unit: size.width * 0.6) }
         case .discardAll:
             printedMark { DiscardBurstGlyph(unit: size.width * 0.64) }
+        case .discardColour:
+            // Same sweep silhouette as Discard All; the coloured face (vs charcoal wild)
+            // is the differentiator in the gloss skin.
+            printedMark { DiscardBurstGlyph(unit: size.width * 0.64) }
         }
     }
 
@@ -284,6 +288,9 @@ struct CardView: View {
                     .frame(width: cornerGlyphUnit * 0.62, height: cornerGlyphUnit * 0.72)
             }
         case .discardAll:
+            SweepArrowShape().fill(.white)
+                .frame(width: cornerGlyphUnit, height: cornerGlyphUnit)
+        case .discardColour:
             SweepArrowShape().fill(.white)
                 .frame(width: cornerGlyphUnit, height: cornerGlyphUnit)
         }
@@ -703,6 +710,7 @@ extension CardType {
         case .drawFour: return "Draw Four"
         case .changeColour: return "Change Colour"
         case .discardAll: return "Discard All"
+        case .discardColour: return "Colour Burst"
         case .targetedDraw: return "Targeted Draw"
         case .forcedSwap: return "Forced Swap"
         case .teamPlay: return "Team Play"
@@ -719,6 +727,7 @@ extension CardType {
         case .drawFour: return "The next player draws four cards and loses their turn."
         case .changeColour: return "Lets you choose a new colour for all players."
         case .discardAll: return "Discard all cards of a chosen colour from your hand."
+        case .discardColour: return "Discards every card of its own colour from your hand along with it."
         case .targetedDraw: return "Choose a player to draw cards."
         case .forcedSwap: return "Swap your hand with any other player."
         case .teamPlay: return "Invite your partner to play next."

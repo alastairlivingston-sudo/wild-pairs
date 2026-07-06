@@ -292,9 +292,10 @@ public struct GameViewState: Equatable, Sendable {
         case .targetedDraw: return 5
         case .forcedSwap: return 6
         case .teamPlay: return 7
-        case .changeColour: return 8
-        case .drawFour: return 9
-        case .discardAll: return 10
+        case .discardColour: return 8
+        case .changeColour: return 9
+        case .drawFour: return 10
+        case .discardAll: return 11
         }
     }
 

@@ -422,7 +422,7 @@ final class GameViewModel: ObservableObject {
         case .reverse:                        return .reversePlayed
         case .drawTwo:                        return .drawTwoPlayed
         case .drawFour, .changeColour:        return .wildPlayed
-        case .number, .discardAll, .targetedDraw, .forcedSwap, .teamPlay:
+        case .number, .discardAll, .discardColour, .targetedDraw, .forcedSwap, .teamPlay:
             return .cardPlay
         }
     }

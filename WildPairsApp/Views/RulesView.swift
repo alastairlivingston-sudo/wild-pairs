@@ -77,6 +77,7 @@ struct GlossaryEntry: Identifiable {
         .init(name: "Draw Two", text: "The next player draws 2 and loses their turn."),
         .init(name: "Draw Four", text: "Play only with no other match. Choose a colour; next player draws 4 and is skipped."),
         .init(name: "Discard All", text: "Choose a colour and discard every card of it from your hand."),
+        .init(name: "Colour Burst", text: "Discards every card of its own colour from your hand along with it."),
         .init(name: "Targeted Draw", text: "Choose any opponent; they draw 2. Their turn is not skipped."),
         .init(name: "Forced Swap", text: "Choose any player; swap entire hands with them."),
         .init(name: "Skip Two", text: "The next two players each lose their turn."),

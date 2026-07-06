@@ -549,6 +549,7 @@ extension CardType {
         case .drawFour:      return "D4"
         case .changeColour:  return "WILD"
         case .discardAll:    return "ALL"
+        case .discardColour: return "BURST"
         case .targetedDraw:  return "TD"
         case .forcedSwap:    return "SWAP"
         case .teamPlay:      return "TEAM"

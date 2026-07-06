@@ -271,7 +271,7 @@ enum HardAI {
 
         // Conservation of rare powerful cards when urgency is low
         switch card.type {
-        case .discardAll, .forcedSwap:
+        case .discardAll, .discardColour, .forcedSwap:
             if urgency < 0.5 { score -= Weight.actionConservation }
         case .drawTwo, .drawFour:
             // Draw penalties are worth most at the end of a round: they load an opponent
