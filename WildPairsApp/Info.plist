@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Wild Pairs app Info.plist.
+  Solo app Info.plist.
   Deliberately contains NO permission usage-description keys (camera, microphone, photos,
   location, Bluetooth, contacts, calendars, local network). The app is fully offline and
   requests zero runtime permissions — see docs/permission-audit.md and CLAUDE.md.
@@ -21,7 +21,7 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleDisplayName</key>
-    <string>Wild Pairs</string>
+    <string>Solo</string>
     <key>CFBundleShortVersionString</key>
     <string>0.1.0</string>
     <key>CFBundleVersion</key>

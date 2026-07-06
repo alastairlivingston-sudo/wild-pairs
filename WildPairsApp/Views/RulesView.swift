@@ -12,8 +12,8 @@ struct RulesView: View {
                 Section("How to play") {
                     bullet("Match the top card by colour, number, or action type — or play a wild.")
                     bullet("Can't match? Draw a card. If it's playable you may play it right away.")
-                    bullet("Call Solo! the moment you're down to one card, or risk a 2-card penalty.")
-                    bullet("You and your partner are a team. Both of you must empty your hands to win the round.")
+                    bullet("Call Solo! while you still hold two cards — before playing down to one — or risk a 2-card penalty.")
+                    bullet("You and your partner are a team. Either of you going out wins the round for the team.")
                 }
                 .listRowBackground(Color.black.opacity(0.25))
                 Section("Card glossary") {

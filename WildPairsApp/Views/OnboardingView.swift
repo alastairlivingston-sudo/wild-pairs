@@ -70,7 +70,7 @@ struct OnboardingPage: Identifiable {
         .init(
             symbol: "person.2.fill",
             title: "You and a partner vs. two opponents",
-            body: "Wild Pairs is 2-v-2. You sit across from your partner — empty your hand, or be the team whose partner does, before the other team."
+            body: "Solo is 2-v-2. You sit across from your partner — empty your hand, or be the team whose partner does, before the other team."
         ),
         .init(
             symbol: "rectangle.stack.fill",
@@ -79,8 +79,8 @@ struct OnboardingPage: Identifiable {
         ),
         .init(
             symbol: "exclamationmark.circle.fill",
-            title: "Call \"Solo!\" at one card",
-            body: "Drop to one card and you must call Solo! immediately. Forget, and an opponent who catches you can make you draw two."
+            title: "Call \"Solo!\" before your last card",
+            body: "Declare Solo! while you still hold two cards — before playing down to one. Forget, and an opponent who catches you can make you draw two."
         ),
         .init(
             symbol: "eye.fill",

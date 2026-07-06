@@ -19,7 +19,7 @@ struct HomeView: View {
                     Spacer()
                     VStack(spacing: Theme.Space.s3) {
                         wordmark
-                        Text("Wild Pairs").font(.largeTitle).fontWeight(.bold)
+                        Text("Solo").font(.largeTitle).fontWeight(.bold)
                             .foregroundStyle(Theme.Palette.cream)
                         Text("Offline 2-v-2 team card game").font(.subheadline)
                             .foregroundStyle(Theme.Palette.cream.opacity(0.7))
@@ -101,7 +101,7 @@ struct HomeView: View {
         }
         .padding(.horizontal, Theme.Space.s5).padding(.vertical, Theme.Space.s4)
         .wpGlassCapsule()
-        // Purely decorative — the "Wild Pairs" text immediately below already names the
+        // Purely decorative — the "Solo" text immediately below already names the
         // app, so VoiceOver should skip these four shapes rather than read them individually.
         .accessibilityHidden(true)
     }

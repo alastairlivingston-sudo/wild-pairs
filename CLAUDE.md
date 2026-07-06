@@ -3,7 +3,7 @@
 ## Identity
 | Key | Value |
 |---|---|
-| Working title | Wild Pairs |
+| Working title | Solo (display name since 2026-07-06; was Wild Pairs — internal `WildPairs*` module/engine vocabulary unchanged, same pattern as the Phase 11 display-only retheme) |
 | Type | Offline Universal iOS/iPadOS card game |
 | Target platform | iPhone + iPad (Universal), iOS 17+, offline-only |
 | Language | Swift 5.9+ |
