@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>06 — Element Crest</title>
+<style>
+  :root {
+    --fire:#E8431F; --fire-hi:#FF8A3D; --rain:#1B5FD9; --rain-hi:#4FD2F0;
+    --earth:#2F8F5B; --earth-hi:#8FAE99; --wind:#C9A227; --wind-hi:#D8C77E;
+    --wild:#232030; --wild-hi:#3A3550; --ink:#EEF0FF;
+  }
+  body { margin:0; padding:40px 48px 80px;
+    background: radial-gradient(1200px 800px at 50% 20%, #1A1242, #0D0820);
+    color:var(--ink); font-family:-apple-system,'SF Pro Display',Helvetica,Arial,sans-serif; }
+  h1 { font-size:22px; font-weight:700; margin:0 0 4px; }
+  .thesis { color:#9BA0C8; margin:0 0 36px; font-size:15px; }
+  h2 { font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:.12em;
+       color:#8A8FB8; margin:42px 0 14px; }
+  .row { display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; }
+  .card { position:relative; border-radius:12px; overflow:hidden; flex:none;
+    box-shadow: 0 1px 1px #000c, 0 10px 24px #00000073; }
+  .face { position:absolute; inset:0; }
+  .fire  .face { background:var(--fire); }
+  .rain  .face { background:var(--rain); }
+  .earth .face { background:var(--earth); }
+  .wind  .face { background:var(--wind); }
+  .wildc .face { background:var(--wild); }
+  /* Deco pinstripe frame: double keyline, the quiet luxury cue. */
+  .pin { position:absolute; border:1.6px solid #ffffffd9; border-radius:7px; pointer-events:none; }
+  .pin2 { position:absolute; border:1px solid #ffffff59; border-radius:5px; pointer-events:none; }
+  .gloss { position:absolute; inset:0;
+    background: linear-gradient(157deg, #ffffff28 0%, #ffffff08 32%, transparent 54%); }
+  .crest { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+  .idx { position:absolute; display:flex; flex-direction:column; align-items:center; gap:2px;
+    color:#fff; font-weight:800; line-height:1; }
+  .idx.tl { top:0; left:0; } .idx.br { bottom:0; right:0; transform:rotate(180deg); }
+  .patt { position:absolute; inset:0; opacity:.13; }
+  .fan { position:relative; height:250px; }
+</style>
+</head>
+<body>
+<h1>06 · Element Crest</h1>
+<p class="thesis">Cards as element badges — a constructed deco crest per suit: sunray ring, geometric emblem, the rank seated at its heart.</p>
+
+<svg width="0" height="0" style="position:absolute" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <g id="flame-f"><path d="M12 2.2C9 6 6.2 8.7 6.2 13a5.8 5.8 0 0 0 11.6 0c0-4.3-2.8-7-5.8-10.8Z" fill="currentColor"/></g>
+    <g id="wave-f"><path d="M2 8.8c3-4 6.5-4 10 0 3 3.4 5.8 3.6 10 .4V15c-4 3-7.5 2.8-10-.4-3-3.6-6-3.6-10 0Zm0 6.6c3-3.8 6.5-3.8 10 0 2.8 3 5.8 3.2 10 .2V20H2Z" fill="currentColor"/></g>
+    <g id="crystal-f"><path d="M12 1.6 19.4 9.5 12 22.4 4.6 9.5Z" fill="currentColor"/></g>
+    <g id="gust-f"><path d="M3 7.4h9.3a3.1 3.1 0 1 0-3.1-3.1M3 12.6h14.6a3.3 3.3 0 1 1-3.3 3.3M3 17.8h7.6"
+      fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/></g>
+    <pattern id="p-hatch" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="7" stroke="#fff" stroke-width="2"/></pattern>
+    <pattern id="p-horiz" width="8" height="8" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="2" x2="8" y2="2" stroke="#fff" stroke-width="2"/></pattern>
+    <pattern id="p-vert" width="8" height="8" patternUnits="userSpaceOnUse">
+      <line x1="2" y1="0" x2="2" y2="8" stroke="#fff" stroke-width="2"/></pattern>
+    <pattern id="p-dots" width="9" height="9" patternUnits="userSpaceOnUse">
+      <circle cx="3" cy="3" r="1.6" fill="#fff"/></pattern>
+  </defs>
+</svg>
+
+<div id="app"></div>
+
+<script>
+const SUITF = { fire:'flame-f', rain:'wave-f', earth:'crystal-f', wind:'gust-f' };
+const PATTERNS = { fire:'p-hatch', rain:'p-horiz', earth:'p-vert', wind:'p-dots' };
+const HI = { fire:'var(--fire-hi)', rain:'var(--rain-hi)', earth:'#5ADF9B', wind:'var(--wind-hi)' };
+function pip(suit, sz, col) {
+  return `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" style="color:${col||'#fff'}"><use href="#${SUITF[suit]}"/></svg>`;
+}
+
+// The crest: sunray ring (deco), highlight-colour emblem ring, white geometry.
+// centre = numeral | glyph | suit emblem. viewBox 120x120.
+function crest(suit, centreSvg, u, isWild) {
+  const hi = isWild ? '#8F87B8' : HI[suit];
+  let rays = '';
+  for (let i = 0; i < 24; i++) {
+    const a = i * 15 * Math.PI / 180;
+    const r1 = 50, r2 = i % 2 ? 55 : 58;
+    rays += `<line x1="${60 + r1 * Math.cos(a)}" y1="${60 + r1 * Math.sin(a)}"
+      x2="${60 + r2 * Math.cos(a)}" y2="${60 + r2 * Math.sin(a)}"
+      stroke="#ffffffc4" stroke-width="1.6"/>`;
+  }
+  return `<svg width="${u}" height="${u}" viewBox="0 0 120 120">
+    ${rays}
+    <circle cx="60" cy="60" r="46" fill="none" stroke="${hi}" stroke-width="5"/>
+    <circle cx="60" cy="60" r="39.5" fill="none" stroke="#ffffff8c" stroke-width="1.2"/>
+    <g transform="translate(60 60)">${centreSvg}</g>
+  </svg>`;
+}
+
+// White geometry glyphs sized for the crest interior (48-box centred at 0,0 → translate -24).
+function glyphC(kind) {
+  const f = 'fill="#fff"';
+  const ring = (sw) => `fill="none" stroke="#fff" stroke-width="${sw}" stroke-linecap="round"`;
+  const person = (cx,cy,k) => `<circle cx="${cx}" cy="${cy-k*0.9}" r="${k*0.52}" ${f}/>
+    <path d="M${cx-k} ${cy+k*1.2} a${k} ${k} 0 0 1 ${2*k} 0 Z" ${f}/>`;
+  const mini = (x,y,w,r) => `<rect x="${x}" y="${y}" width="${w}" height="${w*1.4}" rx="${w*0.14}" ${f}
+    transform="rotate(${r} ${x+w/2} ${y+w*0.7})"/>`;
+  let body = '';
+  switch (kind) {
+    case 'skip': body = `${person(24,25,7)}<circle cx="24" cy="24" r="17" ${ring(4.2)}/><line x1="12.3" y1="12.3" x2="35.7" y2="35.7" ${ring(4.2)}/>`; break;
+    case 'skipTwo': body = `${person(16,25,5.2)}${person(32,25,5.2)}<circle cx="24" cy="24" r="18" ${ring(3.8)}/><line x1="11.5" y1="11.5" x2="36.5" y2="36.5" ${ring(3.8)}/>`; break;
+    case 'reverse': body = `<path d="M35 19a13 13 0 0 0-21.5-4.5" ${ring(4.2)}/><path d="M13 29a13 13 0 0 0 21.5 4.5" ${ring(4.2)}/>
+      <path d="M14 7.5v7.5h7.5Z" ${f}/><path d="M34 40.5V33h-7.5Z" ${f}/>`; break;
+    case 'targetedDraw': body = `<circle cx="23" cy="23" r="11" ${ring(3.8)}/><circle cx="23" cy="23" r="2.6" ${f}/>
+      <path d="M23 7v6M23 33v6M7 23h6M33 23h6" ${ring(3.8)}/>${mini(32,30,9.5,12)}`; break;
+    case 'forcedSwap': body = `${mini(7,7,11.5,-8)}${mini(29.5,26,11.5,8)}
+      <path d="M30 12h8.5M35 8.5l3.5 3.5-3.5 3.5M18 36H9.5M13 32.5 9.5 36l3.5 3.5" ${ring(3)}/>`; break;
+    case 'teamPlay': body = `${person(13,19,5)}${person(35,19,5)}${mini(19,25,10.5,0)}`; break;
+    case 'discardAll': body = `${mini(9,15,10.5,-24)}${mini(19,10,10.5,0)}${mini(29,15,10.5,24)}<path d="M13 39h22" ${ring(3.8)}/>`; break;
+  }
+  return `<g transform="translate(-24 -24)">${body}</g>`;
+}
+
+function chips(sz, withIcons) {
+  const c = ['var(--fire)','var(--rain)','var(--earth)','var(--wind)'];
+  const names = ['fire','rain','earth','wind'];
+  const r = sz/2, chip = sz*0.36;
+  let out = `<div style="position:relative;width:${sz}px;height:${sz}px">`;
+  [[r-chip/2,0],[sz-chip,r-chip/2],[r-chip/2,sz-chip],[0,r-chip/2]].forEach(([x,y],i) => {
+    out += `<div style="position:absolute;left:${x}px;top:${y}px;width:${chip}px;height:${chip}px;border-radius:50%;
+      background:${c[i]};border:${Math.max(1.2,sz*0.024)}px solid #ffffffd9;
+      display:flex;align-items:center;justify-content:center">
+      ${withIcons ? pip(names[i], chip*0.58) : ''}</div>`;
+  });
+  return out + '</div>';
+}
+
+function card(spec, w, patterned) {
+  const h = Math.round(w*1.4), k = w/150;
+  const isWild = spec.suit === 'wild';
+  const cls = isWild ? 'wildc' : spec.suit;
+  let centre = '';
+  if (spec.kind === 'number')
+    centre = `<text y="0.36em" text-anchor="middle" font-size="46" font-weight="800"
+      font-family="-apple-system,Helvetica" fill="#fff">${spec.value}</text>`;
+  else if (spec.kind === 'drawTwo')
+    centre = `<text y="0.36em" text-anchor="middle" font-size="34" font-weight="800"
+      font-family="-apple-system,Helvetica" fill="#fff">+2</text>`;
+  else if (spec.kind === 'drawFour')
+    centre = `<text y="0.36em" text-anchor="middle" font-size="34" font-weight="800"
+      font-family="-apple-system,Helvetica" fill="#fff">+4</text>`;
+  else if (spec.kind === 'changeColour') centre = '';
+  else centre = glyphC(spec.kind);
+
+  let crestEl;
+  if (spec.kind === 'changeColour') {
+    crestEl = `<div class="crest"><div style="position:relative">
+      ${crest(spec.suit, '', Math.round(112*k), true)}
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
+        ${chips(Math.round(58*k), w>=100)}</div></div></div>`;
+  } else if (spec.kind === 'drawFour') {
+    crestEl = `<div class="crest"><div style="position:relative">
+      ${crest(spec.suit, centre, Math.round(112*k), true)}
+      <div style="position:absolute;left:50%;bottom:${-4*k}px;transform:translateX(-50%)">
+        ${chips(Math.round(34*k), false)}</div></div></div>`;
+  } else {
+    // The suit emblem rides above the crest — heraldic supporter.
+    crestEl = `<div class="crest" style="flex-direction:column;gap:${5*k}px">
+      <div style="filter:drop-shadow(0 ${1.5*k}px 0 #00000038)">${pip(spec.suit, Math.round(26*k))}</div>
+      ${crest(spec.suit, centre, Math.round(104*k), false)}</div>`;
+  }
+
+  const idxTxt = spec.kind === 'number' ? spec.value : spec.kind === 'drawTwo' ? '+2' : spec.kind === 'drawFour' ? '+4' : '';
+  const idxMini = idxTxt === '' && spec.kind !== 'changeColour'
+    ? `<svg width="${16*k}" height="${16*k}" viewBox="0 0 48 48"><g transform="translate(24 24)">${glyphC(spec.kind)}</g></svg>` : '';
+  const suitMark = isWild ? chips(12*k, false) : pip(spec.suit, Math.round(13*k));
+  const idx = (pos) => `<div class="idx ${pos}" style="padding:${13*k}px ${14*k}px;font-size:${19*k}px">
+    ${idxTxt !== '' ? `<div>${idxTxt}</div>` : idxMini}${suitMark}</div>`;
+  const patt = patterned && !isWild
+    ? `<svg class="patt" width="100%" height="100%"><rect width="100%" height="100%" fill="url(#${PATTERNS[spec.suit]})"/></svg>` : '';
+  return `<div class="card ${cls}" style="width:${w}px;height:${h}px">
+    <div class="face"></div>${patt}
+    <div class="pin" style="inset:${7*k}px"></div><div class="pin2" style="inset:${11*k}px"></div>
+    ${crestEl}${idx('tl')}${idx('br')}<div class="gloss"></div></div>`;
+}
+
+const numbers = [ {suit:'fire',kind:'number',value:7}, {suit:'rain',kind:'number',value:3},
+  {suit:'earth',kind:'number',value:0}, {suit:'wind',kind:'number',value:9} ];
+const actions = [ {suit:'fire',kind:'skip'}, {suit:'rain',kind:'reverse'}, {suit:'earth',kind:'drawTwo'},
+  {suit:'wind',kind:'skipTwo'}, {suit:'fire',kind:'targetedDraw'}, {suit:'rain',kind:'forcedSwap'},
+  {suit:'earth',kind:'teamPlay'}, {suit:'wind',kind:'discardAll'} ];
+const wilds = [ {suit:'wild',kind:'changeColour'}, {suit:'wild',kind:'drawFour'} ];
+function row(t, specs, w, p) { return `<h2>${t}</h2><div class="row">` + specs.map(s => card(s,w,p)).join('') + '</div>'; }
+const fanSpecs = [ {suit:'fire',kind:'number',value:7}, {suit:'fire',kind:'skip'},
+  {suit:'rain',kind:'number',value:3}, {suit:'wind',kind:'number',value:9}, {suit:'earth',kind:'drawTwo'} ];
+function fan() {
+  let out = '<h2>Fan test — only the corner survives overlap</h2><div class="fan" style="width:540px">';
+  fanSpecs.forEach((s,i) => {
+    out += `<div style="position:absolute;left:${i*80}px;bottom:0;transform:rotate(${(i-2)*4}deg);transform-origin:50% 130%">${card(s,150,false)}</div>`;
+  });
+  return out + '</div>';
+}
+document.getElementById('app').innerHTML =
+  row('Numbers', numbers, 150, false) +
+  row('Actions — the crest holds the mark', actions, 150, false) +
+  row('Wilds', wilds, 150, false) +
+  fan() +
+  row('Small scale (opponents / discard)', [...numbers.slice(0,2), wilds[0]], 64, false) +
+  row('Colour-blind patterns on', numbers, 150, true);
+</script>
+</body>
+</html>

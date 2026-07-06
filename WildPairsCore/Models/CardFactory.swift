@@ -42,6 +42,12 @@ public enum CardFactory {
         Card(type: .teamPlay, colour: colour)
     }
 
+    /// Colour Burst: the coloured cousin of Discard All. Playing it discards every card of
+    /// its own colour from the hand — colour is fixed, so no colour-choice prompt.
+    public static func discardColour(_ colour: CardColour) -> Card {
+        Card(type: .discardColour, colour: colour)
+    }
+
     // MARK: Wild Cards (no colour)
 
     public static func changeColour() -> Card {

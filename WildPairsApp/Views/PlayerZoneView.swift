@@ -29,15 +29,32 @@ struct PlayerZoneView: View {
     /// Drives the active-player glow pulse (ux-spec.md §10 "Active player highlight": a
     /// soft glow that pulses on a ~2s period; static border instead under Reduced Motion).
     @State private var glowPulse = false
+    /// One-shot scale pop when the turn lands on this seat — the per-seat half of the turn
+    /// hand-off choreography (Phase 16), so the eye is drawn to whoever's go it now is.
+    @State private var arrivalPop = false
 
     private var isOpponentAvatar: Bool { seat.visiblePartnerHand == nil }
+
+    /// How close this seat is to going out — drives the count badge's urgency colour so
+    /// "who's about to win" reads at a glance (1 card = critical, 2 = caution).
+    private var countTint: Color {
+        switch seat.handCount {
+        case 0, 1: return Theme.Palette.error
+        case 2:    return Theme.Palette.warning
+        default:   return Theme.Palette.accent
+        }
+    }
+    private var countUrgent: Bool { seat.handCount <= 2 }
 
     var body: some View {
         seatChrome
             .shadow(color: glowColor, radius: glowRadius)
             .animation(.spring(response: 0.5, dampingFraction: 0.6), value: seat.needsSoloCall)
             .onAppear { updateGlow(seat.isCurrentPlayer) }
-            .onChange(of: seat.isCurrentPlayer) { _, isCurrent in updateGlow(isCurrent) }
+            .onChange(of: seat.isCurrentPlayer) { _, isCurrent in
+                updateGlow(isCurrent)
+                if isCurrent { triggerArrivalPop() }
+            }
             // `.combine` merges the whole zone into a single VoiceOver element, which would
             // otherwise swallow the catch-out button (it stops being independently reachable
             // by swipe navigation). Forward the same action to the combined element's double
@@ -101,16 +118,25 @@ struct PlayerZoneView: View {
 
     private var glowColor: Color {
         guard seat.isCurrentPlayer else { return .clear }
-        return accent.opacity(reducedMotion ? 0.3 : (glowPulse ? 0.6 : 0.15))
+        return accent.opacity(reducedMotion ? 0.45 : (glowPulse ? 0.85 : 0.35))
     }
     private var glowRadius: CGFloat {
         guard seat.isCurrentPlayer else { return 0 }
-        return reducedMotion ? 4 : (glowPulse ? 10 : 4)
+        return reducedMotion ? 6 : (glowPulse ? 18 : 8)
     }
     private func updateGlow(_ isCurrent: Bool) {
         guard isCurrent, !reducedMotion else { glowPulse = false; return }
         withAnimation(.easeInOut(duration: 2).repeatForever(autoreverses: true)) {
             glowPulse = true
+        }
+    }
+
+    /// A quick scale pop when the turn arrives at this seat, then settle back.
+    private func triggerArrivalPop() {
+        guard !reducedMotion else { return }
+        withAnimation(.spring(response: 0.26, dampingFraction: 0.45)) { arrivalPop = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.13) {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) { arrivalPop = false }
         }
     }
 
@@ -121,10 +147,11 @@ struct PlayerZoneView: View {
     /// partner's visible card count.
     private var countBadge: some View {
         Text("\(seat.handCount)")
-            .font(.caption).fontWeight(.bold).monospacedDigit()
+            .font(.caption).fontWeight(.heavy).monospacedDigit()
             .padding(.horizontal, Theme.Space.s2).padding(.vertical, 2)
             .foregroundStyle(Theme.Palette.onAccent)
-            .background(Capsule().fill(Theme.Palette.accent))
+            .background(Capsule().fill(countTint))
+            .overlay(countUrgent ? Capsule().strokeBorder(.white.opacity(0.85), lineWidth: 1) : nil)
     }
 
     /// Width-aware overlap so a fan of `count` cards at `cardWidth` never exceeds
@@ -176,13 +203,15 @@ struct PlayerZoneView: View {
                 .shadow(color: (isThinking && !reducedMotion) ? accent.opacity(0.5) : .clear, radius: 10)
 
             Text("\(seat.handCount)")
-                .font(.caption2).fontWeight(.bold).monospacedDigit()
-                .padding(.horizontal, Theme.Space.s1).padding(.vertical, 1)
-                .background(Capsule().fill(Theme.Palette.accent))
+                .font(.caption).fontWeight(.heavy).monospacedDigit()
+                .padding(.horizontal, Theme.Space.s2).padding(.vertical, 2)
+                .background(Capsule().fill(countTint))
+                .overlay(countUrgent ? Capsule().strokeBorder(.white.opacity(0.85), lineWidth: 1) : nil)
                 .foregroundStyle(Theme.Palette.onAccent)
-                .offset(x: 4, y: 4)
+                .offset(x: 6, y: 6)
         }
         .frame(width: 54 + Theme.Space.s2, height: 54 + Theme.Space.s2)
+        .scaleEffect(arrivalPop ? 1.12 : 1)
     }
 
     /// Partner's hand, face-up — partner hands are open by design (game-rules.md Team

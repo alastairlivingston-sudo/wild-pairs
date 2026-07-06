@@ -152,9 +152,12 @@ struct HandView: View {
             .modifier(ShakeEffect(animatableData: shakingCardID == item.id ? 1 : 0))
             .onTapGesture { tap(item) }
             .animation(Theme.Motion.cardPlay, value: item.isPlayable)
-            // A9: a played card scales/fades away and a drawn card scales/fades in, instead
-            // of snapping — skipped under Reduced Motion (A12).
-            .transition(reducedMotion ? .identity : .scale(scale: 0.5).combined(with: .opacity))
+            // A9 / Phase 16 card travel: a played card flies up toward the discard pile as it
+            // leaves the hand (not a shrink-in-place), while a drawn/dealt card still pops in.
+            // Skipped under Reduced Motion (A12).
+            .transition(reducedMotion ? .identity : .asymmetric(
+                insertion: .scale(scale: 0.5).combined(with: .opacity),
+                removal: .move(edge: .top).combined(with: .opacity)))
             // Deal-in stagger (Phase 11 B): each new card (a fresh deal, or one drawn mid-round)
             // fades/scales in with a per-index delay instead of every card popping at once.
             .modifier(DealStaggerModifier(index: staggerIndex, reducedMotion: reducedMotion))

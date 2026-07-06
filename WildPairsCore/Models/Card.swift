@@ -19,6 +19,7 @@ public enum CardType: Codable, Equatable, Sendable {
     case drawFour
     case changeColour
     case discardAll
+    case discardColour
     case targetedDraw
     case forcedSwap
     case skipTwo

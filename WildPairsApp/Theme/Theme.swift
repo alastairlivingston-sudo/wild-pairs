@@ -23,6 +23,9 @@ extension EnvironmentValues {
 
 enum Theme {
 
+    /// The deck look. Flip to `.glossPrint` to instantly roll back to the Phase 15c deck.
+    static let activeCardSkin: CardSkin = .inkFoil
+
     // MARK: Spacing (§4)
     enum Space {
         static let s1: CGFloat = 4
@@ -549,6 +552,7 @@ extension CardType {
         case .drawFour:      return "D4"
         case .changeColour:  return "WILD"
         case .discardAll:    return "ALL"
+        case .discardColour: return "BURST"
         case .targetedDraw:  return "TD"
         case .forcedSwap:    return "SWAP"
         case .teamPlay:      return "TEAM"

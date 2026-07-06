@@ -12,8 +12,8 @@ struct RulesView: View {
                 Section("How to play") {
                     bullet("Match the top card by colour, number, or action type — or play a wild.")
                     bullet("Can't match? Draw a card. If it's playable you may play it right away.")
-                    bullet("Call Solo! the moment you're down to one card, or risk a 2-card penalty.")
-                    bullet("You and your partner are a team. Both of you must empty your hands to win the round.")
+                    bullet("Call Solo! while you still hold two cards — before playing down to one — or risk a 2-card penalty.")
+                    bullet("You and your partner are a team. Either of you going out wins the round for the team.")
                 }
                 .listRowBackground(Color.black.opacity(0.25))
                 Section("Card glossary") {
@@ -77,6 +77,7 @@ struct GlossaryEntry: Identifiable {
         .init(name: "Draw Two", text: "The next player draws 2 and loses their turn."),
         .init(name: "Draw Four", text: "Play only with no other match. Choose a colour; next player draws 4 and is skipped."),
         .init(name: "Discard All", text: "Choose a colour and discard every card of it from your hand."),
+        .init(name: "Colour Burst", text: "Discards every card of its own colour from your hand along with it."),
         .init(name: "Targeted Draw", text: "Choose any opponent; they draw 2. Their turn is not skipped."),
         .init(name: "Forced Swap", text: "Choose any player; swap entire hands with them."),
         .init(name: "Skip Two", text: "The next two players each lose their turn."),

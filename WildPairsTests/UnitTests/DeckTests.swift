@@ -20,11 +20,12 @@ struct DeckTests {
         #expect(deck.drawPile.count == 72)
     }
 
-    @Test("Advanced deck has 96 cards")
+    @Test("Advanced deck has 100 cards")
     func testAdvancedCount() {
+        // 96 base + 4 Colour Burst (one per colour, Phase 16).
         var rng = SeededRNG(seed: 1)
         let deck = Deck.standard(cardSet: .advanced, rng: &rng)
-        #expect(deck.drawPile.count == 96)
+        #expect(deck.drawPile.count == 100)
     }
 
     // MARK: Beginner card composition
@@ -108,7 +109,7 @@ struct DeckTests {
     func testStandardNoAdvancedCards() {
         var rng = SeededRNG(seed: 1)
         let deck = Deck.standard(cardSet: .standard, rng: &rng)
-        let advancedTypes: [CardType] = [.discardAll, .targetedDraw, .forcedSwap, .skipTwo, .teamPlay]
+        let advancedTypes: [CardType] = [.discardAll, .discardColour, .targetedDraw, .forcedSwap, .skipTwo, .teamPlay]
         for type_ in advancedTypes {
             #expect(!deck.drawPile.contains { $0.type == type_ })
         }

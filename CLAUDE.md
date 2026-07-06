@@ -3,7 +3,7 @@
 ## Identity
 | Key | Value |
 |---|---|
-| Working title | Wild Pairs |
+| Working title | Solo (display name since 2026-07-06; was Wild Pairs — internal `WildPairs*` module/engine vocabulary unchanged, same pattern as the Phase 11 display-only retheme) |
 | Type | Offline Universal iOS/iPadOS card game |
 | Target platform | iPhone + iPad (Universal), iOS 17+, offline-only |
 | Language | Swift 5.9+ |
@@ -109,7 +109,11 @@ it, so no other code needed to change.
 Both-teammates-out is a supported house rule (`RuleProfile.winCondition = .bothTeammatesOut`), not the default.
 
 ### Card types
-`number`, `skip`, `reverse`, `drawTwo`, `drawFour`, `changeColour`, `discardAll`, `targetedDraw`, `forcedSwap`, `skipTwo`, `teamPlay`
+`number`, `skip`, `reverse`, `drawTwo`, `drawFour`, `changeColour`, `discardAll`, `discardColour`, `targetedDraw`, `forcedSwap`, `skipTwo`, `teamPlay`
+
+`discardColour` (Colour Burst, Phase 16) is the coloured cousin of `discardAll`: a coloured
+action card that, on play, discards every card of its own colour from the hand — no colour
+prompt. Advanced set, 1 per colour.
 
 ### Difficulty levels
 | ID | Strategy | Score multiplier |

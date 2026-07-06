@@ -28,6 +28,9 @@ struct TableCenterView: View {
     /// True while a wild on top still awaits its colour choice — the resolved-wild tint
     /// (Phase 13) is held back until the colour is actually chosen.
     var colourChoicePending: Bool = false
+    /// The last few real discards beneath the top card, drawn fanned underneath as a played
+    /// history (Phase 16 discard memory) — oldest→newest.
+    var recentDiscards: [Card] = []
     let onDraw: () -> Void
 
     /// Escalating "+N" pop shown when the pending draw stack grows (Phase 13).
@@ -127,11 +130,19 @@ struct TableCenterView: View {
 
     @ViewBuilder private var discardPile: some View {
         if let top = topDiscard {
-            // Ghost cards under the top discard so the pile reads as a real stack of played
-            // cards rather than a lone floating card (Phase 12b).
+            // Discard memory (Phase 16): the last few real plays fanned under the top card, so
+            // the pile reads as a played history — replaces the old blank ghost stock, which
+            // also looked wrong (white cardstock) under the Ink & Foil deck.
             ZStack {
-                discardGhost(rotation: -6, x: -3, y: 2)
-                discardGhost(rotation: 4, x: 3, y: 1)
+                ForEach(Array(recentDiscards.enumerated()), id: \.element.id) { index, card in
+                    let depth = recentDiscards.count - 1 - index   // 0 = just under the top
+                    CardView(card: card, size: cardSize, reducedMotion: reducedMotion)
+                        .scaleEffect(0.96)
+                        .rotationEffect(.degrees(memoryRotation(depth)))
+                        .offset(x: memoryOffset(depth), y: 2 + CGFloat(depth) * 1.5)
+                        .opacity(0.5)
+                        .accessibilityHidden(true)
+                }
                 // A resolved wild re-prints in the chosen colour (Phase 13) — the tint is
                 // held back while the colour choice is still pending.
                 CardView(card: top, size: cardSize, showColourName: showColourName, showPattern: showPattern,
@@ -149,18 +160,12 @@ struct TableCenterView: View {
         }
     }
 
-    private func discardGhost(rotation: Double, x: CGFloat, y: CGFloat) -> some View {
-        RoundedRectangle(cornerRadius: Theme.Radius.card)
-            .fill(
-                LinearGradient(colors: [Color(hex: 0xFFFFFF), Color(hex: 0xE8E4DA)],
-                               startPoint: .topLeading, endPoint: .bottomTrailing)
-            )
-            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.card).strokeBorder(.black.opacity(0.2), lineWidth: 1))
-            .frame(width: cardSize.width, height: cardSize.height)
-            .rotationEffect(.degrees(rotation))
-            .offset(x: x, y: y)
-            .shadow(color: .black.opacity(0.2), radius: 2, y: 1)
-            .accessibilityHidden(true)
+    /// A gentle scatter for the discard-memory cards — deeper cards lean and shift a touch more.
+    private func memoryRotation(_ depth: Int) -> Double {
+        (depth % 2 == 0 ? -1.0 : 1.0) * (5.0 + Double(depth) * 3.0)
+    }
+    private func memoryOffset(_ depth: Int) -> CGFloat {
+        (depth % 2 == 0 ? -1.0 : 1.0) * (3.0 + CGFloat(depth) * 2.0)
     }
 
     /// Filled with the actual suit colour + glow (neon-final.html spec), not a dark pill with

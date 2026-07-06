@@ -108,6 +108,9 @@ public struct GameViewState: Equatable, Sendable {
     /// The local player's hand, sorted for display, each tagged with playability.
     public let localHand: [CardViewModel]
     public let topDiscard: Card?
+    /// Up to three real discards beneath the top card (oldest→newest), so the pile can be
+    /// drawn as a played history rather than blank ghost stock (Phase 16 discard memory).
+    public let recentDiscards: [Card]
     public let currentColour: CardColour
     public let turnDirection: TurnDirection
     public let drawPileCount: Int
@@ -123,6 +126,10 @@ public struct GameViewState: Equatable, Sendable {
     /// True when it's the local player's turn and nothing in their hand is playable — the
     /// only move is the draw pile. Drives the draw-pile attention treatment.
     public let mustDrawNow: Bool
+    /// Whether a draw is legal right now — mirrors GameEngine.handleDrawCard's guard so the
+    /// draw pile is only tappable when the player must draw (no legal play) or may absorb a
+    /// pending draw stack. Prevents the "keep picking up cards" bug (game-rules.md §Draw Procedure).
+    public let canDrawNow: Bool
     /// Non-nil when `mustDrawNow` and a draw stack is pending: the number of penalty cards
     /// the local player is forced to pick up (they hold no card that can answer the stack).
     /// The ViewModel auto-draws this — the player is never prompted to tap for a forced pickup.
@@ -191,6 +198,8 @@ public struct GameViewState: Equatable, Sendable {
             .map { CardViewModel(card: $0, isPlayable: legalIDs.contains($0.id)) }
 
         self.topDiscard = state.deck.topDiscard
+        self.recentDiscards = state.deck.discardPile.count > 1
+            ? Array(state.deck.discardPile.dropLast().suffix(3)) : []
         self.currentColour = state.currentColour
         self.turnDirection = state.turnDirection
         self.drawPileCount = state.deck.drawPile.count
@@ -204,6 +213,8 @@ public struct GameViewState: Equatable, Sendable {
 
         self.isLocalPlayerTurn = isLocalTurn
         self.mustDrawNow = isLocalTurn && legalIDs.isEmpty && !(local?.hand.isEmpty ?? true)
+        self.canDrawNow = isLocalTurn && !(local?.hand.isEmpty ?? true)
+            && (state.pendingDrawCount != nil || legalIDs.isEmpty)
         self.forcedPickupCount = (isLocalTurn && legalIDs.isEmpty && state.ruleProfile.stackDrawCards)
             ? state.pendingDrawCount : nil
         self.soloButtonVisible = {
@@ -292,9 +303,10 @@ public struct GameViewState: Equatable, Sendable {
         case .targetedDraw: return 5
         case .forcedSwap: return 6
         case .teamPlay: return 7
-        case .changeColour: return 8
-        case .drawFour: return 9
-        case .discardAll: return 10
+        case .discardColour: return 8
+        case .changeColour: return 9
+        case .drawFour: return 10
+        case .discardAll: return 11
         }
     }
 

@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>04 — Arcade Slab</title>
+<style>
+  :root {
+    --fire:#E8431F; --fire-hi:#FF8A3D; --rain:#1B5FD9; --rain-hi:#4FD2F0;
+    --earth:#2F8F5B; --earth-hi:#8FAE99; --wind:#C9A227; --wind-hi:#D8C77E;
+    --wild:#232030; --wild-hi:#3A3550; --ink:#EEF0FF; --line:#1A1026;
+  }
+  body { margin:0; padding:40px 48px 80px;
+    background: radial-gradient(1200px 800px at 50% 20%, #1A1242, #0D0820);
+    color:var(--ink); font-family:-apple-system,'SF Pro Display',Helvetica,Arial,sans-serif; }
+  h1 { font-size:22px; font-weight:700; margin:0 0 4px; }
+  .thesis { color:#9BA0C8; margin:0 0 36px; font-size:15px; }
+  h2 { font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:.12em;
+       color:#8A8FB8; margin:42px 0 14px; }
+  .row { display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start; }
+  /* Chunky object: fat dark outline + hard offset shadow, no blur anywhere. */
+  .card { position:relative; border-radius:14px; overflow:hidden; flex:none;
+    border:3px solid var(--line); box-shadow: 7px 8px 0 #00000059; }
+  .face { position:absolute; inset:0; }
+  .fire  .face { background:var(--fire); }
+  .rain  .face { background:var(--rain); }
+  .earth .face { background:var(--earth); }
+  .wind  .face { background:var(--wind); }
+  .wildc .face { background:var(--wild); }
+  /* Dither crunch in the lit corner — the retro print texture, kept quiet. */
+  .dither { position:absolute; inset:0;
+    background-image: radial-gradient(#ffffff2e 26%, transparent 27%);
+    background-size: 5px 5px;
+    -webkit-mask-image: linear-gradient(135deg, #000 0%, transparent 42%);
+            mask-image: linear-gradient(135deg, #000 0%, transparent 42%); }
+  .gloss { position:absolute; left:6%; right:34%; top:3.5%; height:7%;
+    background:#ffffff4d; border-radius:999px; transform:rotate(-2deg); }
+  .hero { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-weight:900; color:#fff; line-height:1; letter-spacing:-.02em;
+    -webkit-text-stroke: 2.4px var(--line);
+    text-shadow: 5px 6px 0 #00000052; }
+  .chip { position:absolute; display:flex; align-items:center; gap:4px;
+    background:#fff; border:2.4px solid var(--line); border-radius:9px;
+    font-weight:900; color:var(--line); box-shadow: 2.5px 3px 0 #00000047; }
+  .chip.tl { top:7px; left:7px; } .chip.br { bottom:7px; right:7px; transform:rotate(180deg); }
+  .patt { position:absolute; inset:0; opacity:.15; }
+  .fan { position:relative; height:255px; }
+</style>
+</head>
+<body>
+<h1>04 · Arcade Slab</h1>
+<p class="thesis">Balatro energy: flat fills, fat ink outlines, hard offset shadows, badge-chip corners — reads at 60&nbsp;mph and drips with juice.</p>
+
+<svg width="0" height="0" style="position:absolute" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <g id="flame-f"><path d="M12 2.2C9 6 6.2 8.7 6.2 13a5.8 5.8 0 0 0 11.6 0c0-4.3-2.8-7-5.8-10.8Z"/></g>
+    <g id="wave-f"><path d="M2 8.8c3-4 6.5-4 10 0 3 3.4 5.8 3.6 10 .4V15c-4 3-7.5 2.8-10-.4-3-3.6-6-3.6-10 0Zm0 6.6c3-3.8 6.5-3.8 10 0 2.8 3 5.8 3.2 10 .2V20H2Z"/></g>
+    <g id="crystal-f"><path d="M12 1.6 19.4 9.5 12 22.4 4.6 9.5Z"/></g>
+    <g id="gust-f"><path d="M3 7.4h9.3a3.1 3.1 0 1 0-3.1-3.1M3 12.6h14.6a3.3 3.3 0 1 1-3.3 3.3M3 17.8h7.6"
+      fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></g>
+    <pattern id="p-hatch" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="0" y2="7" stroke="#fff" stroke-width="2.2"/></pattern>
+    <pattern id="p-horiz" width="8" height="8" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="2" x2="8" y2="2" stroke="#fff" stroke-width="2.2"/></pattern>
+    <pattern id="p-vert" width="8" height="8" patternUnits="userSpaceOnUse">
+      <line x1="2" y1="0" x2="2" y2="8" stroke="#fff" stroke-width="2.2"/></pattern>
+    <pattern id="p-dots" width="9" height="9" patternUnits="userSpaceOnUse">
+      <circle cx="3" cy="3" r="1.7" fill="#fff"/></pattern>
+  </defs>
+</svg>
+
+<div id="app"></div>
+
+<script>
+const SUITF = { fire:'flame-f', rain:'wave-f', earth:'crystal-f', wind:'gust-f' };
+const PATTERNS = { fire:'p-hatch', rain:'p-horiz', earth:'p-vert', wind:'p-dots' };
+function pip(suit, sz, col) {
+  return `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" style="color:${col||'#fff'};fill:currentColor"><use href="#${SUITF[suit]}"/></svg>`;
+}
+
+// Fat filled silhouettes with ink outline + hard shadow — every mark is a sticker.
+function glyph(kind, u) {
+  const f = 'fill="#fff" stroke="#1A1026" stroke-width="2" stroke-linejoin="round"';
+  const ring = (sw) => `fill="none" stroke="#fff" stroke-width="${sw}" stroke-linecap="round" style="paint-order:stroke"`;
+  const ringOut = (sw) => `fill="none" stroke="#1A1026" stroke-width="${sw+3.5}" stroke-linecap="round"`;
+  const person = (cx,cy,k) => `<circle cx="${cx}" cy="${cy-k*0.9}" r="${k*0.55}" ${f}/>
+    <path d="M${cx-k} ${cy+k*1.25} a${k} ${k} 0 0 1 ${2*k} 0 Z" ${f}/>`;
+  const mini = (x,y,w,r) => `<rect x="${x}" y="${y}" width="${w}" height="${w*1.4}" rx="${w*0.16}" ${f}
+    transform="rotate(${r} ${x+w/2} ${y+w*0.7})"/>`;
+  let body = '';
+  const slash = (r) => `<circle cx="24" cy="24" r="${r}" ${ringOut(4.6)}/><line x1="${24-r*0.7}" y1="${24-r*0.7}" x2="${24+r*0.7}" y2="${24+r*0.7}" ${ringOut(4.6)}/>
+    <circle cx="24" cy="24" r="${r}" ${ring(4.6)}/><line x1="${24-r*0.7}" y1="${24-r*0.7}" x2="${24+r*0.7}" y2="${24+r*0.7}" ${ring(4.6)}/>`;
+  switch (kind) {
+    case 'skip': body = `${person(24,26,8.4)}${slash(18.6)}`; break;
+    case 'skipTwo': body = `${person(15,26,6.2)}${person(33,26,6.2)}${slash(20.2)}`; break;
+    case 'reverse': body = `<path d="M37 19a14.5 14.5 0 0 0-24-5" ${ringOut(4.8)}/><path d="M11 29a14.5 14.5 0 0 0 24 5" ${ringOut(4.8)}/>
+      <path d="M37 19a14.5 14.5 0 0 0-24-5" ${ring(4.8)}/><path d="M11 29a14.5 14.5 0 0 0 24 5" ${ring(4.8)}/>
+      <path d="M12.5 4.5v10h10Z" ${f}/><path d="M35.5 43.5v-10h-10Z" ${f}/>`; break;
+    case 'targetedDraw': body = `<circle cx="22" cy="22" r="12.5" ${ringOut(4.2)}/><path d="M22 3.5v7M22 33.5v7M3.5 22h7M33.5 22h7" ${ringOut(4.2)}/>
+      <circle cx="22" cy="22" r="12.5" ${ring(4.2)}/><path d="M22 3.5v7M22 33.5v7M3.5 22h7M33.5 22h7" ${ring(4.2)}/>
+      <circle cx="22" cy="22" r="3.4" ${f}/>${mini(33,31,11.5,12)}`; break;
+    case 'forcedSwap': body = `${mini(4.5,4.5,13.5,-8)}${mini(30,25,13.5,8)}
+      <path d="M31 11h10M37 6.5 41.5 11 37 15.5M17 37H7M11.5 32.5 7 37l4.5 4.5" ${ringOut(3.2)}/>
+      <path d="M31 11h10M37 6.5 41.5 11 37 15.5M17 37H7M11.5 32.5 7 37l4.5 4.5" ${ring(3.2)}/>`; break;
+    case 'teamPlay': body = `${person(11,19,6)}${person(37,19,6)}${mini(17.5,24.5,13,0)}`; break;
+    case 'discardAll': body = `${mini(6.5,15,12.5,-24)}${mini(18,8.5,12.5,0)}${mini(29.5,15,12.5,24)}
+      <path d="M11 41.5h26" ${ringOut(4.4)}/><path d="M11 41.5h26" ${ring(4.4)}/>`; break;
+  }
+  return `<svg width="${u}" height="${u}" viewBox="0 0 48 48" style="filter:drop-shadow(3.5px 4px 0 #00000052)">${body}</svg>`;
+}
+
+function chips(sz, withIcons) {
+  const c = ['var(--fire)','var(--rain)','var(--earth)','var(--wind)'];
+  const names = ['fire','rain','earth','wind'];
+  const r = sz/2, chip = sz*0.4;
+  let out = `<div style="position:relative;width:${sz}px;height:${sz}px;filter:drop-shadow(3px 3.5px 0 #00000052)">`;
+  [[r-chip/2,0],[sz-chip,r-chip/2],[r-chip/2,sz-chip],[0,r-chip/2]].forEach(([x,y],i) => {
+    out += `<div style="position:absolute;left:${x}px;top:${y}px;width:${chip}px;height:${chip}px;border-radius:24%;
+      background:${c[i]};border:${Math.max(2,sz*0.035)}px solid #1A1026;
+      display:flex;align-items:center;justify-content:center">
+      ${withIcons ? pip(names[i], chip*0.62) : ''}</div>`;
+  });
+  return out + '</div>';
+}
+
+function card(spec, w, patterned) {
+  const h = Math.round(w*1.4), k = w/150;
+  const isWild = spec.suit === 'wild';
+  const cls = isWild ? 'wildc' : spec.suit;
+  let hero = '';
+  if (spec.kind === 'number') hero = `<div class="hero" style="font-size:${Math.round(104*k)}px">${spec.value}</div>`;
+  else if (spec.kind === 'drawTwo') hero = `<div class="hero" style="font-size:${Math.round(76*k)}px">+2</div>`;
+  else if (spec.kind === 'drawFour') hero = `<div class="hero" style="flex-direction:column;gap:${4*k}px">
+      <div style="display:flex">${chips(Math.round(52*k), false)}</div>
+      <div style="font-size:${Math.round(58*k)}px">+4</div></div>`;
+  else if (spec.kind === 'changeColour') hero = `<div class="hero">${chips(Math.round(92*k), w>=100)}</div>`;
+  else hero = `<div class="hero">${glyph(spec.kind, Math.round(96*k))}</div>`;
+
+  const idxTxt = spec.kind === 'number' ? spec.value : spec.kind === 'drawTwo' ? '+2' : spec.kind === 'drawFour' ? '+4' : '';
+  const suitCol = isWild ? null : `var(--${spec.suit})`;
+  const idxMini = idxTxt === '' && spec.kind !== 'changeColour'
+    ? `<svg width="${15*k}" height="${15*k}" viewBox="0 0 48 48">${''}</svg>` : '';
+  // Badge chip carries rank + suit in SUIT COLOUR on white — colour identity survives even
+  // when the face is hidden in a fan.
+  const chipInner = (idxTxt !== ''
+      ? `<span style="font-size:${18*k}px;line-height:1">${idxTxt}</span>`
+      : `<span style="display:flex;transform:scale(.9)">${glyph(spec.kind, Math.round(16*k))}</span>`)
+    + (isWild ? chips(12*k, false) : pip(spec.suit, Math.round(13*k), suitCol));
+  const chip = (pos) => `<div class="chip ${pos}" style="padding:${3*k}px ${6*k}px;gap:${3*k}px">${chipInner}</div>`;
+  const patt = patterned && !isWild
+    ? `<svg class="patt" width="100%" height="100%"><rect width="100%" height="100%" fill="url(#${PATTERNS[spec.suit]})"/></svg>` : '';
+  return `<div class="card ${cls}" style="width:${w}px;height:${h}px">
+    <div class="face"></div><div class="dither"></div>${patt}${hero}${chip('tl')}${chip('br')}<div class="gloss"></div></div>`;
+}
+
+const numbers = [ {suit:'fire',kind:'number',value:7}, {suit:'rain',kind:'number',value:3},
+  {suit:'earth',kind:'number',value:0}, {suit:'wind',kind:'number',value:9} ];
+const actions = [ {suit:'fire',kind:'skip'}, {suit:'rain',kind:'reverse'}, {suit:'earth',kind:'drawTwo'},
+  {suit:'wind',kind:'skipTwo'}, {suit:'fire',kind:'targetedDraw'}, {suit:'rain',kind:'forcedSwap'},
+  {suit:'earth',kind:'teamPlay'}, {suit:'wind',kind:'discardAll'} ];
+const wilds = [ {suit:'wild',kind:'changeColour'}, {suit:'wild',kind:'drawFour'} ];
+function row(t, specs, w, p) { return `<h2>${t}</h2><div class="row">` + specs.map(s => card(s,w,p)).join('') + '</div>'; }
+const fanSpecs = [ {suit:'fire',kind:'number',value:7}, {suit:'fire',kind:'skip'},
+  {suit:'rain',kind:'number',value:3}, {suit:'wind',kind:'number',value:9}, {suit:'earth',kind:'drawTwo'} ];
+function fan() {
+  let out = '<h2>Fan test — the badge chip is the read</h2><div class="fan" style="width:540px">';
+  fanSpecs.forEach((s,i) => {
+    out += `<div style="position:absolute;left:${i*80}px;bottom:0;transform:rotate(${(i-2)*4}deg);transform-origin:50% 130%">${card(s,150,false)}</div>`;
+  });
+  return out + '</div>';
+}
+document.getElementById('app').innerHTML =
+  row('Numbers', numbers, 150, false) +
+  row('Actions — sticker silhouettes', actions, 150, false) +
+  row('Wilds', wilds, 150, false) +
+  fan() +
+  row('Small scale (opponents / discard)', [...numbers.slice(0,2), wilds[0]], 64, false) +
+  row('Colour-blind patterns on', numbers, 150, true);
+</script>
+</body>
+</html>
