@@ -12,6 +12,17 @@ public enum GameRules {
         hand.filter { isLegal($0, in: state) }
     }
 
+    /// Draw-stack rank for the escalation chain (+2 < +4 < +8), or nil for non-draw cards.
+    /// A card may answer a pending stack whose rank is ≤ its own (Phase 17 B4b).
+    public static func drawStackRank(_ type: CardType?) -> Int? {
+        switch type {
+        case .drawTwo:   return 2
+        case .drawFour:  return 4
+        case .drawEight: return 8
+        default:         return nil
+        }
+    }
+
     /// True if `card` may legally be played in `state` by the active player.
     public static func isLegal(_ card: Card, in state: GameState) -> Bool {
         isLegal(
@@ -40,12 +51,11 @@ public enum GameRules {
     ) -> Bool {
         // Draw stacking (Phase 11 F): a pending draw stack overrides every other legality
         // rule, including All-Wild's "anything plays" — you must stack or draw, full stop.
-        if stackDrawCards, let pendingType = pendingDrawType {
-            switch pendingType {
-            case .drawTwo: return card.type == .drawTwo || card.type == .drawFour
-            case .drawFour: return card.type == .drawFour
-            default: return false
-            }
+        // Escalation chain (Phase 17 B4b): a card may answer a pending stack of equal-or-lower
+        // draw rank (+2 ← +2/+4/+8, +4 ← +4/+8, +8 ← +8 only).
+        if stackDrawCards, let pendingRank = drawStackRank(pendingDrawType) {
+            guard let cardRank = drawStackRank(card.type) else { return false }
+            return cardRank >= pendingRank
         }
 
         if mode == .allWild { return true }

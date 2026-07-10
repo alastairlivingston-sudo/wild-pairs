@@ -293,6 +293,24 @@ public struct GameEngine {
                 effects.append(.animateCardDraw(toPlayerID: s.players[targetIndex].id, count: 2))
             }
 
+        case .drawEight:
+            // Coloured escalation draw card (Phase 17 B4b) — behaves like Draw Two with +8 and
+            // no colour prompt (it carries its own colour).
+            if s.ruleProfile.stackDrawCards {
+                s.pendingDrawCount = (s.pendingDrawCount ?? 0) + 8
+                s.pendingDrawType = .drawEight
+                s.currentPlayerIndex = GameRules.nextIndex(
+                    from: playedByIndex, direction: s.turnDirection, playerCount: n)
+            } else {
+                let targetIndex = GameRules.nextIndex(
+                    from: playedByIndex, direction: s.turnDirection, playerCount: n)
+                let drawn = drawCards(count: 8, into: &s, rng: &rng)
+                s.players[targetIndex].hand.append(contentsOf: drawn)
+                s.currentPlayerIndex = GameRules.nextIndex(
+                    from: playedByIndex, direction: s.turnDirection, playerCount: n, skipCount: 2)
+                effects.append(.animateCardDraw(toPlayerID: s.players[targetIndex].id, count: 8))
+            }
+
         case .drawFour:
             // Colour selection required — set pending decision
             s.pendingDecision = .colourChoice(playerID: s.players[playedByIndex].id)
@@ -960,6 +978,7 @@ public struct GameEngine {
              .forcedSwap, .teamPlay: return 20
         case .discardAll, .discardColour: return 20
         case .drawFour, .changeColour: return 50
+        case .drawEight: return 60   // highest-tier draw card (Phase 17 B4b)
         }
     }
 
@@ -1011,6 +1030,12 @@ public struct GameEngine {
             let firstPlayerIndex = GameRules.nextIndex(from: 0, direction: .clockwise, playerCount: n)
             return (firstPlayerIndex, .clockwise,
                     [.animateCardDraw(toPlayerID: players[0].id, count: 2)])
+        case .drawEight:
+            let drawn = (0..<8).compactMap { _ in deck.draw(rng: &rng) }
+            players[0].hand.append(contentsOf: drawn)
+            let firstPlayerIndex = GameRules.nextIndex(from: 0, direction: .clockwise, playerCount: n)
+            return (firstPlayerIndex, .clockwise,
+                    [.animateCardDraw(toPlayerID: players[0].id, count: 8)])
         default:
             return (0, .clockwise, [])
         }

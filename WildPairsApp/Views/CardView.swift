@@ -179,6 +179,11 @@ struct CardView: View {
                 Text("+2")
                     .font(.system(size: size.width * 0.42, weight: .heavy, design: .rounded))
             }
+        case .drawEight:
+            printedMark {
+                Text("+8")
+                    .font(.system(size: size.width * 0.42, weight: .heavy, design: .rounded))
+            }
         case .drawFour:
             VStack(spacing: size.height * 0.015) {
                 wildMotif(fraction: 0.44)
@@ -283,6 +288,8 @@ struct CardView: View {
             Text("\(v)").font(cornerTextFont)
         case .drawTwo:
             Text("+2").font(cornerTextFont)
+        case .drawEight:
+            Text("+8").font(cornerTextFont)
         case .drawFour:
             Text("+4").font(cornerTextFont)
         case .changeColour:
@@ -728,6 +735,7 @@ extension CardType {
         case .skipTwo: return "Skip Two"
         case .reverse: return "Reverse"
         case .drawTwo: return "Draw Two"
+        case .drawEight: return "Draw Eight"
         case .drawFour: return "Draw Four"
         case .changeColour: return "Change Colour"
         case .discardAll: return "Discard All"
@@ -745,6 +753,7 @@ extension CardType {
         case .skipTwo: return "Skips the next two players' turns."
         case .reverse: return "Reverses the direction of play."
         case .drawTwo: return "The next player draws two cards and loses their turn."
+        case .drawEight: return "The next player draws eight cards and loses their turn."
         case .drawFour: return "The next player draws four cards and loses their turn."
         case .changeColour: return "Lets you choose a new colour for all players."
         case .discardAll: return "Discard all cards of a chosen colour from your hand."

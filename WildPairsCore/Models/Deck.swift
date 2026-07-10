@@ -59,7 +59,8 @@ public struct Deck: Codable, Equatable, Sendable {
             }
         }
 
-        // Advanced additions: 24 cards (Colour Burst now ships with Standard, above)
+        // Advanced additions: 28 cards (Colour Burst now ships with Standard, above; Draw Eight
+        // added in Phase 17 B4b, 1 per colour)
         if cardSet == .advanced {
             for _ in 0..<4 {
                 cards.append(Card(type: .discardAll, colour: nil))
@@ -71,6 +72,7 @@ public struct Deck: Codable, Equatable, Sendable {
                 cards.append(Card(type: .forcedSwap, colour: colour))
                 cards.append(Card(type: .skipTwo, colour: colour))
                 cards.append(Card(type: .teamPlay, colour: colour))
+                cards.append(Card(type: .drawEight, colour: colour))
             }
         }
 

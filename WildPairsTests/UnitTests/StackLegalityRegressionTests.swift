@@ -60,6 +60,26 @@ struct StackLegalityRegressionTests {
         #expect(Set(legal.map(\.id)) == Set([stackTwo.id, stackFour.id]))
     }
 
+    // MARK: Decline-to-stack (Phase 17 B1)
+
+    @Test("A player holding a legal stack card may decline and draw the pending total instead")
+    func testDeclineToStackByDrawing() {
+        let stackable = CardFactory.drawTwo(.jade)   // a legal answer the player chooses not to use
+        let (state, p1) = pendingDrawTwoState(seat1Hand: [stackable, CardFactory.number(1, .amber)])
+
+        // The player has a legal stack card, but drawing is also legal — they may decline.
+        #expect(GameEngine.isLegalMove(state: state, action: .playCard(stackable, playerID: p1)))
+        #expect(GameEngine.isLegalMove(state: state, action: .drawCard(playerID: p1)))
+
+        // Drawing absorbs the whole pending stack, keeps the stack card, and ends the turn.
+        let before = state.players[1].hand.count
+        let (after, _) = GameEngine.reduce(state: state, action: .drawCard(playerID: p1))
+        #expect(after.players[1].hand.count == before + 2)
+        #expect(after.pendingDrawCount == nil)
+        #expect(after.players[1].hand.contains { $0.id == stackable.id })
+        #expect(after.currentPlayerIndex == 2)
+    }
+
     // MARK: AI path — the AI shares the same predicate and can never propose an illegal stack move
 
     @Test("AI legal plays exclude non-stacking cards while a Draw Two stack is pending")
