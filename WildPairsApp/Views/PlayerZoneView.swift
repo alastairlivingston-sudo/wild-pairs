@@ -24,6 +24,9 @@ struct PlayerZoneView: View {
     /// Element-tinted chrome accent (design-plan.md §3.1): the active seat's ring and glow
     /// follow the table's current-colour scene rather than the fixed teal.
     var accent: Color = Theme.Palette.accent
+    /// A transient feedback stamp for this seat (skip / forced draw) — Phase 17 C3. The parent
+    /// sets it briefly and clears it, so it pops in and fades out.
+    var cue: SeatCueKind? = nil
     var onCatchSolo: (() -> Void)? = nil
 
     /// Drives the active-player glow pulse (ux-spec.md §10 "Active player highlight": a
@@ -48,7 +51,9 @@ struct PlayerZoneView: View {
 
     var body: some View {
         seatChrome
+            .overlay(cueOverlay)
             .shadow(color: glowColor, radius: glowRadius)
+            .animation(.spring(response: 0.35, dampingFraction: 0.6), value: cue)
             .animation(.spring(response: 0.5, dampingFraction: 0.6), value: seat.needsSoloCall)
             .onAppear { updateGlow(seat.isCurrentPlayer) }
             .onChange(of: seat.isCurrentPlayer) { _, isCurrent in
@@ -102,7 +107,7 @@ struct PlayerZoneView: View {
             if let partnerHand = seat.visiblePartnerHand {
                 openHandFan(partnerHand)
             } else {
-                avatarSeat
+                opponentPile
                 Text(seat.name)
                     .font(.caption).fontWeight(.semibold)
                     .foregroundStyle(seat.isCurrentPlayer ? accent : .secondary)
@@ -114,6 +119,32 @@ struct PlayerZoneView: View {
         }
         .padding(Theme.Space.s2)
         .frame(maxWidth: maxFanWidth.map { $0 + Theme.Space.s2 * 2 })
+    }
+
+    /// The transient skip / forced-draw stamp (Phase 17 C3), centred over the seat.
+    @ViewBuilder private var cueOverlay: some View {
+        if let cue {
+            Group {
+                switch cue {
+                case .skipped:
+                    Text("SKIPPED")
+                        .font(.caption).fontWeight(.heavy)
+                        .foregroundStyle(Theme.Palette.onAccent)
+                        .padding(.horizontal, Theme.Space.s2).padding(.vertical, 3)
+                        .background(Capsule().fill(Theme.Palette.warning))
+                        .rotationEffect(.degrees(-8))
+                case .drew(let n):
+                    Text("+\(n)")
+                        .font(.title3).fontWeight(.heavy).monospacedDigit()
+                        .foregroundStyle(Theme.Palette.onAccent)
+                        .padding(.horizontal, Theme.Space.s2).padding(.vertical, 2)
+                        .background(Capsule().fill(Theme.Palette.error))
+                }
+            }
+            .shadow(color: .black.opacity(0.4), radius: 6, y: 2)
+            .transition(reducedMotion ? .opacity : .scale(scale: 0.4).combined(with: .opacity))
+            .accessibilityHidden(true)
+        }
     }
 
     private var glowColor: Color {
@@ -166,52 +197,52 @@ struct PlayerZoneView: View {
         return max(step, cardWidth * 0.15)
     }
 
-    private var backsFan: some View {
-        let count = min(seat.handCount, 5)
-        let step = fanStep(count: count, cardWidth: cardBackSize.width, comfortableOverlap: cardBackSize.width * 0.55)
-        return ZStack(alignment: .leading) {
-            ForEach(0..<max(count, 1), id: \.self) { i in
-                if count == 0 {
-                    Color.clear.frame(width: cardBackSize.width, height: cardBackSize.height)
-                } else {
-                    CardBackView(size: cardBackSize).offset(x: CGFloat(i) * step)
-                        .transition(reducedMotion ? .identity : .scale(scale: 0.5).combined(with: .opacity))
-                }
-            }
-        }
-        // `.offset(x:)` does not contribute to layout, so the frame must be leading-anchored
-        // or the fan renders half a fan-width right of where the layout thinks it is (the
-        // same failure HandView's fan had — see its fan frame comment).
-        .frame(width: count > 0 ? cardBackSize.width + step * CGFloat(count - 1) : cardBackSize.width,
-               height: cardBackSize.height, alignment: .leading)
+    private var countChip: some View {
+        Text("\(seat.handCount)")
+            .font(.caption).fontWeight(.heavy).monospacedDigit()
+            .padding(.horizontal, Theme.Space.s2).padding(.vertical, 2)
+            .background(Capsule().fill(countTint))
+            .overlay(countUrgent ? Capsule().strokeBorder(.white.opacity(0.85), lineWidth: 1) : nil)
+            .foregroundStyle(Theme.Palette.onAccent)
     }
 
-    /// Opponent avatar + count badge, replacing the repetitive fanned card-backs (Phase 10
-    /// Neon Arcade): a single glanceable circle reads faster than counting overlapping backs.
-    private var avatarSeat: some View {
-        ZStack(alignment: .bottomTrailing) {
-            Text(seat.name.first.map(String.init) ?? "?")
-                .font(.title3).fontWeight(.bold)
-                .foregroundStyle(Theme.Palette.cream)
-                .frame(width: 54, height: 54)
-                .wpGlassCircle(tint: (seat.isCurrentPlayer || isThinking) ? accent : nil)
-                .overlay(
-                    Circle().strokeBorder(
-                        (seat.isCurrentPlayer || isThinking) ? accent : .white.opacity(0.22),
-                        lineWidth: (seat.isCurrentPlayer || isThinking) ? 2 : 1.5)
-                )
-                .shadow(color: (isThinking && !reducedMotion) ? accent.opacity(0.5) : .clear, radius: 10)
+    /// Opponent's hand as a stacked pile of card-backs whose footprint grows with the card
+    /// count (Phase 17 C4), so "who's holding a lot" reads at a glance; the exact number stays
+    /// on the count chip. The active seat / thinking state gets an accent ring + the arrival pop.
+    private var opponentPile: some View {
+        let visible = min(seat.handCount, 7)
+        let stepX = cardBackSize.width * 0.09
+        let stepY = cardBackSize.height * 0.05
+        let pileWidth = cardBackSize.width + CGFloat(max(visible - 1, 0)) * stepX
+        let pileHeight = cardBackSize.height + CGFloat(max(visible - 1, 0)) * stepY
+        return ZStack(alignment: .bottomTrailing) {
+            ZStack(alignment: .bottomLeading) {
+                if visible == 0 {
+                    // Out of the round — a faint empty slot; the "Out!" badge carries the state.
+                    RoundedRectangle(cornerRadius: Theme.Radius.r2)
+                        .strokeBorder(.white.opacity(0.15), lineWidth: 1)
+                        .frame(width: cardBackSize.width, height: cardBackSize.height)
+                } else {
+                    ForEach(0..<visible, id: \.self) { i in
+                        CardBackView(size: cardBackSize)
+                            .offset(x: CGFloat(i) * stepX, y: -CGFloat(i) * stepY)
+                            .transition(reducedMotion ? .identity
+                                        : .scale(scale: 0.6).combined(with: .opacity))
+                    }
+                }
+            }
+            .frame(width: pileWidth, height: pileHeight, alignment: .bottomLeading)
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.Radius.r2)
+                    .strokeBorder((seat.isCurrentPlayer || isThinking) ? accent : .clear, lineWidth: 2)
+                    .padding(-3)
+            )
+            .shadow(color: (isThinking && !reducedMotion) ? accent.opacity(0.5) : .clear, radius: 10)
 
-            Text("\(seat.handCount)")
-                .font(.caption).fontWeight(.heavy).monospacedDigit()
-                .padding(.horizontal, Theme.Space.s2).padding(.vertical, 2)
-                .background(Capsule().fill(countTint))
-                .overlay(countUrgent ? Capsule().strokeBorder(.white.opacity(0.85), lineWidth: 1) : nil)
-                .foregroundStyle(Theme.Palette.onAccent)
-                .offset(x: 6, y: 6)
+            countChip.offset(x: 8, y: 8)
         }
-        .frame(width: 54 + Theme.Space.s2, height: 54 + Theme.Space.s2)
-        .scaleEffect(arrivalPop ? 1.12 : 1)
+        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: seat.handCount)
+        .scaleEffect(arrivalPop ? 1.1 : 1)
     }
 
     /// Partner's hand, face-up — partner hands are open by design (game-rules.md Team

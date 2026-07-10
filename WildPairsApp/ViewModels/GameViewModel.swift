@@ -6,6 +6,20 @@ import WildPairsCore
 // it forwards intents, republishes the derived GameViewState, schedules AI turns with a
 // think-delay, and plays effects (haptics / VoiceOver). All decisions live in WildPairsCore.
 
+/// A transient, seat-level feedback cue (Phase 17 C3) so play is legible: which seat just got
+/// skipped, and how many cards a seat was just made to draw. `token` makes each emission
+/// distinct so the UI re-triggers even for a repeat of the same kind on the same seat.
+enum SeatCueKind: Equatable {
+    case skipped
+    case drew(Int)
+}
+
+struct SeatCueEvent: Equatable {
+    let seatIDs: [UUID]
+    let kind: SeatCueKind
+    let token: Int
+}
+
 /// What one finished round means for the local statistics.
 struct RoundResult {
     let localTeamWon: Bool
@@ -34,6 +48,10 @@ final class GameViewModel: ObservableObject {
     /// The AI seat currently in its "thinking" delay, if any — drives the thinking
     /// indicator (ux-spec.md §10 "Game table — AI turn (thinking indicator)").
     @Published private(set) var thinkingPlayerID: UUID?
+    /// The latest transient seat cue (skip / forced draw) — the table shows it briefly on the
+    /// affected seat so a skip or penalty is *seen*, not just inferred (Phase 17 C3).
+    @Published private(set) var seatCue: SeatCueEvent?
+    private var seatCueToken = 0
 
     private let presenter: GamePresenter
     private let settings: AppSettings
@@ -370,9 +388,15 @@ final class GameViewModel: ObservableObject {
             case .animateCardPlay(let card, _):
                 haptics.cardPlay()
                 sound.play(soundEffect(forCardPlay: card))
-            case .animateCardDraw(let to, _):
+            case .animateCardDraw(let to, let count):
                 if to == displayedHumanID { haptics.cardDrawn() }
                 sound.play(.cardDraw)
+                // Surface a penalty draw (2+ cards forced by a stack/effect) on the target seat.
+                if count >= 2 { emitSeatCue([to], .drew(count)) }
+            case .animateSkip(let pid):
+                emitSeatCue([pid], .skipped)
+            case .animateSkipTwo(let first, let second):
+                emitSeatCue([first, second], .skipped)
             case .animateCardShuffle:            sound.play(.cardShuffle)
             case .animateHandSwap:               sound.play(.swapHands)
             case .announceSolo(let name):
@@ -391,6 +415,11 @@ final class GameViewModel: ObservableObject {
                 break
             }
         }
+    }
+
+    private func emitSeatCue(_ seatIDs: [UUID], _ kind: SeatCueKind) {
+        seatCueToken += 1
+        seatCue = SeatCueEvent(seatIDs: seatIDs, kind: kind, token: seatCueToken)
     }
 
     /// Posts a VoiceOver live-region announcement without moving the accessibility cursor
