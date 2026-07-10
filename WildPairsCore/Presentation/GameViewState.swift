@@ -153,6 +153,12 @@ public struct GameViewState: Equatable, Sendable {
     /// Lets the UI choose "Your team wins…" vs "Opponents win…" framing (ux-spec.md §10).
     public let localTeamWon: Bool?
 
+    /// Points credited to the winning team for the just-ended round (losing team's remaining
+    /// card points × the toughest opponent's score multiplier), or nil while still playing.
+    /// Surfaced so the round-end screen can show the award and scoring reads as legible rather
+    /// than an opaque jump in the running total (Phase 17 scoring-display fix).
+    public let roundScoreAwarded: Int?
+
     /// Live raw card-value sum (game-rules.md scoring table, no difficulty multiplier) across
     /// the local player's own team's hands — "what we'd lose if the round ended now." Only ever
     /// derived from the local team's own hands (one of which is the local player's own, fully
@@ -203,7 +209,19 @@ public struct GameViewState: Equatable, Sendable {
         self.currentColour = state.currentColour
         self.turnDirection = state.turnDirection
         self.drawPileCount = state.deck.drawPile.count
-        self.pendingDrawCount = state.ruleProfile.stackDrawCards ? state.pendingDrawCount : nil
+        // Display total for the pending draw stack. The engine deliberately holds a Draw Four's
+        // +4 until its colour is chosen ("stack must not grow until colour is chosen"), but the
+        // badge should reflect the true total the instant the +4 is committed — otherwise it
+        // reads inconsistently depending on whether the stack started with a +2 (immediate) or a
+        // +4 (deferred until colour choice). While a Draw Four awaits its colour choice, add its
+        // +4 here for display only (Phase 17 A1); the engine's resolution timing is unchanged.
+        self.pendingDrawCount = {
+            guard state.ruleProfile.stackDrawCards else { return nil }
+            if case .colourChoice = state.pendingDecision, state.currentCardType == .drawFour {
+                return (state.pendingDrawCount ?? 0) + 4
+            }
+            return state.pendingDrawCount
+        }()
         self.phase = state.phase
         self.roundNumber = state.roundNumber
 
@@ -253,6 +271,9 @@ public struct GameViewState: Equatable, Sendable {
             : nil
 
         self.localTeamWon = state.winState.map { $0.winningTeam == localTeam }
+        self.roundScoreAwarded = state.winState.flatMap { win in
+            win.roundPoints.map { $0 * (win.scoreMultiplier ?? 1) }
+        }
 
         self.localTeamPointsAtRisk = state.players
             .filter { $0.teamID == localTeam }

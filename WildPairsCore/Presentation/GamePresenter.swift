@@ -134,6 +134,14 @@ public final class GamePresenter {
     @discardableResult
     public func advanceAutomatic() -> [GameEffect]? {
         guard let action = nextAutomaticAction() else { return nil }
+        // Defence in depth (Phase 17 A2/A3): never dispatch an illegal AI card play. Legality
+        // is centralised in GameRules and shared with the AI, so this should not fire — but if
+        // an AI ever proposes an illegal card, fall back to drawing (mirrors GameSimulator's
+        // guard) so a bad move can never mutate state.
+        if case .playCard(_, let playerID) = action,
+           !GameEngine.isLegalMove(state: state, action: action) {
+            return dispatch(.drawCard(playerID: playerID))
+        }
         return dispatch(action)
     }
 

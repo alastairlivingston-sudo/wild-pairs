@@ -173,6 +173,31 @@ struct WinConditionTests {
         #expect(next.teamScores[.teamA] == 10)
     }
 
+    @Test("roundScoreAwarded surfaces the round's credited points to the view state (Phase 17)")
+    func testRoundScoreAwardedSurfaced() {
+        var profile = RuleProfile.standardTeams()
+        profile.scoringEnabled = true
+        profile.targetScore = 1000
+        let card = CardFactory.number(5, .crimson)
+        var state = GameStateBuilder()
+            .withPlayers()
+            .withRuleProfile(profile)
+            .withCurrentColour(.crimson)
+            .withTopDiscard(CardFactory.number(5, .crimson))
+            .withHand(forPlayer: 0, cards: [card])
+            .withFinished(playerAtSeat: 2)
+            .withDrawPile([])
+            .build()
+        state.players[1].hand = [CardFactory.number(3, .jade)]   // 3 pts
+        state.players[3].hand = [CardFactory.number(7, .amber)]  // 7 pts
+        let p0id = state.players[0].id
+        let (next, _) = GameEngine.reduce(state: state, action: .playCard(card, playerID: p0id))
+
+        let vs = GameViewState(from: next, localPlayerID: p0id)
+        #expect(vs.localTeamWon == true)
+        #expect(vs.roundScoreAwarded == 10, "Losing team's 3+7 points × x1 (Easy) credited")
+    }
+
     // MARK: New round after win
 
     @Test("beginNewRound increments roundNumber and resets player hands")
