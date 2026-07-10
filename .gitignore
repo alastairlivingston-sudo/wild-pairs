@@ -24,3 +24,7 @@ WildPairs.xcodeproj/
 *conflicted copy*
 *Conflict*
 *.moved-aside
+
+# Phase 17 raw card-art source pack (192 MB) — kept on disk for Stage 5 extraction,
+# too large for git history. Downscaled @3x assets are added to the app target instead.
+docs/solo_swiftui_asset_pack.zip
