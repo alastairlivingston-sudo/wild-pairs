@@ -40,7 +40,9 @@ struct TableCenterView: View {
     // ux-spec.md §8 "Current colour indicator": pulses (scale 1.0 → 1.08 → 1.0) when the
     // active colour changes; the direction arrow does a 180° turn when Reverse is played.
     @State private var colourPulse = false
-    @State private var arrowAngle: Double?
+    /// Accumulated spin for the direction chip — bumped ±360° whenever play reverses so the
+    /// flip is *felt* (Phase 17 C2+).
+    @State private var directionSpin: Double = 0
 
     /// Draw pile back — slightly smaller than the discard so the discard stays the focal
     /// element, but large enough to read as a real, tappable deck (the previous 38pt back was
@@ -73,7 +75,6 @@ struct TableCenterView: View {
                     .transition(reducedMotion ? .opacity : .scale(scale: 0.4).combined(with: .opacity))
             }
         }
-        .onAppear { if arrowAngle == nil { arrowAngle = turnDirection == .clockwise ? 0 : 180 } }
     }
 
     private var drawPile: some View {
@@ -223,11 +224,26 @@ struct TableCenterView: View {
         return "\(colour.displayName) \(card.type.spokenName), action card"
     }
 
+    /// Always-visible turn-direction chip (Phase 17 C2+). A solid accent pill with a distinct
+    /// clockwise / counter-clockwise glyph and a short "Play →" label, so which way the order
+    /// runs is legible at a glance rather than a faint outline; it spins on Reverse.
     private var directionArrow: some View {
-        Image(systemName: "arrow.clockwise")
-            .foregroundStyle(Theme.Palette.accent.opacity(0.8))
-            .rotationEffect(.degrees(arrowAngle ?? (turnDirection == .clockwise ? 0 : 180)))
-            .accessibilityLabel(turnDirection == .clockwise ? "Play direction clockwise" : "Play direction counter-clockwise")
+        HStack(spacing: 5) {
+            Image(systemName: turnDirection == .clockwise ? "arrow.clockwise" : "arrow.counterclockwise")
+                .font(.system(size: 14, weight: .heavy))
+                .rotationEffect(.degrees(directionSpin))
+            Text("Play")
+                .font(.caption2).fontWeight(.bold)
+            Image(systemName: turnDirection == .clockwise ? "arrow.turn.right.down" : "arrow.turn.left.down")
+                .font(.system(size: 11, weight: .heavy))
+        }
+        .foregroundStyle(Theme.Palette.onAccent)
+        .padding(.horizontal, Theme.Space.s2).padding(.vertical, 4)
+        .background(Capsule().fill(Theme.Palette.accent.opacity(0.9)))
+        .overlay(Capsule().strokeBorder(.white.opacity(0.3), lineWidth: 1))
+        .shadow(color: reducedMotion ? .clear : Theme.Palette.accent.opacity(0.5), radius: 6)
+        .accessibilityElement()
+        .accessibilityLabel(turnDirection == .clockwise ? "Play direction clockwise" : "Play direction counter-clockwise")
     }
 
     private func pulseColour() {
@@ -246,9 +262,10 @@ struct TableCenterView: View {
     }
 
     private func rotateArrow() {
-        let target = turnDirection == .clockwise ? 0.0 : 180.0
-        guard !reducedMotion else { arrowAngle = target; return }
-        withAnimation(.easeInOut(duration: 0.3)) { arrowAngle = target }
+        guard !reducedMotion else { return }
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.55)) {
+            directionSpin += (turnDirection == .clockwise ? 360 : -360)
+        }
     }
 }
 

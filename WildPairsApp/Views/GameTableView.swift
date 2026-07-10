@@ -16,6 +16,9 @@ struct GameTableView: View {
     @Environment(\.horizontalSizeClass) private var hSize
     @Environment(\.colorScheme) private var scheme
     @State private var showPause = false
+    /// The seat cue (skip / forced draw) currently on screen; the ViewModel emits one and this
+    /// view shows it briefly then clears it (Phase 17 C3).
+    @State private var activeCue: SeatCueEvent?
 
     private var vs: GameViewState { vm.viewState }
     private var handCardSize: CGSize {
@@ -151,6 +154,14 @@ struct GameTableView: View {
                           onEndGame: onExit)
         }
         .onChange(of: showPause) { _, paused in if paused { vm.pause() } }
+        // Show a seat cue (skip / forced draw) briefly, then clear it (Phase 17 C3).
+        .onChange(of: vm.seatCue) { _, new in
+            guard let new else { return }
+            withAnimation { activeCue = new }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) {
+                if activeCue?.token == new.token { withAnimation { activeCue = nil } }
+            }
+        }
         // The felt table is a deliberately dark-first surface (Phase 9 A2); locking the
         // colour scheme keeps text/contrast tokens (.secondary, .white) deterministic
         // instead of drifting with the system light/dark appearance.
@@ -243,6 +254,11 @@ struct GameTableView: View {
 
     /// Partner's open hand, anchored at the top of the table (A6: `maxFanWidth` clamps the fan
     /// to the on-screen width so it never clips off the right edge).
+    /// The transient skip / forced-draw cue for a seat, if the active cue targets it (C3).
+    private func cue(for seat: PlayerSeatViewState) -> SeatCueKind? {
+        (activeCue?.seatIDs.contains(seat.id) == true) ? activeCue?.kind : nil
+    }
+
     @ViewBuilder private func partnerZone(maxWidth: CGFloat, seatBackSize: CGSize,
                                           openHandCardSize: CGSize) -> some View {
         if let partner = seat(at: 2) {
@@ -250,7 +266,8 @@ struct GameTableView: View {
                            cardBackSize: seatBackSize, openHandCardSize: openHandCardSize,
                            maxFanWidth: maxWidth,
                            reducedMotion: reducedMotion, isThinking: partner.id == vm.thinkingPlayerID,
-                           thinkingDotCount: thinkingDotCount, accent: elementGlow)
+                           thinkingDotCount: thinkingDotCount, accent: elementGlow,
+                           cue: cue(for: partner))
         }
     }
 
@@ -296,7 +313,7 @@ struct GameTableView: View {
             seat: seat, cardBackSize: backSize, maxFanWidth: width - Theme.Space.s2 * 2,
             reducedMotion: reducedMotion,
             isThinking: seat.id == vm.thinkingPlayerID, thinkingDotCount: thinkingDotCount,
-            accent: elementGlow,
+            accent: elementGlow, cue: cue(for: seat),
             onCatchSolo: seat.id == vs.catchableSoloPlayerID ? { vm.callOut(seat.id) } : nil
         )
         .frame(width: width)
