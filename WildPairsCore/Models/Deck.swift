@@ -45,19 +45,21 @@ public struct Deck: Codable, Equatable, Sendable {
             cards.append(Card(type: .changeColour, colour: nil))
         }
 
-        // Standard additions: Draw Two (8) + Draw Four wild (4) = 12 cards
+        // Standard additions: Draw Two (8) + Colour Burst (4) + Draw Four wild (4) = 16 cards.
+        // Colour Burst (`discardColour`) moved from Advanced to Standard in Phase 17 (B4a).
         if cardSet == .standard || cardSet == .advanced {
             for colour in CardColour.allCases {
                 for _ in 0..<2 {
                     cards.append(Card(type: .drawTwo, colour: colour))
                 }
+                cards.append(Card(type: .discardColour, colour: colour))
             }
             for _ in 0..<4 {
                 cards.append(Card(type: .drawFour, colour: nil))
             }
         }
 
-        // Advanced additions: 24 cards
+        // Advanced additions: 24 cards (Colour Burst now ships with Standard, above)
         if cardSet == .advanced {
             for _ in 0..<4 {
                 cards.append(Card(type: .discardAll, colour: nil))
@@ -69,7 +71,6 @@ public struct Deck: Codable, Equatable, Sendable {
                 cards.append(Card(type: .forcedSwap, colour: colour))
                 cards.append(Card(type: .skipTwo, colour: colour))
                 cards.append(Card(type: .teamPlay, colour: colour))
-                cards.append(Card(type: .discardColour, colour: colour))
             }
         }
 

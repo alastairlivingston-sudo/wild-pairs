@@ -38,7 +38,7 @@ Wild Pairs is always played with exactly four players:
 | 2 | AI Partner | Team A |
 | 3 | Right Opponent | Team B |
 
-Teams always alternate seats: seat 0 + seat 2 form Team A (Human + Partner); seat 1 + seat 3 form Team B (opponents). **This mapping is identical in all three game modes.** The name "Side-to-Side Teams" refers to the card-passing mechanic (passing a card to your partner), not to any change in the seating or team geometry.
+In **Standard Teams** and **All-Wild**, teams alternate seats: seat 0 + seat 2 form Team A (Human + Partner); seat 1 + seat 3 form Team B (opponents), so an opponent plays after you. In **Side-to-Side Teams**, the human's partner is seated immediately after them (seat 0 + seat 1 = Team A; seat 2 + seat 3 = Team B), so **your partner takes the very next turn** (Phase 17 B3, the new default for that mode). Regardless of seating, the table layout always shows you at the bottom, your partner across the top, and the two opponents on the sides.
 
 > **Canonical:** This seat → team mapping is the single source of truth. `GameState` uses seat indices 0–3. `GameStateBuilder` fixtures and scenario tests must use `teams: [[0, 2], [1, 3]]`.
 
@@ -49,8 +49,8 @@ Choose the card set before the game begins:
 | Card Set | Contents |
 |---|---|
 | Beginner | Number cards (0–9), Skip, Reverse, Change Colour |
-| Standard | All Beginner cards, plus Draw Two and Draw Four |
-| Advanced | All Standard cards, plus Discard All, Colour Burst, Targeted Draw, Forced Swap, Skip Two, and Team Play |
+| Standard | All Beginner cards, plus Draw Two, Draw Four, and Colour Burst |
+| Advanced | All Standard cards, plus Discard All, Targeted Draw, Forced Swap, Skip Two, and Team Play |
 
 ### Deck Composition
 
@@ -67,20 +67,22 @@ The following table gives the **canonical card count** for each set. `CardFactor
 | Change Colour | — (wild, no colour) | — | 4 |
 | **Beginner total** | | | **60** |
 
-#### Standard Deck — 72 cards (Beginner + 12)
+#### Standard Deck — 76 cards (Beginner + 16)
 
 | Card type | Count per colour | Colours | Total added |
 |---|---|---|---|
 | Draw Two | 2 | 4 | 8 |
+| Colour Burst | 1 | 4 | 4 |
 | Draw Four | — (wild, no colour) | — | 4 |
-| **Standard total** | | | **72** |
+| **Standard total** | | | **76** |
 
-#### Advanced Deck — 100 cards (Standard + 28)
+Colour Burst moved from Advanced to Standard in Phase 17 (B4a).
+
+#### Advanced Deck — 100 cards (Standard + 24)
 
 | Card type | Count per colour | Colours | Total added |
 |---|---|---|---|
 | Discard All | — (wild, no colour) | — | 4 |
-| Colour Burst | 1 | 4 | 4 |
 | Targeted Draw | 2 | 4 | 8 |
 | Forced Swap | 1 | 4 | 4 |
 | Skip Two | 1 | 4 | 4 |
@@ -89,7 +91,7 @@ The following table gives the **canonical card count** for each set. `CardFactor
 
 **Draw pile after dealing** (4 players × 7 cards = 28 dealt):
 - Beginner: 60 − 28 = 32 cards in draw pile
-- Standard: 72 − 28 = 44 cards in draw pile
+- Standard: 76 − 28 = 48 cards in draw pile
 - Advanced: 100 − 28 = 72 cards in draw pile
 
 > **Gate:** `DeckTests` must assert these exact counts per set and confirm that Advanced-only card types are absent from Beginner and Standard decks.
@@ -300,7 +302,7 @@ resolves the instant it is played.
 
 | Property | Value |
 |---|---|
-| Available in | Advanced (1 per colour = 4 cards) |
+| Available in | Standard, Advanced (1 per colour = 4 cards) — moved to Standard in Phase 17 (B4a) |
 | Colour | The card's own colour (crimson / cobalt / jade / amber) — a coloured action card, not a wild |
 | Matching rule | Standard colour/number/type matching. Plays on its own colour, or on another Colour Burst by type match (like any coloured action card). |
 | Effect | On play, every card in the player's hand sharing the Burst's colour is discarded together with it. The played Burst is placed first, then the swept cards; the active colour stays the Burst's colour. If no other same-colour cards are held, only the Burst itself is played. |
@@ -401,6 +403,8 @@ Team Play is double-edged: it gives both teammates more cards (potentially valua
 
 **Base rules:** All Standard Teams rules apply (colour/number/action-type matching, same win conditions).
 
+**Turn order (Phase 17 B3):** Unlike Standard Teams, Side-to-Side seats your partner immediately after you (seats 0,1 = your team; seats 2,3 = opponents), so play goes You → Partner → Opponent → Opponent. This is the mode default. The table still renders you at the bottom and your partner across the top.
+
 **Team Pass (optional, configurable):** At the very start of each round, after dealing but before the first card is played, each team may perform a team pass:
 
 1. Each player privately selects exactly one card from their hand.
@@ -444,9 +448,11 @@ value of every other player's hand, multiplied by the toughest opponent's
 [score multiplier](#score-multiplier).
 
 Each individual move also has a **10-second limit** (`RuleProfile.moveTimeLimitSeconds`, default
-10 seconds) for the local human player — AI already moves well within this window via its
-think-delay. If the human doesn't act in time, the engine plays a random legal card on their
-behalf (or draws, if none exists) — the same fallback `EasyAI` uses.
+10 seconds) for the local human player, **tightening to 5 seconds once the round enters its final
+minute** (round time remaining ≤ 60s — `RuleProfile.finalMinuteMoveLimitSeconds`, Phase 17 C10) to
+keep the endgame urgent. AI already moves well within either window via its think-delay. If the
+human doesn't act in time, the engine plays a random legal card on their behalf (or draws, if none
+exists) — the same fallback `EasyAI` uses.
 
 ### Both-Teammates-Out House Rule
 

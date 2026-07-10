@@ -85,7 +85,10 @@ final class GameViewModel: ObservableObject {
 
     var localPlayerID: UUID { presenter.localPlayerID }
     var roundTimeLimit: TimeInterval { presenter.state.ruleProfile.roundTimeLimitSeconds }
-    var moveTimeLimit: TimeInterval { presenter.state.ruleProfile.moveTimeLimitSeconds }
+    /// Effective per-move limit — 10s normally, 5s once the round enters its final minute (C10).
+    var moveTimeLimit: TimeInterval {
+        presenter.state.ruleProfile.effectiveMoveLimit(roundRemaining: roundDeadline?.timeIntervalSinceNow)
+    }
     var thinkingDifficulty: Difficulty? {
         thinkingPlayerID.flatMap { id in presenter.state.players.first { $0.id == id }?.difficulty }
     }
@@ -297,7 +300,9 @@ final class GameViewModel: ObservableObject {
               pendingHandoffSeat == nil,
               presenter.state.currentPlayer?.id == displayedHumanID else { return }
         let actingID = displayedHumanID
-        let seconds = presenter.state.ruleProfile.moveTimeLimitSeconds
+        // 10s per move, tightening to 5s in the round's final minute (Phase 17 C10).
+        let seconds = presenter.state.ruleProfile.effectiveMoveLimit(
+            roundRemaining: roundDeadline?.timeIntervalSinceNow)
         guard seconds > 0 else { return }
         moveDeadline = Date().addingTimeInterval(seconds)
         startTickingIfNeeded()

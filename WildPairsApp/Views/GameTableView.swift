@@ -27,9 +27,6 @@ struct GameTableView: View {
     private var showColourName: Bool { settings.userSettings.colourBlindMode }
     private var showPattern: Bool { settings.userSettings.colourBlindMode && settings.userSettings.patternFills }
     private var reducedMotion: Bool { settings.userSettings.reducedVisualEffects }
-    /// The per-move timer bar is hidden until this many seconds remain, so normal play has no
-    /// constant countdown pressure.
-    private let moveWarningWindow: TimeInterval = 12
     /// Dot count by difficulty (ux-spec.md §10 thinking-indicator table): Easy gets fewer
     /// dots than Medium/Hard/Expert/Master, which all show the full three.
     private var thinkingDotCount: Int { vm.thinkingDifficulty == .easy ? 2 : 3 }
@@ -99,12 +96,12 @@ struct GameTableView: View {
                                     }
                                     PromptBanner(prompt: vs.prompt, tint: elementGlow)
                                         .padding(.horizontal, Theme.Space.s4)
-                                    // Only surface the per-move countdown in the final stretch — a
-                                    // constant draining bar made calm play feel rushed. With the
-                                    // lenient limit this appears only if you've genuinely paused,
-                                    // then fills and drains over the last `moveWarningWindow` seconds.
-                                    if let moveRemaining = vm.moveTimeRemaining, moveRemaining <= moveWarningWindow {
-                                        MoveTimerBar(remaining: moveRemaining, total: moveWarningWindow)
+                                    // Per-move countdown over the effective limit (10s, or 5s in
+                                    // the round's final minute — Phase 17 C10). Fills at the limit
+                                    // and drains to zero so the shortened final-minute window reads
+                                    // correctly.
+                                    if let moveRemaining = vm.moveTimeRemaining, moveRemaining <= vm.moveTimeLimit {
+                                        MoveTimerBar(remaining: moveRemaining, total: vm.moveTimeLimit)
                                             .padding(.horizontal, Theme.Space.s4)
                                     }
                                     bottomControls

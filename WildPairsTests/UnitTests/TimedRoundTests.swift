@@ -14,6 +14,26 @@ struct TimedRoundTests {
         )
     }
 
+    // MARK: Per-move limit (Phase 17 C10)
+
+    @Test("Move limit is 10s normally and 5s in the round's final minute (Phase 17 C10)")
+    func testEffectiveMoveLimitFinalMinute() {
+        let profile = RuleProfile.standardTeams()
+        #expect(profile.moveTimeLimitSeconds == 10)
+        // No round timer info, or plenty of round time left: full 10s.
+        #expect(profile.effectiveMoveLimit(roundRemaining: nil) == 10)
+        #expect(profile.effectiveMoveLimit(roundRemaining: 120) == 10)
+        #expect(profile.effectiveMoveLimit(roundRemaining: 61) == 10)
+        // Inside the final minute: tighten to 5s.
+        #expect(profile.effectiveMoveLimit(roundRemaining: 60) == 5)
+        #expect(profile.effectiveMoveLimit(roundRemaining: 12) == 5)
+        #expect(profile.effectiveMoveLimit(roundRemaining: 0) == 5)
+        // A profile with no move limit stays unlimited regardless of round time.
+        var noLimit = profile
+        noLimit.moveTimeLimitSeconds = 0
+        #expect(noLimit.effectiveMoveLimit(roundRemaining: 10) == 0)
+    }
+
     // MARK: Round timer expiry
 
     @Test("Round timer expiry declares the player with the lowest hand-point score the winner")

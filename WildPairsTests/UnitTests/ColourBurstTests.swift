@@ -175,14 +175,23 @@ struct ColourBurstTests {
         #expect(all.count == 100)
     }
 
-    @Test("Beginner and standard decks contain no Colour Burst")
-    func testLowerSetsHaveNoBurst() {
+    @Test("Standard deck contains one Colour Burst per colour; Beginner has none (Phase 17 B4a)")
+    func testColourBurstSetMembership() {
         var rng = SeededRNG(seed: 1)
-        for set in [CardSet.beginner, .standard] {
-            let deck = Deck.standard(cardSet: set, rng: &rng)
-            let all = deck.drawPile + deck.discardPile
-            #expect(!all.contains { if case .discardColour = $0.type { return true }; return false })
+        // Standard now ships Colour Burst (moved down from Advanced in Phase 17 B4a).
+        let standard = Deck.standard(cardSet: .standard, rng: &rng)
+        let standardAll = standard.drawPile + standard.discardPile
+        let standardBursts = standardAll.filter {
+            if case .discardColour = $0.type { return true }; return false
         }
+        #expect(standardBursts.count == 4)
+        for colour in CardColour.allCases {
+            #expect(standardBursts.filter { $0.colour == colour }.count == 1)
+        }
+        // Beginner still has none.
+        let beginner = Deck.standard(cardSet: .beginner, rng: &rng)
+        let beginnerAll = beginner.drawPile + beginner.discardPile
+        #expect(!beginnerAll.contains { if case .discardColour = $0.type { return true }; return false })
     }
 
     @Test("A Colour Burst scores 20 points, like other action cards")

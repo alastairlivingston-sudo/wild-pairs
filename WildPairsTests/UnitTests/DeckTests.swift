@@ -13,16 +13,18 @@ struct DeckTests {
         #expect(deck.drawPile.count == 60)
     }
 
-    @Test("Standard deck has 72 cards")
+    @Test("Standard deck has 76 cards")
     func testStandardCount() {
+        // 60 base + 8 Draw Two + 4 Colour Burst + 4 Draw Four (Colour Burst moved to
+        // Standard in Phase 17 B4a, +4 vs the previous 72).
         var rng = SeededRNG(seed: 1)
         let deck = Deck.standard(cardSet: .standard, rng: &rng)
-        #expect(deck.drawPile.count == 72)
+        #expect(deck.drawPile.count == 76)
     }
 
     @Test("Advanced deck has 100 cards")
     func testAdvancedCount() {
-        // 96 base + 4 Colour Burst (one per colour, Phase 16).
+        // 76 Standard base (incl. 4 Colour Burst) + 24 Advanced-only = 100.
         var rng = SeededRNG(seed: 1)
         let deck = Deck.standard(cardSet: .advanced, rng: &rng)
         #expect(deck.drawPile.count == 100)
@@ -105,11 +107,19 @@ struct DeckTests {
         #expect(count == 4)
     }
 
+    @Test("Standard deck has 4 Colour Burst cards (1 per colour, Phase 17 B4a)")
+    func testStandardColourBurstCount() {
+        var rng = SeededRNG(seed: 1)
+        let deck = Deck.standard(cardSet: .standard, rng: &rng)
+        #expect(deck.drawPile.filter { $0.type == .discardColour }.count == 4)
+    }
+
     @Test("Standard deck has no advanced-only cards")
     func testStandardNoAdvancedCards() {
         var rng = SeededRNG(seed: 1)
         let deck = Deck.standard(cardSet: .standard, rng: &rng)
-        let advancedTypes: [CardType] = [.discardAll, .discardColour, .targetedDraw, .forcedSwap, .skipTwo, .teamPlay]
+        // Colour Burst (`discardColour`) is a Standard card since Phase 17 B4a — no longer here.
+        let advancedTypes: [CardType] = [.discardAll, .targetedDraw, .forcedSwap, .skipTwo, .teamPlay]
         for type_ in advancedTypes {
             #expect(!deck.drawPile.contains { $0.type == type_ })
         }
@@ -216,16 +226,16 @@ struct DeckTests {
         var deck = Deck.standard(cardSet: .standard, rng: &rng)
         let dealt = deck.deal(count: 7, rng: &rng)
         #expect(dealt.count == 7)
-        #expect(deck.drawPile.count == 72 - 7)
+        #expect(deck.drawPile.count == 76 - 7)
     }
 
-    @Test("After dealing 28 cards (4×7) standard draw pile has 44 cards")
+    @Test("After dealing 28 cards (4×7) standard draw pile has 48 cards")
     func testDrawPileAfterDealing() {
         var rng = SeededRNG(seed: 1)
         var deck = Deck.standard(cardSet: .standard, rng: &rng)
         for _ in 0..<4 {
             _ = deck.deal(count: 7, rng: &rng)
         }
-        #expect(deck.drawPile.count == 44)
+        #expect(deck.drawPile.count == 48)
     }
 }

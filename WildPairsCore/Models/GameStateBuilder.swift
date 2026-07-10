@@ -49,6 +49,13 @@ public final class GameStateBuilder {
         return self
     }
 
+    /// Replaces all players with a custom seat roster (e.g. non-canonical team seating).
+    @discardableResult
+    public func withCustomPlayers(_ players: [Player]) -> GameStateBuilder {
+        self.players = players
+        return self
+    }
+
     @discardableResult
     public func withRuleProfile(_ profile: RuleProfile) -> GameStateBuilder {
         self.ruleProfile = profile
