@@ -14,9 +14,33 @@ public enum GameRules {
 
     /// True if `card` may legally be played in `state` by the active player.
     public static func isLegal(_ card: Card, in state: GameState) -> Bool {
+        isLegal(
+            card,
+            currentColour: state.currentColour,
+            topCardType: state.currentCardType,
+            mode: state.mode,
+            stackDrawCards: state.ruleProfile.stackDrawCards,
+            pendingDrawType: state.pendingDrawType
+        )
+    }
+
+    /// Core match legality from primitives — the single rule shared by the engine
+    /// (`isLegal(_:in:)`) and the AI (via `AIObservation`), so the two can never drift.
+    /// `state.currentCardType` always equals the top discard's type (it's set to the played
+    /// card's type on every play), so passing it as `topCardType` matches the engine exactly.
+    /// The Draw Four "no colour match in hand" timing restriction is layered on by
+    /// `isCardLegal`, not here.
+    public static func isLegal(
+        _ card: Card,
+        currentColour: CardColour,
+        topCardType: CardType?,
+        mode: GameMode,
+        stackDrawCards: Bool,
+        pendingDrawType: CardType?
+    ) -> Bool {
         // Draw stacking (Phase 11 F): a pending draw stack overrides every other legality
         // rule, including All-Wild's "anything plays" — you must stack or draw, full stop.
-        if state.ruleProfile.stackDrawCards, let pendingType = state.pendingDrawType {
+        if stackDrawCards, let pendingType = pendingDrawType {
             switch pendingType {
             case .drawTwo: return card.type == .drawTwo || card.type == .drawFour
             case .drawFour: return card.type == .drawFour
@@ -24,28 +48,21 @@ public enum GameRules {
             }
         }
 
-        if state.mode == .allWild { return true }
+        if mode == .allWild { return true }
 
-        // Wild-type cards (no colour) are always playable.
+        // Wild-type cards (no colour) are always playable; Draw Four's timing restriction
+        // is enforced by isCardLegal/drawFourIsLegal, not here.
         if card.isWild { return true }
-
-        // Draw Four: only when the player holds no other colour-matching card
-        // (unless house rule drawFourChallengeable disables this restriction — for now
-        // we treat the restriction as always active in standard play).
-        if card.type == .drawFour {
-            return true  // legality of draw-four timing is enforced at the play site
-        }
 
         guard let cardColour = card.colour else { return true }
 
         // Match by colour
-        if cardColour == state.currentColour { return true }
+        if cardColour == currentColour { return true }
 
-        // Match by card type
-        if let topCard = state.deck.topDiscard {
-            if card.type == topCard.type { return true }
-            // Number-to-number match
-            if case .number(let v1) = card.type, case .number(let v2) = topCard.type, v1 == v2 {
+        // Match by card type / number
+        if let topCardType {
+            if card.type == topCardType { return true }
+            if case .number(let v1) = card.type, case .number(let v2) = topCardType, v1 == v2 {
                 return true
             }
         }
@@ -61,10 +78,37 @@ public enum GameRules {
     /// draw stack — stacking a +4 onto a +2 is legal regardless of what colours are also in
     /// hand, since it's a stack response, not a normal play.
     public static func isCardLegal(_ card: Card, hand: [Card], state: GameState) -> Bool {
-        guard isLegal(card, in: state) else { return false }
+        isCardLegal(
+            card,
+            hand: hand,
+            currentColour: state.currentColour,
+            topCardType: state.currentCardType,
+            mode: state.mode,
+            stackDrawCards: state.ruleProfile.stackDrawCards,
+            pendingDrawType: state.pendingDrawType,
+            drawFourChallengeable: state.ruleProfile.drawFourChallengeable
+        )
+    }
+
+    /// Primitive combined legality — shared by the engine and the AI so neither can drift.
+    public static func isCardLegal(
+        _ card: Card,
+        hand: [Card],
+        currentColour: CardColour,
+        topCardType: CardType?,
+        mode: GameMode,
+        stackDrawCards: Bool,
+        pendingDrawType: CardType?,
+        drawFourChallengeable: Bool
+    ) -> Bool {
+        guard isLegal(card, currentColour: currentColour, topCardType: topCardType,
+                      mode: mode, stackDrawCards: stackDrawCards,
+                      pendingDrawType: pendingDrawType) else { return false }
         guard card.type == .drawFour else { return true }
-        if state.ruleProfile.stackDrawCards, state.pendingDrawType != nil { return true }
-        return drawFourIsLegal(hand: hand, state: state)
+        // A +4 answering a pending stack is legal regardless of hand contents.
+        if stackDrawCards, pendingDrawType != nil { return true }
+        return drawFourIsLegal(hand: hand, currentColour: currentColour, mode: mode,
+                               drawFourChallengeable: drawFourChallengeable)
     }
 
     /// Every card in `hand` legal to play right now (`isCardLegal` applied to each).
@@ -77,12 +121,23 @@ public enum GameRules {
     /// True if the active player may legally play a Draw Four right now.
     /// Draw Four requires no other colour-matching card in hand (standard rule).
     public static func drawFourIsLegal(hand: [Card], state: GameState) -> Bool {
-        if state.mode == .allWild { return true }                   // every card is playable
-        if state.ruleProfile.drawFourChallengeable { return true }  // house rule: always playable
+        drawFourIsLegal(hand: hand, currentColour: state.currentColour, mode: state.mode,
+                        drawFourChallengeable: state.ruleProfile.drawFourChallengeable)
+    }
+
+    /// Primitive Draw-Four restriction — shared by the engine and the AI.
+    public static func drawFourIsLegal(
+        hand: [Card],
+        currentColour: CardColour,
+        mode: GameMode,
+        drawFourChallengeable: Bool
+    ) -> Bool {
+        if mode == .allWild { return true }                   // every card is playable
+        if drawFourChallengeable { return true }              // house rule: always playable
         // Legal only when no other card matches the current colour
         return !hand.contains { card in
             guard !card.isWild, card.type != .drawFour else { return false }
-            return card.colour == state.currentColour
+            return card.colour == currentColour
         }
     }
 

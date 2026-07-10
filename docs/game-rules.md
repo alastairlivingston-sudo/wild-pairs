@@ -425,9 +425,11 @@ The round ends immediately the moment **any** player empties their hand — an i
 achievement that credits their whole team with the round. This is the default for all three game
 modes (`standardTeams`, `allWild`, `sideToSide`).
 
-The winning team scores zero for the round. The losing team's score (if scoring is enabled)
-equals the sum of face values of all cards remaining in every other player's hand, multiplied by
-the [score multiplier](#score-multiplier) of the toughest AI opponent faced.
+The **winning team is awarded** the sum of the face values of every card remaining in the losing
+team's hands, multiplied by the [score multiplier](#score-multiplier) of the toughest AI opponent
+faced. The losing team scores zero for the round. Team scores accumulate across rounds (Uno-style)
+until a target score or a fixed round count is reached — a higher score is better. (The engine has
+always implemented this; an earlier draft of this section wrongly stated the opposite.)
 
 ### Round Timer Fallback (Lowest Score Wins)
 
@@ -466,8 +468,9 @@ When scoring is enabled:
 | Action cards (Skip, Reverse, Draw Two, Skip Two, Targeted Draw, Forced Swap, Team Play, Discard All, Colour Burst) | 20 points each |
 | Wild cards (Change Colour, Draw Four) | 50 points each |
 
-Points are tallied from the losing side's remaining cards and multiplied by the
-[score multiplier](#score-multiplier) of the toughest AI opponent faced. Play continues over
+Points are tallied from the losing side's remaining cards, multiplied by the
+[score multiplier](#score-multiplier) of the toughest AI opponent faced, and **credited to the
+winning team** (the losing team scores zero). Play continues over
 multiple rounds until one team reaches a target score threshold (configurable) or a fixed number
 of rounds is completed.
 

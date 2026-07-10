@@ -24,6 +24,55 @@ struct GameViewStateTests {
         #expect(vs.isLocalPlayerTurn == true)
     }
 
+    @Test("Pending draw badge reflects an in-flight Draw Four during its colour choice (Phase 17 A1)")
+    func testPendingDrawBadgeIncludesInFlightDrawFour() {
+        let two = CardFactory.drawTwo(.crimson)
+        let four = CardFactory.drawFour()
+        let state = GameStateBuilder()
+            .withPlayers()
+            .withCurrentColour(.crimson)
+            .withTopDiscard(CardFactory.number(5, .crimson))
+            .withHand(forPlayer: 0, cards: [two, CardFactory.number(1, .amber)])
+            .withHand(forPlayer: 1, cards: [four, CardFactory.number(1, .amber)])
+            .withDrawPile((0..<20).map { CardFactory.number($0 % 10, .amber) })
+            .build()
+        let p0 = state.players[0].id
+        let p1 = state.players[1].id
+
+        let (afterTwo, _) = GameEngine.reduce(state: state, action: .playCard(two, playerID: p0))
+        #expect(GameViewState(from: afterTwo, localPlayerID: p0).pendingDrawCount == 2)
+
+        // +4 played but colour not yet chosen: engine holds the stack at 2, but the badge must
+        // already show the true total of 6 rather than the stale 2.
+        let (afterFourPlay, _) = GameEngine.reduce(state: afterTwo, action: .playCard(four, playerID: p1))
+        #expect(afterFourPlay.pendingDrawCount == 2, "Engine timing unchanged")
+        #expect(GameViewState(from: afterFourPlay, localPlayerID: p0).pendingDrawCount == 6,
+                "Badge shows the in-flight +4 immediately")
+
+        // After the colour is chosen the engine total catches up and the badge is unchanged at 6.
+        let (afterColour, _) = GameEngine.reduce(state: afterFourPlay, action: .selectColour(.jade, playerID: p1))
+        #expect(afterColour.pendingDrawCount == 6)
+        #expect(GameViewState(from: afterColour, localPlayerID: p0).pendingDrawCount == 6)
+    }
+
+    @Test("A Draw Four that starts a stack shows +4 while its colour is being chosen (Phase 17 A1)")
+    func testPendingDrawBadgeForDrawFourStartingStack() {
+        let four = CardFactory.drawFour()
+        let state = GameStateBuilder()
+            .withPlayers()
+            .withCurrentColour(.cobalt)
+            .withTopDiscard(CardFactory.number(3, .cobalt))
+            .withHand(forPlayer: 0, cards: [four, CardFactory.number(1, .jade)])
+            .withDrawPile((0..<20).map { CardFactory.number($0 % 10, .amber) })
+            .build()
+        let p0 = state.players[0].id
+
+        let (afterPlay, _) = GameEngine.reduce(state: state, action: .playCard(four, playerID: p0))
+        #expect(afterPlay.pendingDrawCount == nil, "Engine has not added the +4 yet")
+        #expect(GameViewState(from: afterPlay, localPlayerID: p0).pendingDrawCount == 4,
+                "Badge already reads +4")
+    }
+
     @Test("No cards are playable when it is not the local player's turn")
     func testNothingPlayableOffTurn() {
         let state = GameStateBuilder()

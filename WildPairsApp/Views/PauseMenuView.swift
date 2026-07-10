@@ -112,6 +112,14 @@ struct RoundEndView: View {
                     Text(subheadline).font(.subheadline).foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
+                if let award = vs.roundScoreAwarded, award > 0 {
+                    Text(didWin ? "Your team scored +\(award) this round"
+                                : "Opponents scored +\(award) this round")
+                        .font(.headline)
+                        .foregroundStyle(didWin ? Theme.Palette.accent : .secondary)
+                        .monospacedDigit()
+                        .multilineTextAlignment(.center)
+                }
 
                 VStack(spacing: Theme.Space.s2) {
                     ForEach(vs.scoreboard) { row in

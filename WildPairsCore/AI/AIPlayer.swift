@@ -90,38 +90,20 @@ public enum AIPlayer {
 
     // MARK: Internal helpers
 
-    /// Legal plays for the AI from its own hand, mirroring GameRules.isLegal / drawFourIsLegal.
-    static func legalPlays(observation: AIObservation) -> [Card] {
-        // Draw stacking (Phase 11 F): a pending stack overrides every other rule, including
-        // All-Wild and the Draw Four colour restriction — only a matching stack card plays.
-        if observation.ruleProfile.stackDrawCards, let pendingType = observation.pendingDrawType {
-            switch pendingType {
-            case .drawTwo: return observation.myHand.filter { $0.type == .drawTwo || $0.type == .drawFour }
-            case .drawFour: return observation.myHand.filter { $0.type == .drawFour }
-            default: return []
-            }
-        }
-        return observation.myHand.filter { card in
-            if observation.mode == .allWild { return true }
-            if card.type == .drawFour { return drawFourIsLegal(observation: observation) }
-            if card.isWild { return true }
-            guard let colour = card.colour else { return true }
-            if colour == observation.currentColour { return true }
-            if let topType = observation.currentCardType {
-                if card.type == topType { return true }
-                if case .number(let v1) = card.type, case .number(let v2) = topType, v1 == v2 { return true }
-            }
-            return false
-        }
-    }
-
-    /// Mirrors GameRules.drawFourIsLegal using only what an AI may observe.
-    private static func drawFourIsLegal(observation: AIObservation) -> Bool {
-        if observation.mode == .allWild { return true }
-        if observation.ruleProfile.drawFourChallengeable { return true }
-        return !observation.myHand.contains { card in
-            guard !card.isWild, card.type != .drawFour else { return false }
-            return card.colour == observation.currentColour
+    /// Legal plays for the AI — delegates to the single shared predicate
+    /// `GameRules.isCardLegal` so AI legality can never drift from the engine (Phase 17 A2/A3).
+    static func legalPlays(observation o: AIObservation) -> [Card] {
+        o.myHand.filter { card in
+            GameRules.isCardLegal(
+                card,
+                hand: o.myHand,
+                currentColour: o.currentColour,
+                topCardType: o.currentCardType,
+                mode: o.mode,
+                stackDrawCards: o.ruleProfile.stackDrawCards,
+                pendingDrawType: o.pendingDrawType,
+                drawFourChallengeable: o.ruleProfile.drawFourChallengeable
+            )
         }
     }
 }
