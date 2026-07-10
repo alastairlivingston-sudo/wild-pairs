@@ -109,7 +109,11 @@ it, so no other code needed to change.
 Both-teammates-out is a supported house rule (`RuleProfile.winCondition = .bothTeammatesOut`), not the default.
 
 ### Card types
-`number`, `skip`, `reverse`, `drawTwo`, `drawFour`, `changeColour`, `discardAll`, `discardColour`, `targetedDraw`, `forcedSwap`, `skipTwo`, `teamPlay`
+`number`, `skip`, `reverse`, `drawTwo`, `drawFour`, `drawEight`, `changeColour`, `discardAll`, `discardColour`, `targetedDraw`, `forcedSwap`, `skipTwo`, `teamPlay`
+
+`drawEight` (Draw Eight, Phase 17 B4b) is a coloured escalation draw card, Advanced set, 1 per
+colour. Stacking escalates by rank (+2 ← +2/+4/+8, +4 ← +4/+8, +8 ← +8 only); it adds +8 with no
+colour prompt and scores 60 points.
 
 `discardColour` (Colour Burst, Phase 16) is the coloured cousin of `discardAll`: a coloured
 action card that, on play, discards every card of its own colour from the hand — no colour
@@ -131,7 +135,7 @@ Round-win points are multiplied by the toughest AI opponent's score multiplier.
 |---|---|
 | `beginner` | Numbers + skip + reverse + changeColour |
 | `standard` | Beginner + drawTwo + drawFour + discardColour |
-| `advanced` | Standard + discardAll + targetedDraw + forcedSwap + skipTwo + teamPlay |
+| `advanced` | Standard + discardAll + targetedDraw + forcedSwap + skipTwo + teamPlay + drawEight |
 
 ## Coding Style
 - No comments unless the WHY is non-obvious (hidden constraint, subtle invariant, workaround)

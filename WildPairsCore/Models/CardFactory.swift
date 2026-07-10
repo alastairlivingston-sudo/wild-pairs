@@ -26,6 +26,11 @@ public enum CardFactory {
         Card(type: .drawTwo, colour: colour)
     }
 
+    /// Draw Eight: a coloured escalation draw card (Advanced set, Phase 17 B4b).
+    public static func drawEight(_ colour: CardColour) -> Card {
+        Card(type: .drawEight, colour: colour)
+    }
+
     public static func targetedDraw(_ colour: CardColour) -> Card {
         Card(type: .targetedDraw, colour: colour)
     }

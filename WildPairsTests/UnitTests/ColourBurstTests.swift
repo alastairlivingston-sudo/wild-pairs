@@ -162,7 +162,7 @@ struct ColourBurstTests {
 
     // MARK: Deck composition & value
 
-    @Test("Advanced deck contains exactly one Colour Burst per colour and totals 100")
+    @Test("Advanced deck contains exactly one Colour Burst per colour and totals 104")
     func testAdvancedDeckComposition() {
         var rng = SeededRNG(seed: 1)
         let deck = Deck.standard(cardSet: .advanced, rng: &rng)
@@ -172,7 +172,7 @@ struct ColourBurstTests {
         for colour in CardColour.allCases {
             #expect(bursts.filter { $0.colour == colour }.count == 1)
         }
-        #expect(all.count == 100)
+        #expect(all.count == 104)   // +4 Draw Eight vs the pre-Phase-17 100
     }
 
     @Test("Standard deck contains one Colour Burst per colour; Beginner has none (Phase 17 B4a)")
@@ -197,6 +197,11 @@ struct ColourBurstTests {
     @Test("A Colour Burst scores 20 points, like other action cards")
     func testBurstScores20() {
         #expect(GameEngine.pointValue(for: CardFactory.discardColour(.amber)) == 20)
+    }
+
+    @Test("A Draw Eight scores 60 points — the highest-tier draw card (Phase 17 B4b)")
+    func testDrawEightScores60() {
+        #expect(GameEngine.pointValue(for: CardFactory.drawEight(.crimson)) == 60)
     }
 
     @Test("A Colour Burst survives a Codable round-trip")

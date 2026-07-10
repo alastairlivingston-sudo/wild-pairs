@@ -255,7 +255,7 @@ enum HardAI {
         switch card.type {
         case .discardAll, .discardColour, .forcedSwap:
             if urgency < 0.5 { score -= Weight.actionConservation }
-        case .drawTwo, .drawFour:
+        case .drawTwo, .drawFour, .drawEight:
             // Draw penalties are worth most at the end of a round: they load an opponent
             // with cards they'll be scored holding, and they block a near-winner. Early on
             // they're spent for nothing, so hold them unless something better is happening.

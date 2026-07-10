@@ -50,7 +50,7 @@ Choose the card set before the game begins:
 |---|---|
 | Beginner | Number cards (0–9), Skip, Reverse, Change Colour |
 | Standard | All Beginner cards, plus Draw Two, Draw Four, and Colour Burst |
-| Advanced | All Standard cards, plus Discard All, Targeted Draw, Forced Swap, Skip Two, and Team Play |
+| Advanced | All Standard cards, plus Discard All, Targeted Draw, Forced Swap, Skip Two, Team Play, and Draw Eight |
 
 ### Deck Composition
 
@@ -78,7 +78,7 @@ The following table gives the **canonical card count** for each set. `CardFactor
 
 Colour Burst moved from Advanced to Standard in Phase 17 (B4a).
 
-#### Advanced Deck — 100 cards (Standard + 24)
+#### Advanced Deck — 104 cards (Standard + 28)
 
 | Card type | Count per colour | Colours | Total added |
 |---|---|---|---|
@@ -87,12 +87,15 @@ Colour Burst moved from Advanced to Standard in Phase 17 (B4a).
 | Forced Swap | 1 | 4 | 4 |
 | Skip Two | 1 | 4 | 4 |
 | Team Play | 1 | 4 | 4 |
-| **Advanced total** | | | **100** |
+| Draw Eight | 1 | 4 | 4 |
+| **Advanced total** | | | **104** |
+
+Draw Eight added in Phase 17 (B4b).
 
 **Draw pile after dealing** (4 players × 7 cards = 28 dealt):
 - Beginner: 60 − 28 = 32 cards in draw pile
 - Standard: 76 − 28 = 48 cards in draw pile
-- Advanced: 100 − 28 = 72 cards in draw pile
+- Advanced: 104 − 28 = 76 cards in draw pile
 
 > **Gate:** `DeckTests` must assert these exact counts per set and confirm that Advanced-only card types are absent from Beginner and Standard decks.
 
@@ -473,6 +476,7 @@ When scoring is enabled:
 | Number cards (0–9) | Face value (0 = 0 pts, 9 = 9 pts) |
 | Action cards (Skip, Reverse, Draw Two, Skip Two, Targeted Draw, Forced Swap, Team Play, Discard All, Colour Burst) | 20 points each |
 | Wild cards (Change Colour, Draw Four) | 50 points each |
+| Draw Eight | 60 points |
 
 Points are tallied from the losing side's remaining cards, multiplied by the
 [score multiplier](#score-multiplier) of the toughest AI opponent faced, and **credited to the
@@ -588,7 +592,7 @@ All house rules default to OFF unless otherwise noted.
 |---|---|---|
 | Draw Four Anytime | OFF | Draw Four can be played on any card regardless of whether the player has another legal play. Default requires no other legal play. |
 | Both-Teammates-Out Win | OFF | Round ends only when both teammates empty their hands, not the single-out default. |
-| Draw Stacking | **ON** (core rule since Phase 11) | Players must stack a matching Draw Two/Four onto a pending draw penalty or draw the full accumulated stack. Draw Two stacks onto Draw Two or Draw Four; Draw Four only stacks onto Draw Four. A Settings toggle can turn this OFF, reverting to the legacy immediate-resolution rule. |
+| Draw Stacking | **ON** (core rule since Phase 11) | Players must stack a matching draw card onto a pending draw penalty or draw the full accumulated stack. Cards escalate: a card answers a pending stack of equal-or-lower rank (+2 ← +2/+4/+8, +4 ← +4/+8, +8 ← +8). A Settings toggle can turn this OFF, reverting to the legacy immediate-resolution rule. |
 | Solo! Penalty Disabled | OFF | No penalty for failing to call Solo!. |
 | Team Pass (Side-to-Side) | ON (when mode is Side-to-Side) | At round start, each team may privately swap one card between partners before play begins. Setting to OFF disables this phase entirely. |
 | Partner Plays Immediately (Team Play variant) | OFF | When a Team Play card is played, the partner immediately plays one card from their hand instead of drawing a card. Both players draw if this rule is OFF. |
@@ -673,14 +677,16 @@ If after reshuffling the draw pile is still empty (extremely rare — only if al
 
 ## Draw Stacking (Core Rule)
 
-A Draw Two or Draw Four does not resolve immediately — the next player must either extend the
-stack with a matching card or absorb the whole accumulated penalty:
+A Draw Two, Draw Four, or Draw Eight does not resolve immediately — the next player must either
+extend the stack with a matching card or absorb the whole accumulated penalty. Cards escalate:
+a card may answer a pending stack of **equal or lower** draw rank (+2 < +4 < +8, Phase 17 B4b):
 
-- A **Draw Two** may be answered with another **Draw Two** or a **Draw Four** (either extends the stack).
-- A **Draw Four** may only be answered with another **Draw Four** — a Draw Two cannot be played onto a pending Draw Four stack.
-- Whoever cannot or chooses not to stack draws the **entire accumulated total** and their turn ends; play then continues with the next player.
-- A Draw Four's colour choice still happens as normal; the stack only grows once the colour is chosen.
-- This is **on by default** in all three game modes. A Settings toggle ("Draw stacking") can turn it off, reverting to the legacy rule where a Draw Two/Four resolves immediately against a single target and skips them.
+- A **Draw Two** may be answered with a **Draw Two**, **Draw Four**, or **Draw Eight**.
+- A **Draw Four** may be answered with a **Draw Four** or **Draw Eight** — a Draw Two cannot be played onto a pending Draw Four stack.
+- A **Draw Eight** (Advanced set only) may be answered only with another **Draw Eight**.
+- Whoever cannot or chooses not to stack draws the **entire accumulated total** and their turn ends; play then continues with the next player. **Declining is always allowed** — a player holding a legal stack card may still choose to draw the pending total instead (Phase 17 B1); the draw pile surfaces an "Or draw +N" option in that case.
+- A Draw Four's colour choice still happens as normal; the stack only grows once the colour is chosen. Draw Eight is a coloured card, so it adds its +8 immediately with no colour prompt.
+- This is **on by default** in all three game modes. A Settings toggle ("Draw stacking") can turn it off, reverting to the legacy rule where a draw card resolves immediately against a single target and skips them.
 
 ## Opening / Starting Card
 

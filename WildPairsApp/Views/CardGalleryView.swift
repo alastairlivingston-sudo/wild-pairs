@@ -8,7 +8,7 @@ import WildPairsCore
 struct CardGalleryView: View {
     private let colours = CardColour.allCases
     private let colouredTypes: [CardType] = [
-        .number(7), .number(0), .skip, .skipTwo, .reverse, .drawTwo,
+        .number(7), .number(0), .skip, .skipTwo, .reverse, .drawTwo, .drawEight,
         .targetedDraw, .forcedSwap, .teamPlay, .discardColour
     ]
     private let wildTypes: [CardType] = [.changeColour, .drawFour, .discardAll]

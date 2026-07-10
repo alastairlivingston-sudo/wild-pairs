@@ -93,6 +93,8 @@ struct InkFoilFace: View {
             foilText("\(v)", size: w * 0.6)
         case .drawTwo:
             foilText("+2", size: w * 0.46)
+        case .drawEight:
+            foilText("+8", size: w * 0.46)
         case .drawFour:
             VStack(spacing: h * 0.012) {
                 wildChips(w * 0.4)
@@ -156,6 +158,7 @@ struct InkFoilFace: View {
         switch context.card.type {
         case .number(let v): rankText("\(v)", font)
         case .drawTwo:       rankText("+2", font)
+        case .drawEight:     rankText("+8", font)
         case .drawFour:      rankText("+4", font)
         default:             EmptyView()
         }

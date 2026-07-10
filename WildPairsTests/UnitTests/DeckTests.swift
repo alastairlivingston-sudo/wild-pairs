@@ -22,12 +22,29 @@ struct DeckTests {
         #expect(deck.drawPile.count == 76)
     }
 
-    @Test("Advanced deck has 100 cards")
+    @Test("Advanced deck has 104 cards")
     func testAdvancedCount() {
-        // 76 Standard base (incl. 4 Colour Burst) + 24 Advanced-only = 100.
+        // 76 Standard base (incl. 4 Colour Burst) + 28 Advanced-only (incl. 4 Draw Eight,
+        // Phase 17 B4b) = 104.
         var rng = SeededRNG(seed: 1)
         let deck = Deck.standard(cardSet: .advanced, rng: &rng)
-        #expect(deck.drawPile.count == 100)
+        #expect(deck.drawPile.count == 104)
+    }
+
+    @Test("Advanced deck has 4 Draw Eight cards (1 per colour, Phase 17 B4b)")
+    func testAdvancedDrawEightCount() {
+        var rng = SeededRNG(seed: 1)
+        let deck = Deck.standard(cardSet: .advanced, rng: &rng)
+        #expect(deck.drawPile.filter { $0.type == .drawEight }.count == 4)
+    }
+
+    @Test("Draw Eight is Advanced-only (absent from Beginner and Standard)")
+    func testDrawEightAdvancedOnly() {
+        var rng = SeededRNG(seed: 1)
+        for set in [CardSet.beginner, .standard] {
+            let deck = Deck.standard(cardSet: set, rng: &rng)
+            #expect(!deck.drawPile.contains { $0.type == .drawEight })
+        }
     }
 
     // MARK: Beginner card composition

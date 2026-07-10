@@ -425,7 +425,7 @@ final class GameViewModel: ObservableObject {
         switch card.type {
         case .skip, .skipTwo:                 return .skipPlayed
         case .reverse:                        return .reversePlayed
-        case .drawTwo:                        return .drawTwoPlayed
+        case .drawTwo, .drawEight:            return .drawTwoPlayed
         case .drawFour, .changeColour:        return .wildPlayed
         case .number, .discardAll, .discardColour, .targetedDraw, .forcedSwap, .teamPlay:
             return .cardPlay

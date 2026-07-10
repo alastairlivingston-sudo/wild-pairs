@@ -104,23 +104,41 @@ struct TableCenterView: View {
             }
         }
         .overlay(alignment: .top) {
-            if mustDraw && canDraw {
-                Text(forcedPickup ? "Picking up…" : "Tap to draw")
-                    .font(.caption.bold())
-                    .foregroundStyle(Theme.Palette.onAccent)
-                    .padding(.horizontal, Theme.Space.s2).padding(.vertical, 3)
-                    .background(Capsule().fill(Theme.Palette.warning))
-                    .offset(y: -(drawCardSize.height * 0.075 + 26))
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
+            // Draw-pile hint. Forced pickup and a must-draw (no legal play) read emphatically;
+            // when a stack pends and the player *also* holds a legal stack card they may decline
+            // and draw the pending total instead — surface that quieter "Or draw +N" option so
+            // decline-to-stack is discoverable (Phase 17 B1).
+            if forcedPickup {
+                drawHint("Picking up…", emphatic: true)
+            } else if canDraw, let pending = pendingDrawCount {
+                drawHint(mustDraw ? "Tap to draw +\(pending)" : "Or draw +\(pending)",
+                         emphatic: mustDraw)
+            } else if mustDraw && canDraw {
+                drawHint("Tap to draw", emphatic: true)
             }
         }
         .accessibilityLabel(pendingDrawCount.map { "Draw pile. Stack pending: \($0) cards" }
             ?? "Draw pile, \(drawPileCount) cards")
         .accessibilityValue(forcedPickup ? "Picking up automatically"
-            : (mustDraw && canDraw ? "You must draw" : ""))
-        .accessibilityHint(canDraw ? "Double tap to draw a card" : "")
+            : mustDraw && canDraw ? "You must draw"
+            : (canDraw && pendingDrawCount != nil) ? "You may draw to skip stacking" : "")
+        .accessibilityHint(canDraw
+            ? (pendingDrawCount.map { "Double tap to draw the pending \($0) cards" }
+               ?? "Double tap to draw a card")
+            : "")
         .accessibilityIdentifier("game-draw-card-button")
+    }
+
+    @ViewBuilder private func drawHint(_ text: String, emphatic: Bool) -> some View {
+        Text(text)
+            .font(.caption.bold())
+            .foregroundStyle(emphatic ? Theme.Palette.onAccent : .white)
+            .padding(.horizontal, Theme.Space.s2).padding(.vertical, 3)
+            .background(Capsule().fill(emphatic ? Theme.Palette.warning : Color.black.opacity(0.7)))
+            .overlay(Capsule().strokeBorder(Theme.Palette.accent.opacity(0.6), lineWidth: emphatic ? 0 : 1))
+            .offset(y: -(drawCardSize.height * 0.075 + 26))
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 
     private var badgeText: String {

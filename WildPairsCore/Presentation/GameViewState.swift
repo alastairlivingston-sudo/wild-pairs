@@ -340,13 +340,14 @@ public struct GameViewState: Equatable, Sendable {
         case .skipTwo: return 2
         case .reverse: return 3
         case .drawTwo: return 4
-        case .targetedDraw: return 5
-        case .forcedSwap: return 6
-        case .teamPlay: return 7
-        case .discardColour: return 8
-        case .changeColour: return 9
-        case .drawFour: return 10
-        case .discardAll: return 11
+        case .drawEight: return 5
+        case .targetedDraw: return 6
+        case .forcedSwap: return 7
+        case .teamPlay: return 8
+        case .discardColour: return 9
+        case .changeColour: return 10
+        case .drawFour: return 11
+        case .discardAll: return 12
         }
     }
 

@@ -146,6 +146,87 @@ struct StackingTests {
         #expect(afterRejected.players[1].hand.contains { $0.id == two.id })
     }
 
+    // MARK: Draw Eight escalation chain (Phase 17 B4b)
+
+    @Test("Draw Eight accumulates +8 and answers +2 and +4 stacks; +2/+4 cannot answer it")
+    func testDrawEightEscalation() {
+        // Legality: escalation chain +2 <- +2/+4/+8, +4 <- +4/+8, +8 <- +8 only.
+        func legal(_ card: CardType, onPending pending: CardType) -> Bool {
+            let state = GameStateBuilder()
+                .withPlayers()
+                .withCurrentColour(.crimson)
+                .withTopDiscard(CardFactory.number(5, .crimson))
+                .build()
+            // Simulate a pending stack of the given type.
+            var s = state
+            s.pendingDrawCount = 2
+            s.pendingDrawType = pending
+            let hand = [Card(type: card, colour: card == .drawFour ? nil : .jade)]
+            return GameRules.legalPlaysConsideringDrawFour(hand: hand, state: s).count == 1
+        }
+        // +8 answers a pending +2 and +4, and another +8.
+        #expect(legal(.drawEight, onPending: .drawTwo))
+        #expect(legal(.drawEight, onPending: .drawFour))
+        #expect(legal(.drawEight, onPending: .drawEight))
+        // Lower cards cannot answer a pending +8.
+        #expect(!legal(.drawTwo, onPending: .drawEight))
+        #expect(!legal(.drawFour, onPending: .drawEight))
+        // A pending +8 followed by another +8 accumulates to 16, then drawn in full.
+        let firstEight = CardFactory.drawEight(.crimson)
+        let secondEight = CardFactory.drawEight(.jade)
+        let state = GameStateBuilder()
+            .withPlayers()
+            .withRuleProfile({ var p = RuleProfile.standardTeams(); p.cardSet = .advanced; return p }())
+            .withCurrentColour(.crimson)
+            .withTopDiscard(CardFactory.number(5, .crimson))
+            .withHand(forPlayer: 0, cards: [firstEight, CardFactory.number(1, .amber)])
+            .withHand(forPlayer: 1, cards: [secondEight, CardFactory.number(1, .amber)])
+            .withDrawPile((0..<30).map { CardFactory.number($0 % 10, .amber) })
+            .build()
+        let p0 = state.players[0].id
+        let p1 = state.players[1].id
+        let p2 = state.players[2].id
+        let (afterFirst, _) = GameEngine.reduce(state: state, action: .playCard(firstEight, playerID: p0))
+        #expect(afterFirst.pendingDrawCount == 8)
+        #expect(afterFirst.pendingDrawType == .drawEight)
+        let (afterSecond, _) = GameEngine.reduce(state: afterFirst, action: .playCard(secondEight, playerID: p1))
+        #expect(afterSecond.pendingDrawCount == 16)
+        let before = afterSecond.players[2].hand.count
+        let (afterDraw, _) = GameEngine.reduce(state: afterSecond, action: .drawCard(playerID: p2))
+        #expect(afterDraw.players[2].hand.count == before + 16)
+        #expect(afterDraw.pendingDrawCount == nil)
+    }
+
+    @Test("A Draw Four may be stacked onto a pending Draw Two, then a Draw Eight onto that")
+    func testDrawEightOntoDrawFourStack() {
+        let two = CardFactory.drawTwo(.crimson)
+        let four = CardFactory.drawFour()
+        let eight = CardFactory.drawEight(.jade)
+        let state = GameStateBuilder()
+            .withPlayers()
+            .withRuleProfile({ var p = RuleProfile.standardTeams(); p.cardSet = .advanced; return p }())
+            .withCurrentColour(.crimson)
+            .withTopDiscard(CardFactory.number(5, .crimson))
+            .withHand(forPlayer: 0, cards: [two, CardFactory.number(1, .amber)])
+            .withHand(forPlayer: 1, cards: [four, CardFactory.number(1, .amber)])
+            .withHand(forPlayer: 2, cards: [eight, CardFactory.number(1, .amber)])
+            .withDrawPile((0..<30).map { CardFactory.number($0 % 10, .amber) })
+            .build()
+        let p0 = state.players[0].id
+        let p1 = state.players[1].id
+        let p2 = state.players[2].id
+        let (a, _) = GameEngine.reduce(state: state, action: .playCard(two, playerID: p0))
+        #expect(a.pendingDrawCount == 2)
+        let (b, _) = GameEngine.reduce(state: a, action: .playCard(four, playerID: p1))
+        let (c, _) = GameEngine.reduce(state: b, action: .selectColour(.jade, playerID: p1))
+        #expect(c.pendingDrawCount == 6)
+        // Draw Eight legally answers the pending +4-type stack, taking it to 14.
+        #expect(GameEngine.isLegalMove(state: c, action: .playCard(eight, playerID: p2)))
+        let (d, _) = GameEngine.reduce(state: c, action: .playCard(eight, playerID: p2))
+        #expect(d.pendingDrawCount == 14)
+        #expect(d.pendingDrawType == .drawEight)
+    }
+
     // MARK: Toggle off = legacy behaviour
 
     @Test("With stacking disabled, Draw Two resolves immediately and never sets a pending stack")

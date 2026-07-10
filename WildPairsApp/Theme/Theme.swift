@@ -550,6 +550,7 @@ extension CardType {
         case .reverse:       return "REV"
         case .drawTwo:       return "D2"
         case .drawFour:      return "D4"
+        case .drawEight:     return "D8"
         case .changeColour:  return "WILD"
         case .discardAll:    return "ALL"
         case .discardColour: return "BURST"
