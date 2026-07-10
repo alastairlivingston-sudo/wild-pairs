@@ -61,6 +61,17 @@ public struct RuleProfile: Codable, Equatable, Sendable {
     /// Wall-clock seconds the local human has to act before a fallback move is forced.
     public var moveTimeLimitSeconds: Double
 
+    /// Seconds the local human has to act, tightened to `finalMinuteMoveLimitSeconds` once the
+    /// round is inside its final minute (Phase 17 C10). `roundRemaining` is the seconds left on
+    /// the round timer, or nil when no round timer is running.
+    public static let finalMinuteMoveLimitSeconds: Double = 5
+    public func effectiveMoveLimit(roundRemaining: Double?) -> Double {
+        guard moveTimeLimitSeconds > 0, let roundRemaining, roundRemaining <= 60 else {
+            return moveTimeLimitSeconds
+        }
+        return Swift.min(moveTimeLimitSeconds, RuleProfile.finalMinuteMoveLimitSeconds)
+    }
+
     // MARK: Validation
 
     public func validate() throws {
@@ -96,7 +107,7 @@ public struct RuleProfile: Codable, Equatable, Sendable {
             teamPassEnabled: false, teamPassCooldown: 0,
             soloCallEnabled: true, soloCallPenaltyCards: 2, soloCallTimeoutSeconds: 5.0,
             scoringEnabled: false, maxTurnsPerRound: 300, partnerPlaysImmediately: false,
-            roundTimeLimitSeconds: 180, moveTimeLimitSeconds: 30
+            roundTimeLimitSeconds: 180, moveTimeLimitSeconds: 10
         )
     }
 
@@ -111,7 +122,7 @@ public struct RuleProfile: Codable, Equatable, Sendable {
             teamPassEnabled: false, teamPassCooldown: 0,
             soloCallEnabled: true, soloCallPenaltyCards: 2, soloCallTimeoutSeconds: 5.0,
             scoringEnabled: false, maxTurnsPerRound: 300, partnerPlaysImmediately: false,
-            roundTimeLimitSeconds: 180, moveTimeLimitSeconds: 30
+            roundTimeLimitSeconds: 180, moveTimeLimitSeconds: 10
         )
     }
 
@@ -126,7 +137,7 @@ public struct RuleProfile: Codable, Equatable, Sendable {
             teamPassEnabled: true, teamPassCooldown: 0,
             soloCallEnabled: true, soloCallPenaltyCards: 2, soloCallTimeoutSeconds: 5.0,
             scoringEnabled: false, maxTurnsPerRound: 300, partnerPlaysImmediately: false,
-            roundTimeLimitSeconds: 180, moveTimeLimitSeconds: 30
+            roundTimeLimitSeconds: 180, moveTimeLimitSeconds: 10
         )
     }
 
@@ -156,7 +167,7 @@ public struct RuleProfile: Codable, Equatable, Sendable {
         maxTurnsPerRound: Int,
         partnerPlaysImmediately: Bool,
         roundTimeLimitSeconds: Double = 180,
-        moveTimeLimitSeconds: Double = 30
+        moveTimeLimitSeconds: Double = 10
     ) {
         self.winCondition = winCondition
         self.targetScore = targetScore

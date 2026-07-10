@@ -312,7 +312,10 @@ struct GamePresenterTests {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let service = PersistenceService(directory: dir)
         let presenter = GamePresenter(config: standardConfig(seed: 3), persistence: service)
-        presenter.dispatch(.passTurn(playerID: presenter.localPlayerID))
+        // Pass whoever's turn it currently is (the deal's opening card decides who leads), so the
+        // action is always valid and triggers autosave regardless of deck composition.
+        let current = presenter.state.currentPlayer?.id ?? presenter.localPlayerID
+        presenter.dispatch(.passTurn(playerID: current))
         #expect(service.hasSavedGame())
     }
 

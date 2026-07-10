@@ -229,19 +229,15 @@ extension GameConfig {
         profile.stackDrawCards = stackingEnabled
         return GameConfig(
             mode: mode,
-            players: [
-                PlayerConfig(name: "You", role: .human, teamID: .teamA, difficulty: difficulty, seatPosition: 0),
-                PlayerConfig(name: "Left Opponent", role: .ai, teamID: .teamB, difficulty: difficulty, seatPosition: 1),
-                PlayerConfig(name: "Partner", role: .ai, teamID: .teamA, difficulty: difficulty, seatPosition: 2),
-                PlayerConfig(name: "Right Opponent", role: .ai, teamID: .teamB, difficulty: difficulty, seatPosition: 3)
-            ],
+            players: fourPlayerSeats(mode: mode, humanName: "You", partnerName: "Partner",
+                                     partnerRole: .ai, difficulty: difficulty),
             ruleProfile: profile,
             seed: seed
         )
     }
 
-    /// Two-player pass-and-play table (Phase 15): both humans on Team A in the canonical
-    /// partner seats (0 and 2), two AI opponents on Team B (seats 1 and 3).
+    /// Two-player pass-and-play table (Phase 15): both humans on Team A, two AI opponents on
+    /// Team B. Seat layout follows `fourPlayerSeats` for the mode.
     static func twoPlayerPartners(
         mode: GameMode, difficulty: Difficulty, cardSet: CardSet, stackingEnabled: Bool = true,
         playerOneName: String, playerTwoName: String, seed: UInt64? = nil
@@ -251,15 +247,31 @@ extension GameConfig {
         profile.stackDrawCards = stackingEnabled
         return GameConfig(
             mode: mode,
-            players: [
-                PlayerConfig(name: playerOneName, role: .human, teamID: .teamA, difficulty: difficulty, seatPosition: 0),
-                PlayerConfig(name: "Left Opponent", role: .ai, teamID: .teamB, difficulty: difficulty, seatPosition: 1),
-                PlayerConfig(name: playerTwoName, role: .human, teamID: .teamA, difficulty: difficulty, seatPosition: 2),
-                PlayerConfig(name: "Right Opponent", role: .ai, teamID: .teamB, difficulty: difficulty, seatPosition: 3)
-            ],
+            players: fourPlayerSeats(mode: mode, humanName: playerOneName, partnerName: playerTwoName,
+                                     partnerRole: .human, difficulty: difficulty),
             ruleProfile: profile,
             seed: seed
         )
+    }
+
+    /// Seat order for a 2v2 table. Standard and All-Wild alternate teams (You, Opponent,
+    /// Partner, Opponent — an opponent plays after you). **Side-to-Side seats your partner
+    /// immediately after you** (You, Partner, Opponent, Opponent) so your partner takes the very
+    /// next turn (Phase 17 B3, the new default for that mode). The role-based table layout
+    /// (`GameViewState`) keeps you at the bottom, your partner across the top, and the two
+    /// opponents on the sides regardless of these seat indices.
+    private static func fourPlayerSeats(
+        mode: GameMode, humanName: String, partnerName: String,
+        partnerRole: PlayerRole, difficulty: Difficulty
+    ) -> [PlayerConfig] {
+        let partnerSeat = mode == .sideToSide ? 1 : 2
+        let leftOppSeat = mode == .sideToSide ? 2 : 1
+        return [
+            PlayerConfig(name: humanName, role: .human, teamID: .teamA, difficulty: difficulty, seatPosition: 0),
+            PlayerConfig(name: partnerName, role: partnerRole, teamID: .teamA, difficulty: difficulty, seatPosition: partnerSeat),
+            PlayerConfig(name: "Left Opponent", role: .ai, teamID: .teamB, difficulty: difficulty, seatPosition: leftOppSeat),
+            PlayerConfig(name: "Right Opponent", role: .ai, teamID: .teamB, difficulty: difficulty, seatPosition: 3)
+        ].sorted { $0.seatPosition < $1.seatPosition }
     }
 
     private static func ruleProfile(for mode: GameMode) -> RuleProfile {

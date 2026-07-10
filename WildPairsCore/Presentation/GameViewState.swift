@@ -175,12 +175,31 @@ public struct GameViewState: Equatable, Sendable {
         let localSeat = local?.seatPosition ?? 0
         let seatCount = max(state.players.count, 1)
 
+        // Table position: the perspective player sits at the bottom (0) and the table rotates so
+        // opponents keep their spatial arrangement (pass-and-play). On top of that, the partner is
+        // always pinned across the top (2) — needed because Side-to-Side now seats the partner
+        // adjacent to you (Phase 17 B3) rather than directly across. When the partner already
+        // rotates to the top (canonical alternating seating) this is a no-op, so existing layouts
+        // are unchanged; otherwise the partner takes slot 2 and the seat naturally across the top
+        // takes the partner's rotational slot.
+        func rotational(_ seat: Int) -> Int { ((seat - localSeat) % seatCount + seatCount) % seatCount }
+        let partnerRotational = partnerID
+            .flatMap { pid in state.players.first { $0.id == pid }?.seatPosition }
+            .map(rotational)
+        func tablePosition(for p: Player) -> Int {
+            let r = rotational(p.seatPosition)
+            guard let partnerR = partnerRotational, partnerR != 2 else { return r }
+            if p.id == partnerID { return 2 }
+            if r == 2 { return partnerR }
+            return r
+        }
+
         self.seats = state.players
             .sorted { $0.seatPosition < $1.seatPosition }
             .map { p in
                 PlayerSeatViewState(
                     id: p.id, name: p.name, teamID: p.teamID, seatPosition: p.seatPosition,
-                    tablePosition: ((p.seatPosition - localSeat) % seatCount + seatCount) % seatCount,
+                    tablePosition: tablePosition(for: p),
                     handCount: p.hand.count,
                     isCurrentPlayer: state.currentPlayer?.id == p.id,
                     hasFinishedRound: p.hasFinishedRound,

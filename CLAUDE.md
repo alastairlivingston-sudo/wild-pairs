@@ -104,7 +104,7 @@ it, so no other code needed to change.
 |---|---|---|
 | `standardTeams` | Standard Teams | Colour/number/action matching; single-out wins immediately, crediting the team; a 3-minute round timer falls back to lowest-score-wins if nobody goes out |
 | `allWild` | All-Wild Teams | Every card plays on every turn; pure action chaos; same single-out / round-timer win condition |
-| `sideToSide` | Side-to-Side Teams | 2v2 team support; team pass option; same single-out / round-timer win condition |
+| `sideToSide` | Side-to-Side Teams | 2v2; partner seated immediately after you so your partner plays next (Phase 17 B3 default); team pass option; same single-out / round-timer win condition |
 
 Both-teammates-out is a supported house rule (`RuleProfile.winCondition = .bothTeammatesOut`), not the default.
 
@@ -113,7 +113,7 @@ Both-teammates-out is a supported house rule (`RuleProfile.winCondition = .bothT
 
 `discardColour` (Colour Burst, Phase 16) is the coloured cousin of `discardAll`: a coloured
 action card that, on play, discards every card of its own colour from the hand — no colour
-prompt. Advanced set, 1 per colour.
+prompt. Standard set (moved down from Advanced in Phase 17 B4a), 1 per colour.
 
 ### Difficulty levels
 | ID | Strategy | Score multiplier |
@@ -130,7 +130,7 @@ Round-win points are multiplied by the toughest AI opponent's score multiplier.
 | ID | Includes |
 |---|---|
 | `beginner` | Numbers + skip + reverse + changeColour |
-| `standard` | Beginner + drawTwo + drawFour |
+| `standard` | Beginner + drawTwo + drawFour + discardColour |
 | `advanced` | Standard + discardAll + targetedDraw + forcedSwap + skipTwo + teamPlay |
 
 ## Coding Style

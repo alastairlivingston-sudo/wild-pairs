@@ -51,14 +51,24 @@ public enum GameSimulator {
         seed: UInt64 = 0,
         maxTurns: Int = 1000
     ) -> SimulationResult {
-        let config = GameConfig(
-            mode: mode,
-            players: [
+        // Side-to-Side seats the partners adjacent (teams A,A,B,B) so each team plays in
+        // sequence — matching the real game's Phase 17 B3 seating; other modes alternate teams.
+        let players: [PlayerConfig] = mode == .sideToSide
+            ? [
+                PlayerConfig(name: "A0", role: .ai, teamID: .teamA, difficulty: teamADifficulty, seatPosition: 0),
+                PlayerConfig(name: "A1", role: .ai, teamID: .teamA, difficulty: teamADifficulty, seatPosition: 1),
+                PlayerConfig(name: "B2", role: .ai, teamID: .teamB, difficulty: teamBDifficulty, seatPosition: 2),
+                PlayerConfig(name: "B3", role: .ai, teamID: .teamB, difficulty: teamBDifficulty, seatPosition: 3)
+              ]
+            : [
                 PlayerConfig(name: "A0", role: .ai, teamID: .teamA, difficulty: teamADifficulty, seatPosition: 0),
                 PlayerConfig(name: "B1", role: .ai, teamID: .teamB, difficulty: teamBDifficulty, seatPosition: 1),
                 PlayerConfig(name: "A2", role: .ai, teamID: .teamA, difficulty: teamADifficulty, seatPosition: 2),
                 PlayerConfig(name: "B3", role: .ai, teamID: .teamB, difficulty: teamBDifficulty, seatPosition: 3)
-            ],
+              ]
+        let config = GameConfig(
+            mode: mode,
+            players: players,
             ruleProfile: ruleProfile(for: mode),
             seed: seed
         )
