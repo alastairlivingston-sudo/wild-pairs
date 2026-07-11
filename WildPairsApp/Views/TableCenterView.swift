@@ -31,6 +31,9 @@ struct TableCenterView: View {
     /// The last few real discards beneath the top card, drawn fanned underneath as a played
     /// history (Phase 16 discard memory) — oldest→newest.
     var recentDiscards: [Card] = []
+    /// Named table coordinate space for the cross-table travel animation (Phase 17 Stage 3.1);
+    /// the discard reports its frame so ghost cards can land on it. Nil disables reporting.
+    var flightSpace: String? = nil
     let onDraw: () -> Void
 
     /// Escalating "+N" pop shown when the pending draw stack grows (Phase 13).
@@ -172,10 +175,12 @@ struct TableCenterView: View {
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Discard pile. Top card: \(discardCardLabel(top)). Current colour: \(currentColour.displayName).")
+            .reportTableAnchor(.discard, in: flightSpace)
         } else {
             RoundedRectangle(cornerRadius: Theme.Radius.r3)
                 .strokeBorder(Theme.Palette.accent.opacity(0.4), style: StrokeStyle(lineWidth: 1, dash: [4]))
                 .frame(width: cardSize.width, height: cardSize.height)
+                .reportTableAnchor(.discard, in: flightSpace)
         }
     }
 

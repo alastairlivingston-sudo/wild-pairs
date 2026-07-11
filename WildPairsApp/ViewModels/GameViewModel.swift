@@ -20,6 +20,15 @@ struct SeatCueEvent: Equatable {
     let token: Int
 }
 
+/// A played card in flight from the acting seat to the discard pile (Phase 17 Stage 3.1), so
+/// every play — not just the local hand's — is *seen* travelling across the table. `token`
+/// keeps repeat plays of the same card by the same seat distinct.
+struct CardFlightEvent: Equatable {
+    let card: Card
+    let fromSeatID: UUID
+    let token: Int
+}
+
 /// What one finished round means for the local statistics.
 struct RoundResult {
     let localTeamWon: Bool
@@ -52,6 +61,10 @@ final class GameViewModel: ObservableObject {
     /// affected seat so a skip or penalty is *seen*, not just inferred (Phase 17 C3).
     @Published private(set) var seatCue: SeatCueEvent?
     private var seatCueToken = 0
+    /// The most recent played-card flight (Phase 17 Stage 3.1) — the table launches a ghost
+    /// card from the acting seat to the discard when this changes.
+    @Published private(set) var cardFlight: CardFlightEvent?
+    private var cardFlightToken = 0
 
     private let presenter: GamePresenter
     private let settings: AppSettings
@@ -385,9 +398,10 @@ final class GameViewModel: ObservableObject {
     private func handle(_ effects: [GameEffect]) {
         for effect in effects {
             switch effect {
-            case .animateCardPlay(let card, _):
+            case .animateCardPlay(let card, let from):
                 haptics.cardPlay()
                 sound.play(soundEffect(forCardPlay: card))
+                emitCardFlight(card, from: from)
             case .animateCardDraw(let to, let count):
                 if to == displayedHumanID { haptics.cardDrawn() }
                 sound.play(.cardDraw)
@@ -420,6 +434,11 @@ final class GameViewModel: ObservableObject {
     private func emitSeatCue(_ seatIDs: [UUID], _ kind: SeatCueKind) {
         seatCueToken += 1
         seatCue = SeatCueEvent(seatIDs: seatIDs, kind: kind, token: seatCueToken)
+    }
+
+    private func emitCardFlight(_ card: Card, from seatID: UUID) {
+        cardFlightToken += 1
+        cardFlight = CardFlightEvent(card: card, fromSeatID: seatID, token: cardFlightToken)
     }
 
     /// Posts a VoiceOver live-region announcement without moving the accessibility cursor
