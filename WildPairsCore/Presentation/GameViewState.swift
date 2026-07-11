@@ -85,6 +85,8 @@ public enum PromptKind: Equatable, Sendable {
     /// Side-to-Side Teams only: the local player must submit a card to pass to their
     /// partner, or decline.
     case chooseTeamPass
+    /// Draw Four challenge (Phase 17 B2): the local player must challenge the Draw Four or accept it.
+    case challengeDrawFour
     case mustDraw
     /// Draw stacking (Phase 11 F): the local player must stack a matching Draw Two/Four or
     /// draw the whole pending stack.
@@ -147,6 +149,13 @@ public struct GameViewState: Equatable, Sendable {
     /// True when the engine is waiting for the local player to submit their Side-to-Side
     /// Team Pass choice (a card to give their partner, or decline).
     public let awaitingLocalTeamPass: Bool
+    /// True when the local player is the target of a fresh, challengeable Draw Four and must
+    /// decide whether to challenge it (Phase 17 B2, opt-in). Drives the challenge prompt.
+    public let awaitingLocalDrawFourChallenge: Bool
+    /// The name of the player who played the Draw Four being challenged, and the colour that was
+    /// in force before it — for the challenge prompt copy. Nil unless a challenge is pending.
+    public let drawFourChallengedName: String?
+    public let drawFourPriorColour: CardColour?
     /// A seat the local player can legally call out for a missed Solo!, if any.
     public let catchableSoloPlayerID: UUID?
     /// Whether the local player's team won, once `winState` is set (nil while still playing).
@@ -281,6 +290,16 @@ public struct GameViewState: Equatable, Sendable {
         } else {
             self.awaitingLocalTeamPass = false
         }
+        if case .drawFourChallenge(let challengerID, let challengedID, let priorColour, _) = state.pendingDecision,
+           challengerID == localPlayerID {
+            self.awaitingLocalDrawFourChallenge = true
+            self.drawFourChallengedName = state.players.first { $0.id == challengedID }?.name
+            self.drawFourPriorColour = priorColour
+        } else {
+            self.awaitingLocalDrawFourChallenge = false
+            self.drawFourChallengedName = nil
+            self.drawFourPriorColour = nil
+        }
 
         // A non-local seat the local player could catch for a missed Solo!
         self.catchableSoloPlayerID = state.ruleProfile.soloCallEnabled
@@ -372,6 +391,10 @@ public struct GameViewState: Equatable, Sendable {
         }
         if case .teamPass(let pid) = state.pendingDecision {
             return pid == localPlayerID ? .chooseTeamPass : .waitingFor(playerName: name(of: pid, in: state))
+        }
+        if case .drawFourChallenge(let challengerID, _, _, _) = state.pendingDecision {
+            return challengerID == localPlayerID ? .challengeDrawFour
+                                                 : .waitingFor(playerName: name(of: challengerID, in: state))
         }
         if isLocalTurn {
             if let pendingCount = state.pendingDrawCount, state.ruleProfile.stackDrawCards {

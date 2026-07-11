@@ -191,6 +191,26 @@ struct GameTableView: View {
                         }
                     }
 
+                    // Draw Four challenge prompt (Phase 17 B2, opt-in) — an in-table overlay to
+                    // the target of a fresh Draw Four, styled like the colour picker so it never
+                    // covers the hand.
+                    if vs.awaitingLocalDrawFourChallenge {
+                        ZStack {
+                            Color.black.opacity(0.4).ignoresSafeArea()
+                            VStack(spacing: 0) {
+                                Spacer(minLength: 0)
+                                DrawFourChallengeView(
+                                    challengedName: vs.drawFourChallengedName ?? "The previous player",
+                                    priorColour: vs.drawFourPriorColour,
+                                    onChallenge: { vm.resolveDrawFourChallenge(true) },
+                                    onAccept: { vm.resolveDrawFourChallenge(false) })
+                                Spacer(minLength: 0)
+                                Spacer(minLength: 0)
+                            }
+                        }
+                        .transition(.opacity)
+                    }
+
                     // Cross-table played-card travel (Stage 3.1): ghost cards fly from the
                     // acting seat to the discard. Sits above the table but below modals.
                     ForEach(flights) { flight in

@@ -170,11 +170,18 @@ public enum GameSimulator {
             let card = AIPlayer.selectTeamPassCard(observation: observation, difficulty: player.difficulty, rng: &rng)
             return GameEngine.reduce(state: state, action: .submitTeamPass(playerID: playerID, card: card))
 
-        case .drawFourChallenge:
-            // Resolved by advancing past it in simulation — no challenge logic implemented yet (G2).
-            var s = state
-            s.pendingDecision = nil
-            return (s, [])
+        case .drawFourChallenge(let challengerID, let challengedID, let priorColour, _):
+            guard let player = state.players.first(where: { $0.id == challengerID }) else {
+                return (state, [])
+            }
+            let observation = AIObservation(from: state, for: challengerID)
+            let challenge = AIPlayer.shouldChallengeDrawFour(
+                observation: observation, priorColour: priorColour, challengedID: challengedID,
+                difficulty: player.difficulty, rng: &rng)
+            let action: GameAction = challenge
+                ? .challengeDrawFour(challengerID: challengerID)
+                : .acceptDrawFour(challengerID: challengerID)
+            return GameEngine.reduce(state: state, action: action)
         }
     }
 

@@ -165,15 +165,18 @@ struct NewGameFlowView: View {
     private var startButton: some View {
         Button {
             let stacking = settings.userSettings.stackingEnabled
+            let challenge = settings.userSettings.drawFourChallengeEnabled
             switch playerSetup {
             case .solo:
                 onStart(.standardFourPlayer(mode: mode, difficulty: difficulty, cardSet: cardSet,
-                                            stackingEnabled: stacking))
+                                            stackingEnabled: stacking,
+                                            drawFourChallengeEnabled: challenge))
             case .twoPlayer:
                 let (one, two) = resolvedNames
                 settings.userSettings.rememberPlayerNames([one, two])
                 onStart(.twoPlayerPartners(mode: mode, difficulty: difficulty, cardSet: cardSet,
                                            stackingEnabled: stacking,
+                                           drawFourChallengeEnabled: challenge,
                                            playerOneName: one, playerTwoName: two))
             }
         } label: {
@@ -222,11 +225,12 @@ extension GameConfig {
     /// Canonical 1-human + 3-AI table (seats 0,2 = Team A; 1,3 = Team B).
     static func standardFourPlayer(
         mode: GameMode, difficulty: Difficulty, cardSet: CardSet, stackingEnabled: Bool = true,
-        seed: UInt64? = nil
+        drawFourChallengeEnabled: Bool = false, seed: UInt64? = nil
     ) -> GameConfig {
         var profile = ruleProfile(for: mode)
         profile.cardSet = cardSet
         profile.stackDrawCards = stackingEnabled
+        profile.drawFourChallengeable = drawFourChallengeEnabled
         return GameConfig(
             mode: mode,
             players: fourPlayerSeats(mode: mode, humanName: "You", partnerName: "Partner",
@@ -240,11 +244,13 @@ extension GameConfig {
     /// Team B. Seat layout follows `fourPlayerSeats` for the mode.
     static func twoPlayerPartners(
         mode: GameMode, difficulty: Difficulty, cardSet: CardSet, stackingEnabled: Bool = true,
+        drawFourChallengeEnabled: Bool = false,
         playerOneName: String, playerTwoName: String, seed: UInt64? = nil
     ) -> GameConfig {
         var profile = ruleProfile(for: mode)
         profile.cardSet = cardSet
         profile.stackDrawCards = stackingEnabled
+        profile.drawFourChallengeable = drawFourChallengeEnabled
         return GameConfig(
             mode: mode,
             players: fourPlayerSeats(mode: mode, humanName: playerOneName, partnerName: playerTwoName,

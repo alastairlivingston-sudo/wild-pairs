@@ -61,8 +61,8 @@ public final class GamePresenter {
             return humanPlayer(pid)?.id
         case .targetChoice(let pid, _):
             return humanPlayer(pid)?.id
-        case .drawFourChallenge:
-            return nil
+        case .drawFourChallenge(let challengerID, _, _, _):
+            return humanPlayer(challengerID)?.id
         case .none:
             break
         }
@@ -117,8 +117,14 @@ public final class GamePresenter {
             let card = AIPlayer.selectTeamPassCard(observation: observation(for: pid),
                                                    difficulty: player.difficulty, rng: &rng)
             return .submitTeamPass(playerID: pid, card: card)
-        case .drawFourChallenge:
-            return nil
+        case .drawFourChallenge(let challengerID, let challengedID, let priorColour, _):
+            guard let player = aiPlayer(challengerID) else { return nil }
+            let challenge = AIPlayer.shouldChallengeDrawFour(
+                observation: observation(for: challengerID),
+                priorColour: priorColour, challengedID: challengedID,
+                difficulty: player.difficulty, rng: &rng)
+            return challenge ? .challengeDrawFour(challengerID: challengerID)
+                             : .acceptDrawFour(challengerID: challengerID)
         case .none:
             break
         }
@@ -171,6 +177,11 @@ public final class GamePresenter {
     }
     @discardableResult public func callOut(_ targetID: UUID, as playerID: UUID? = nil) -> [GameEffect] {
         dispatch(.callOutSolo(targetPlayerID: targetID, callerID: playerID ?? localPlayerID))
+    }
+    /// Draw Four challenge (Phase 17 B2): `challenge` true to challenge, false to accept.
+    @discardableResult public func resolveDrawFourChallenge(_ challenge: Bool, as playerID: UUID? = nil) -> [GameEffect] {
+        let id = playerID ?? localPlayerID
+        return dispatch(challenge ? .challengeDrawFour(challengerID: id) : .acceptDrawFour(challengerID: id))
     }
     @discardableResult public func beginNewRound() -> [GameEffect] {
         dispatch(.beginNewRound)

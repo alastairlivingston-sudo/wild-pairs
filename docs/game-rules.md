@@ -700,12 +700,11 @@ The first card flipped to start the discard pile can be an action card, not just
 | Draw Four | Wild cards are never used as the starting card — one is reshuffled back into the deck and another card is flipped instead (see "Draw Pile Exhaustion" wild-card handling above). |
 | Number / other action | No special effect — the first player opens play normally. |
 
-## Draw Four Challenge (Optional House Rule — Phase 17 numeric spec, default OFF)
+## Draw Four Challenge (Optional House Rule — Phase 17, BUILT, default OFF)
 
-This section pins the exact challenge behaviour and penalty numbers that Phase 11 deferred, so
-the scaffolded flow can be built without further design decisions. The rule is gated by
-`RuleProfile.drawFourChallengeable`, which is **`false` in all three factory profiles** — turning
-it on is a pure addition and changes nothing about default play.
+Implemented in Phase 17 B2 and gated by `RuleProfile.drawFourChallengeable`, which is **`false` in
+all three factory profiles** (surfaced by the Settings toggle "Draw Four challenge", applied at
+new-game time). Turning it on is a pure addition and changes nothing about default play.
 
 **What the flag changes.** When ON, a Draw Four may be played as a *bluff*: it becomes legal to
 play even while the player still holds a colour-matching card (`GameRules.drawFourIsLegal` already
@@ -715,10 +714,16 @@ Four may challenge it.
 **When the option appears.** Immediately after the Draw Four's colour is chosen and its +4 lands
 on the target (the next player in turn order), and *before* that target resolves the penalty, the
 target is offered a one-time choice: **Challenge**, or **Accept**. Accepting falls straight
-through to the existing behaviour unchanged — the target absorbs the pending total, or, if draw
-stacking is ON, answers with their own Draw Four / Draw Eight per the stacking rules. Only the
-immediate target may challenge, and only the Draw Four just played (not one buried earlier in a
-stack).
+through to the existing behaviour unchanged — the target absorbs the +4, or, if draw stacking is
+ON, answers with their own Draw Four / Draw Eight per the stacking rules.
+
+**Only a *fresh* Draw Four is challengeable.** A Draw Four played to *answer a pending draw stack*
+is **not** challengeable: while a draw stack is pending, a same-colour card is never a legal
+alternative (only escalating draw cards may be played), so the "you held a colour match" allegation
+could never be fair. The engine therefore raises the challenge decision only when no draw was
+pending at the moment the Draw Four was played — which also means the amount at stake is always
+exactly the fresh **+4** (a stacked chain simply resolves through the normal stack-or-absorb flow
+with no challenge offered on the stacked cards).
 
 **Resolving a challenge.** Reveal the challenged player's hand and check whether it contained a
 card matching **the active colour in force *before* the Draw Four's own colour choice** — i.e.
@@ -727,13 +732,12 @@ colour on the `.drawFourChallenge` decision, since `selectColour` overwrites `cu
 
 | Outcome | Meaning | Penalty |
 |---|---|---|
-| **Challenge succeeds** | The challenged player *did* hold a colour-matching card — the Draw Four was a bluff. | The **challenged player** draws the pending total instead (the +4 plus any earlier stacked penalty). The target draws nothing and takes their turn normally. |
-| **Challenge fails** | The challenged player held no colour-matching card — the Draw Four was legal. | The **challenger** draws the pending total **plus 2** extra cards, then is skipped as a normal Draw Four target would be. |
+| **Challenge succeeds** | The challenged player *did* hold a colour-matching card — the Draw Four was a bluff. | The **challenged player** draws the 4 instead. The target draws nothing and takes their turn normally. |
+| **Challenge fails** | The challenged player held no colour-matching card — the Draw Four was legal. | The **challenger** draws the 4 **plus 2** extra cards (6 total), then is skipped as a normal Draw Four target would be. |
 
-These are the standard convention (bluffer draws the 4; a wrong challenger draws 4 + 2 = 6),
-generalised to the pending-stack **total** so a challenge on top of a stack stays consistent. No
-new numeric `RuleProfile` fields are needed — the "+2 wrong-challenge penalty" is a fixed
-constant of the rule (expose it as a named constant if a future profile must tune it).
+These are the standard convention: a caught bluffer draws the 4; a wrong challenger draws 4 + 2 =
+6. No new numeric `RuleProfile` fields are needed — the "+2 wrong-challenge penalty" is a fixed
+constant (`GameRules.drawFourWrongChallengePenalty`).
 
 **Interaction with draw stacking.** The challenge is offered *before* the target chooses to stack
 or absorb. Challenging resolves the pending penalty directly (no stacking for that decision);

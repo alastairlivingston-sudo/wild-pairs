@@ -19,6 +19,10 @@ public struct UserSettings: Codable, Equatable, Sendable {
     /// instead of drawing, accumulating the penalty. Core rule, on by default; this toggle is
     /// the house-rule escape hatch. Applied to `RuleProfile.stackDrawCards` at new-game time.
     public var stackingEnabled: Bool
+    /// Draw Four challenge (Phase 17 B2): an optional house rule. When on, a Draw Four may be
+    /// played as a bluff and its target may challenge it. Off by default. Applied to
+    /// `RuleProfile.drawFourChallengeable` at new-game time. See `docs/game-rules.md`.
+    public var drawFourChallengeEnabled: Bool
 
     // Accessibility
     public var hapticsEnabled: Bool
@@ -48,6 +52,7 @@ public struct UserSettings: Codable, Equatable, Sendable {
         largeCards: Bool = false,
         hasSeenOnboarding: Bool = false,
         stackingEnabled: Bool = true,
+        drawFourChallengeEnabled: Bool = false,
         savedPlayerNames: [String] = []
     ) {
         self.animationSpeed = animationSpeed
@@ -60,6 +65,7 @@ public struct UserSettings: Codable, Equatable, Sendable {
         self.largeCards = largeCards
         self.hasSeenOnboarding = hasSeenOnboarding
         self.stackingEnabled = stackingEnabled
+        self.drawFourChallengeEnabled = drawFourChallengeEnabled
         self.savedPlayerNames = savedPlayerNames
     }
 
@@ -91,6 +97,7 @@ public struct UserSettings: Codable, Equatable, Sendable {
         largeCards = try c.decodeIfPresent(Bool.self, forKey: .largeCards) ?? false
         hasSeenOnboarding = try c.decodeIfPresent(Bool.self, forKey: .hasSeenOnboarding) ?? false
         stackingEnabled = try c.decodeIfPresent(Bool.self, forKey: .stackingEnabled) ?? true
+        drawFourChallengeEnabled = try c.decodeIfPresent(Bool.self, forKey: .drawFourChallengeEnabled) ?? false
         savedPlayerNames = try c.decodeIfPresent([String].self, forKey: .savedPlayerNames) ?? []
     }
 }
