@@ -23,7 +23,15 @@ flagged **[NEEDS DESIGN]**.
 - **B2 Draw Four challenge** — exact numbers now pinned in `docs/game-rules.md` §Draw Four Challenge; opt-in (default off). Not started: it threads through the just-hardened stacking flow and adds a decision point — wants scope/number sign-off first. See §B2 below.
 - **D1 partner-view (pass-and-play) table redesign** — design-led; recommended via a short design-direction-lab for 2–3 directions before building. See §D below. **[NEEDS DESIGN]**
 
-**Flagged follow-ups:** accessibility audit of the now-baked-in colour-blind patterns at small hand sizes (art carries them always-on); the `showPattern` toggle is visually moot under the Solo skin though VoiceOver `patternName` is retained.
+**Accessibility check (Phase 17, verified by inspection):** VoiceOver is **intact** for the new
+image skin — `CardView`'s accessibility lives on the skin-independent shell
+(`CardView.swift:56–59`), deriving the label from the engine `Card` (colour + type +
+`accessibilityDescription` + pattern name), so swapping to `soloArt` cannot lose it. Two residual
+notes for a fuller audit pass: (1) the Solo art bakes the colour-blind pattern in **always-on**,
+so the `patternFills` setting no longer changes the *visual*, yet the spoken "…pattern" suffix is
+still gated on `showPattern` — harmless (VoiceOver users rely on the always-present spoken
+colour+type) but worth reconciling; (2) confirm the baked patterns + corner symbols still read at
+the smallest two-row hand sizes — recommend a visual QA sweep in colour-blind mode.
 
 ---
 
