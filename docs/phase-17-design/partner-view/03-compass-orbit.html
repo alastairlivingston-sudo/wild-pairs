@@ -1,0 +1,117 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>D1 · Compass Orbit</title>
+<style>
+  :root{--fire:#E24A3B;--rain:#2E7BFF;--earth:#16C98A;--wind:#E8A23D;--teal:#36E0C8;--ink:#EEF0FF;}
+  *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif}
+  body{background:#05060a;display:flex;justify-content:center;padding:18px;color:var(--ink)}
+  .phone{width:390px;height:820px;border-radius:44px;padding:12px;
+    background:radial-gradient(120% 90% at 50% 50%,#141a2e,#0a0b18 62%,#07070f);
+    box-shadow:0 0 0 10px #1a1c24,0 30px 80px rgba(0,0,0,.6);position:relative;overflow:hidden;
+    display:flex;flex-direction:column;align-items:center;justify-content:space-between}
+  .felt{position:absolute;inset:0;background:
+    repeating-linear-gradient(135deg,rgba(255,255,255,.02) 0 2px,transparent 2px 22px);pointer-events:none}
+  .name{font-size:12px;font-weight:700}
+  .count{background:var(--teal);color:#04130f;font-weight:800;font-size:11px;border-radius:999px;padding:1px 8px;display:inline-block}
+  .count.urgent{background:var(--wind)}
+  .card{width:44px;height:63px;border-radius:9px;background:linear-gradient(160deg,#1b1723,#0b0910);
+    border:1.5px solid rgba(255,255,255,.14);position:relative;flex:0 0 auto;box-shadow:0 4px 10px rgba(0,0,0,.45)}
+  .card b{position:absolute;top:4px;left:5px;font-size:11px;font-weight:800}
+  .card .g{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:23px;font-weight:900}
+  .card.back{background:linear-gradient(160deg,#0b0910,#05040a);border-color:rgba(54,224,200,.25)}
+  .card.back .g{color:var(--teal);font-size:12px;opacity:.85}
+  .fire{color:var(--fire)}.rain{color:var(--rain)}.earth{color:var(--earth)}.wind{color:var(--wind)}
+  .fan{display:flex;justify-content:center}.fan .card{margin-left:-14px}.fan .card:first-child{margin-left:0}
+  .fan.mini .card{width:30px;height:44px;margin-left:-12px}
+  .flip{transform:rotate(180deg)}
+  .seatlabel{font-size:11px;margin-top:4px;text-align:center}
+  .top{z-index:1;text-align:center;padding-top:6px}
+  .mid{flex:1;width:100%;display:flex;align-items:center;justify-content:space-between;z-index:1}
+  .col{width:70px;text-align:center}.col .fan{transform:rotate(90deg);transform-origin:center;height:70px}
+  .col.right .fan{transform:rotate(-90deg)}
+  /* compass */
+  .compass{width:196px;height:196px;position:relative;display:flex;align-items:center;justify-content:center}
+  .ring{position:absolute;inset:0;border-radius:50%;border:2px dashed rgba(255,255,255,.10)}
+  .arc{position:absolute;inset:0;border-radius:50%;
+    background:conic-gradient(from 90deg,rgba(54,224,200,.0) 0deg,rgba(54,224,200,.55) 70deg,rgba(54,224,200,0) 130deg);
+    -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 14px),#000 calc(100% - 13px));
+            mask:radial-gradient(farthest-side,transparent calc(100% - 14px),#000 calc(100% - 13px))}
+  .pip{position:absolute;width:12px;height:12px;border-radius:50%;background:#2a2d3a;border:1.5px solid #444}
+  .pip.n{top:-4px;left:50%;transform:translateX(-50%)}
+  .pip.s{bottom:-4px;left:50%;transform:translateX(-50%);background:var(--teal);border-color:var(--teal);box-shadow:0 0 12px var(--teal)}
+  .pip.e{right:-4px;top:50%;transform:translateY(-50%)}.pip.w{left:-4px;top:50%;transform:translateY(-50%)}
+  .core{width:120px;height:120px;border-radius:50%;background:radial-gradient(circle at 50% 40%,#12203a,#0a0f1e);
+    border:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+  .discard{width:56px;height:80px;border-radius:10px;background:linear-gradient(160deg,#1b2740,#0b1220);
+    border:2px solid rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;position:relative;box-shadow:0 6px 18px rgba(46,123,255,.4)}
+  .discard b{position:absolute;top:5px;left:7px;font-size:12px}.discard .g{font-size:30px;font-weight:900}
+  .chip{display:inline-flex;align-items:center;gap:5px;background:linear-gradient(#3a8bff,#2E7BFF);color:#fff;
+    font-weight:700;font-size:11px;border-radius:999px;padding:2px 9px;box-shadow:0 0 14px rgba(46,123,255,.5)}
+  .draw{position:absolute;left:-2px;bottom:8px;width:36px;height:52px;border-radius:8px;
+    background:linear-gradient(160deg,#0b0910,#05040a);border:1.5px solid rgba(54,224,200,.3);color:var(--teal);
+    display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800}
+  .arrow{position:absolute;bottom:26px;left:50%;transform:translateX(-50%);color:var(--teal);font-weight:800;font-size:12px}
+  .bottom{z-index:1;text-align:center;padding-bottom:8px}
+  .solo{background:var(--wind);color:#3a2a02;font-weight:800;font-size:12px;border-radius:999px;padding:3px 13px;border:none;margin-left:8px}
+  .cap{position:absolute;bottom:0;left:0;right:0;background:#0a0b14;color:#9aa0b4;font-size:11px;padding:8px 14px;
+    text-align:center;line-height:1.4;z-index:3;border-top:1px solid #1c1e2a}
+  .cap b{color:var(--teal)}
+</style></head>
+<body>
+<div class="phone"><div class="felt"></div>
+
+  <!-- North: Beth (rotated 180°) -->
+  <div class="top">
+    <div class="fan flip">
+      <div class="card"><b class="wind">2</b><div class="g wind">2</div></div>
+      <div class="card"><b class="rain">↺</b><div class="g rain">↺</div></div>
+      <div class="card"><b class="fire">7</b><div class="g fire">7</div></div>
+      <div class="card"><b class="earth">4</b><div class="g earth">4</div></div>
+    </div>
+    <div class="seatlabel flip"><span class="name">Beth</span> <span class="count">4</span></div>
+  </div>
+
+  <!-- Middle: W opponent · compass · E opponent -->
+  <div class="mid">
+    <div class="col left">
+      <div class="fan mini"><div class="card back"><div class="g">WP</div></div>
+        <div class="card back"><div class="g">WP</div></div></div>
+      <div class="seatlabel"><span class="name">Left</span> <span class="count urgent">6</span></div>
+    </div>
+
+    <div class="compass">
+      <div class="ring"></div><div class="arc"></div>
+      <div class="pip n"></div><div class="pip e"></div><div class="pip s"></div><div class="pip w"></div>
+      <div class="arrow">↻</div>
+      <div class="core">
+        <div class="discard"><b class="rain">7</b><div class="g rain">7</div><div class="draw">41</div></div>
+        <div class="chip">≈ Rain</div>
+      </div>
+    </div>
+
+    <div class="col right">
+      <div class="fan mini"><div class="card back"><div class="g">WP</div></div>
+        <div class="card back"><div class="g">WP</div></div></div>
+      <div class="seatlabel"><span class="name">Right</span> <span class="count">4</span></div>
+    </div>
+  </div>
+
+  <!-- South: You (active — the compass arc + lit pip point here) -->
+  <div class="bottom">
+    <div class="seatlabel"><span class="name" style="color:var(--teal)">You</span>
+      <span class="count">5</span> <span style="color:var(--teal);font-size:10px">● your turn</span>
+      <button class="solo">Solo!</button></div>
+    <div class="fan">
+      <div class="card"><b class="fire">5</b><div class="g fire">5</div></div>
+      <div class="card"><b class="rain">7</b><div class="g rain">7</div></div>
+      <div class="card"><b class="earth">3</b><div class="g earth">3</div></div>
+      <div class="card"><b class="wind">9</b><div class="g wind">9</div></div>
+      <div class="card"><b class="rain">⊘</b><div class="g rain">⊘</div></div>
+    </div>
+  </div>
+
+  <div class="cap"><b>03 · Compass Orbit.</b> Four seats at N/E/S/W around a central compass; the glowing
+    <b>arc + lit pip</b> point to whoever's turn it is and rotate in the direction of play, so all four
+    read the order from one shared centre. Beth (N) is flipped; opponents (E/W) sit sideways.</div>
+</div>
+</body></html>
