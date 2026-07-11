@@ -46,6 +46,8 @@ struct TableCenterView: View {
     /// Accumulated spin for the direction chip — bumped ±360° whenever play reverses so the
     /// flip is *felt* (Phase 17 C2+).
     @State private var directionSpin: Double = 0
+    /// Momentary "Reversed!" flash by the direction chip when play flips (Phase 17 Stage 3.4).
+    @State private var showReversed = false
 
     /// Draw pile back — slightly smaller than the discard so the discard stays the focal
     /// element, but large enough to read as a real, tappable deck (the previous 38pt back was
@@ -248,6 +250,20 @@ struct TableCenterView: View {
         .background(Capsule().fill(Theme.Palette.accent.opacity(0.9)))
         .overlay(Capsule().strokeBorder(.white.opacity(0.3), lineWidth: 1))
         .shadow(color: reducedMotion ? .clear : Theme.Palette.accent.opacity(0.5), radius: 6)
+        .overlay(alignment: .top) {
+            if showReversed {
+                Text("Reversed!")
+                    .font(.caption2).fontWeight(.heavy)
+                    .foregroundStyle(Theme.Palette.onAccent)
+                    .padding(.horizontal, Theme.Space.s2).padding(.vertical, 3)
+                    .background(Capsule().fill(Theme.Palette.warning))
+                    .shadow(color: .black.opacity(0.35), radius: 4, y: 2)
+                    .offset(y: -26)
+                    .transition(.scale(scale: 0.4).combined(with: .opacity))
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
         .accessibilityElement()
         .accessibilityLabel(turnDirection == .clockwise ? "Play direction clockwise" : "Play direction counter-clockwise")
     }
@@ -271,6 +287,10 @@ struct TableCenterView: View {
         guard !reducedMotion else { return }
         withAnimation(.spring(response: 0.5, dampingFraction: 0.55)) {
             directionSpin += (turnDirection == .clockwise ? 360 : -360)
+        }
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) { showReversed = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            withAnimation(.easeOut(duration: 0.3)) { showReversed = false }
         }
     }
 }

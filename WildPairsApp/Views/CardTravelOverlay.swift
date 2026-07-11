@@ -104,3 +104,38 @@ struct FlyingBackView: View {
             }
     }
 }
+
+/// The turn hand-off spotlight (Phase 17 Stage 3.3): a glowing orb sweeps from the seat that
+/// just finished to the seat whose turn it now is, so *which way the turn went, and to whom* is
+/// felt rather than only inferred from the destination seat lighting up.
+struct TurnSpotlight: Identifiable, Equatable {
+    let id = UUID()
+    let from: CGPoint
+    let to: CGPoint
+}
+
+struct TurnSpotlightView: View {
+    let spotlight: TurnSpotlight
+    let tint: Color
+    let onComplete: () -> Void
+
+    @State private var arrived = false
+    @State private var faded = false
+
+    var body: some View {
+        Circle()
+            .fill(RadialGradient(colors: [tint.opacity(0.95), tint.opacity(0)],
+                                 center: .center, startRadius: 1, endRadius: 30))
+            .frame(width: 60, height: 60)
+            .scaleEffect(arrived ? 1.0 : 0.55)
+            .opacity(faded ? 0 : 0.9)
+            .position(arrived ? spotlight.to : spotlight.from)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 0.34)) { arrived = true }
+                withAnimation(.easeOut(duration: 0.14).delay(0.26)) { faded = true }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.44, execute: onComplete)
+            }
+    }
+}

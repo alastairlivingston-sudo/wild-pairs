@@ -26,9 +26,13 @@ struct GameTableView: View {
     @State private var flights: [CardFlight] = []
     /// Card-backs currently flying from the draw pile to a seat (Phase 17 Stage 3.5).
     @State private var drawFlights: [DrawFlight] = []
+    /// Turn hand-off spotlights sweeping from the finishing seat to the next (Phase 17 Stage 3.3).
+    @State private var spotlights: [TurnSpotlight] = []
     private let tableSpace = "wpTable"
 
     private var vs: GameViewState { vm.viewState }
+    /// Table position (0…3) of the seat whose turn it currently is — drives the hand-off sweep.
+    private var currentSeatPosition: Int? { vs.seats.first { $0.isCurrentPlayer }?.tablePosition }
     private var handCardSize: CGSize {
         let large = settings.userSettings.largeCards
         // iPad hand reads larger so the deck has real presence on the wide canvas (ux-spec §7).
@@ -171,6 +175,14 @@ struct GameTableView: View {
                         .transition(.opacity)
                     }
 
+                    // Turn hand-off sweep (Stage 3.3): a glowing orb travels from the finishing
+                    // seat to the next, under the flying cards so a play/draw reads on top.
+                    ForEach(spotlights) { spot in
+                        TurnSpotlightView(spotlight: spot, tint: elementGlow) {
+                            spotlights.removeAll { $0.id == spot.id }
+                        }
+                    }
+
                     // Cross-table draw travel (Stage 3.5): card-backs fly from the draw pile to
                     // the drawing seat, staggered so a big penalty visibly takes longer.
                     ForEach(drawFlights) { flight in
@@ -192,6 +204,7 @@ struct GameTableView: View {
                 .onPreferenceChange(TableAnchorPreference.self) { tableAnchors = $0 }
                 .onChange(of: vm.cardFlight) { _, event in launchFlight(event) }
                 .onChange(of: vm.drawFlight) { _, event in launchDrawFlights(event) }
+                .onChange(of: currentSeatPosition) { old, new in launchSpotlight(from: old, to: new) }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
@@ -432,6 +445,17 @@ struct GameTableView: View {
     /// A travelling card-back reads best a touch smaller than the focal discard.
     private func drawFlightSize(_ centerSize: CGSize) -> CGSize {
         CGSize(width: centerSize.width * 0.72, height: centerSize.height * 0.72)
+    }
+
+    /// Sweep a spotlight orb from the finishing seat to the seat whose turn it now is (Stage 3.3).
+    /// No-op when motion is off, the turn didn't actually move seats, or an anchor is unmeasured.
+    private func launchSpotlight(from old: Int?, to new: Int?) {
+        guard !travelDisabled, let old, let new, old != new,
+              let fromRect = tableAnchors[.seat(old)],
+              let toRect = tableAnchors[.seat(new)] else { return }
+        spotlights.append(TurnSpotlight(
+            from: CGPoint(x: fromRect.midX, y: fromRect.midY),
+            to: CGPoint(x: toRect.midX, y: toRect.midY)))
     }
 
     private var targetCandidates: [PlayerSeatViewState] {
