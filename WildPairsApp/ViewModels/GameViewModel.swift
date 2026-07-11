@@ -29,6 +29,14 @@ struct CardFlightEvent: Equatable {
     let token: Int
 }
 
+/// A draw in flight from the draw pile to a seat's hand (Phase 17 Stage 3.5). `count` card-
+/// backs fly, staggered, so a big penalty pickup visibly takes longer than a single draw.
+struct DrawFlightEvent: Equatable {
+    let toSeatID: UUID
+    let count: Int
+    let token: Int
+}
+
 /// What one finished round means for the local statistics.
 struct RoundResult {
     let localTeamWon: Bool
@@ -65,6 +73,10 @@ final class GameViewModel: ObservableObject {
     /// card from the acting seat to the discard when this changes.
     @Published private(set) var cardFlight: CardFlightEvent?
     private var cardFlightToken = 0
+    /// The most recent draw flight (Phase 17 Stage 3.5) — the table launches `count` card-backs
+    /// from the draw pile to the target seat when this changes.
+    @Published private(set) var drawFlight: DrawFlightEvent?
+    private var drawFlightToken = 0
 
     private let presenter: GamePresenter
     private let settings: AppSettings
@@ -405,6 +417,7 @@ final class GameViewModel: ObservableObject {
             case .animateCardDraw(let to, let count):
                 if to == displayedHumanID { haptics.cardDrawn() }
                 sound.play(.cardDraw)
+                emitDrawFlight(to: to, count: count)
                 // Surface a penalty draw (2+ cards forced by a stack/effect) on the target seat.
                 if count >= 2 { emitSeatCue([to], .drew(count)) }
             case .animateSkip(let pid):
@@ -439,6 +452,11 @@ final class GameViewModel: ObservableObject {
     private func emitCardFlight(_ card: Card, from seatID: UUID) {
         cardFlightToken += 1
         cardFlight = CardFlightEvent(card: card, fromSeatID: seatID, token: cardFlightToken)
+    }
+
+    private func emitDrawFlight(to seatID: UUID, count: Int) {
+        drawFlightToken += 1
+        drawFlight = DrawFlightEvent(toSeatID: seatID, count: count, token: drawFlightToken)
     }
 
     /// Posts a VoiceOver live-region announcement without moving the accessibility cursor

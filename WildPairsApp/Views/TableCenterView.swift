@@ -131,6 +131,7 @@ struct TableCenterView: View {
                ?? "Double tap to draw a card")
             : "")
         .accessibilityIdentifier("game-draw-card-button")
+        .reportTableAnchor(.drawPile, in: flightSpace)
     }
 
     @ViewBuilder private func drawHint(_ text: String, emphatic: Bool) -> some View {

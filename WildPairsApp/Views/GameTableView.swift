@@ -24,6 +24,8 @@ struct GameTableView: View {
     @State private var tableAnchors: [TableAnchor: CGRect] = [:]
     /// Ghost cards currently flying from an acting seat to the discard.
     @State private var flights: [CardFlight] = []
+    /// Card-backs currently flying from the draw pile to a seat (Phase 17 Stage 3.5).
+    @State private var drawFlights: [DrawFlight] = []
     private let tableSpace = "wpTable"
 
     private var vs: GameViewState { vm.viewState }
@@ -169,6 +171,14 @@ struct GameTableView: View {
                         .transition(.opacity)
                     }
 
+                    // Cross-table draw travel (Stage 3.5): card-backs fly from the draw pile to
+                    // the drawing seat, staggered so a big penalty visibly takes longer.
+                    ForEach(drawFlights) { flight in
+                        FlyingBackView(flight: flight, cardSize: drawFlightSize(centerSize)) {
+                            drawFlights.removeAll { $0.id == flight.id }
+                        }
+                    }
+
                     // Cross-table played-card travel (Stage 3.1): ghost cards fly from the
                     // acting seat to the discard. Sits above the table but below modals.
                     ForEach(flights) { flight in
@@ -181,6 +191,7 @@ struct GameTableView: View {
                 .coordinateSpace(name: tableSpace)
                 .onPreferenceChange(TableAnchorPreference.self) { tableAnchors = $0 }
                 .onChange(of: vm.cardFlight) { _, event in launchFlight(event) }
+                .onChange(of: vm.drawFlight) { _, event in launchDrawFlights(event) }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
@@ -400,6 +411,27 @@ struct GameTableView: View {
             card: event.card,
             from: CGPoint(x: fromRect.midX, y: fromRect.midY),
             to: CGPoint(x: toRect.midX, y: toRect.midY)))
+    }
+
+    /// Launch `count` card-backs from the draw pile to the drawing seat (Stage 3.5), staggered
+    /// so the pickup's duration scales with how many cards it is. Visible backs are capped, but
+    /// the stagger still lengthens for the true count so a 6-card penalty reads longer than one.
+    private func launchDrawFlights(_ event: DrawFlightEvent?) {
+        guard let event, !travelDisabled,
+              let seat = vs.seats.first(where: { $0.id == event.toSeatID }),
+              let fromRect = tableAnchors[.drawPile],
+              let toRect = tableAnchors[.seat(seat.tablePosition)] else { return }
+        let from = CGPoint(x: fromRect.midX, y: fromRect.midY)
+        let to = CGPoint(x: toRect.midX, y: toRect.midY)
+        let visible = min(max(event.count, 1), 8)
+        for i in 0..<visible {
+            drawFlights.append(DrawFlight(from: from, to: to, delay: Double(i) * 0.11))
+        }
+    }
+
+    /// A travelling card-back reads best a touch smaller than the focal discard.
+    private func drawFlightSize(_ centerSize: CGSize) -> CGSize {
+        CGSize(width: centerSize.width * 0.72, height: centerSize.height * 0.72)
     }
 
     private var targetCandidates: [PlayerSeatViewState] {

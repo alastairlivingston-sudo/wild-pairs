@@ -12,6 +12,7 @@ import WildPairsCore
 enum TableAnchor: Hashable {
     case seat(Int)   // tablePosition 0 (you) … 3
     case discard
+    case drawPile
 }
 
 /// Collects `[TableAnchor: CGRect]` from every reporter up the tree into one dictionary.
@@ -68,6 +69,38 @@ struct FlyingCardView: View {
             .onAppear {
                 withAnimation(Theme.Motion.playArc) { arrived = true }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.42, execute: onComplete)
+            }
+    }
+}
+
+/// One drawn card-back travelling from the draw pile to a hand (Phase 17 Stage 3.5). A penalty
+/// draw launches several of these with staggered `delay`s, so the pickup reads longer the more
+/// cards it is; each fades as it lands so the real card taking its place in the hand shows.
+struct DrawFlight: Identifiable, Equatable {
+    let id = UUID()
+    let from: CGPoint
+    let to: CGPoint
+    let delay: Double
+}
+
+struct FlyingBackView: View {
+    let flight: DrawFlight
+    let cardSize: CGSize
+    let onComplete: () -> Void
+
+    @State private var arrived = false
+
+    var body: some View {
+        CardBackView(size: cardSize)
+            .shadow(color: .black.opacity(0.3), radius: 6, y: 3)
+            .scaleEffect(arrived ? 0.92 : 0.72)
+            .opacity(arrived ? 0 : 1)
+            .position(arrived ? flight.to : flight.from)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+            .onAppear {
+                withAnimation(Theme.Motion.draw.delay(flight.delay)) { arrived = true }
+                DispatchQueue.main.asyncAfter(deadline: .now() + flight.delay + 0.5, execute: onComplete)
             }
     }
 }
