@@ -52,6 +52,53 @@ struct ColourPickerView: View {
     }
 }
 
+/// "Challenge this Draw Four?" prompt (Phase 17 B2, opt-in) — shown as an in-table overlay to the
+/// target of a fresh Draw Four. Challenging alleges the player bluffed (held a card of the colour
+/// in force before the wild); if right the bluffer draws instead, if wrong the challenger draws
+/// extra. Shown only when `RuleProfile.drawFourChallengeable` is on.
+struct DrawFourChallengeView: View {
+    let challengedName: String
+    let priorColour: CardColour?
+    let onChallenge: () -> Void
+    let onAccept: () -> Void
+
+    var body: some View {
+        VStack(spacing: Theme.Space.s3) {
+            Text("Challenge the Draw Four?").font(.headline).fontWeight(.semibold)
+                .foregroundStyle(.white).multilineTextAlignment(.center)
+            Text(promptDetail)
+                .font(.subheadline).foregroundStyle(.white.opacity(0.85))
+                .multilineTextAlignment(.center)
+
+            VStack(spacing: Theme.Space.s2) {
+                Button { onChallenge() } label: {
+                    Label("Challenge", systemImage: "exclamationmark.shield.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.wpPrimary)
+                .accessibilityIdentifier("drawfour-challenge")
+
+                Button { onAccept() } label: {
+                    Text("Accept the cards").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.wpSecondary)
+                .accessibilityIdentifier("drawfour-accept")
+            }
+        }
+        .padding(Theme.Space.s4)
+        .frame(maxWidth: 320)
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.r4).fill(Theme.Felt.base(.dark)))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.r4).strokeBorder(.white.opacity(0.15), lineWidth: 1))
+        .shadow(color: .black.opacity(0.45), radius: 24, y: 6)
+        .accessibilityAddTraits(.isModal)
+    }
+
+    private var promptDetail: String {
+        let colour = priorColour?.displayName ?? "the previous colour"
+        return "\(challengedName) played a Draw Four. If they were holding a \(colour) card, your challenge wins and they draw instead — but if you're wrong, you draw extra."
+    }
+}
+
 struct TargetPickerView: View {
     let candidates: [PlayerSeatViewState]
     let onChoose: (UUID) -> Void
@@ -205,6 +252,7 @@ struct PromptBanner: View {
         case .chooseColour:              return "Choose a new colour."
         case .chooseTarget:              return "Choose a player."
         case .chooseTeamPass:            return "Team Pass — choose a card to give your partner, or decline."
+        case .challengeDrawFour:         return "A Draw Four was played on you — challenge it, or accept the cards."
         case .mustDraw:                  return "Your turn — no matching card. Tap the draw pile."
         case .stackOrDraw(let count):     return "Stack a Draw Two or Draw Four, or draw \(count)."
         case .forcedPickup(let count):    return "No card can answer the +\(count) — picking it up…"

@@ -13,15 +13,14 @@ flagged **[NEEDS DESIGN]**.
 `docs/phase-17-design/stage3-motion/` for captured proof of the play choreography):
 
 - **A1, A2, A3** — draw-stack legality centralised + stack-total display fixed; scoring display/docs corrected.
-- **B1** — optional decline-to-stack. **B3** — Side-to-Side partner-after-human default. **B4a** — Colour Burst → Standard. **B4b** — Draw Eight (Advanced, escalation stacking).
+- **B1** — optional decline-to-stack. **B2** — Draw Four challenge (opt-in, default off). **B3** — Side-to-Side partner-after-human default. **B4a** — Colour Burst → Standard. **B4b** — Draw Eight (Advanced, escalation stacking).
 - **C1** swipe-to-play · **C2+** stronger direction chip · **C3** skip/draw seat cues · **C4** opponent card piles · **C5** colour picker off the hand · **C7** persistent Solo! · **C8** hand sort (already present, verified) · **C9** iPad-landscape fit · **C10** 10s/5s move timer.
 - **Stage 3 (heavier half)** — **3.1** cross-table played-card travel · **3.3** turn hand-off spotlight · **3.4** "Reversed!" callout · **3.5** count-scaled draw travel.
 - **E** — card art replaced outright with the Solo asset pack (image skin + procedural back + Draw Eight stand-in).
 
-**Specced, not yet built (needs a go-ahead):**
+**In progress:**
 
-- **B2 Draw Four challenge** — exact numbers now pinned in `docs/game-rules.md` §Draw Four Challenge; opt-in (default off). Not started: it threads through the just-hardened stacking flow and adds a decision point — wants scope/number sign-off first. See §B2 below.
-- **D1 partner-view (pass-and-play) table redesign** — design-led; recommended via a short design-direction-lab for 2–3 directions before building. See §D below. **[NEEDS DESIGN]**
+- **D1 partner-view (pass-and-play) table redesign** — design-led; being explored via design-direction-lab (2–3 directions) before building the winner. See §D below. **[NEEDS DESIGN]**
 
 **Accessibility check (Phase 17, verified by inspection):** VoiceOver is **intact** for the new
 image skin — `CardView`'s accessibility lives on the skin-independent shell
@@ -86,14 +85,14 @@ available at the time — if they did, the challenge succeeds (the played card i
 challenged player draws instead, or per standard convention draws a reduced/no penalty) and if
 it fails the challenger draws the stack plus a penalty.
 
-**SPEC PINNED (Phase 17):** the exact challenge behaviour and penalty numbers are now written up
-in `docs/game-rules.md` §Draw Four Challenge (bluffer draws the +4; a wrong challenger draws the
-pending total + 2; challenge offered to the immediate target after the colour choice, before they
-stack/absorb; opt-in behind the still-default-off `drawFourChallengeable` flag). Implementation
-was deliberately **not** started in this pass: it threads through the colour-choice + draw-stack
-flow that A2/A3 just hardened and introduces a new flow-interrupting decision point, so it wants a
-green light on scope (and the numbers) before coding, plus its own regression tests. Ready to
-build on confirmation.
+**BUILT (Phase 17 B2):** implemented per `docs/game-rules.md` §Draw Four Challenge. A caught
+bluffer draws the 4; a wrong challenger draws 4 + 2 = 6; the challenge is offered to the immediate
+target after the colour choice, before they stack/absorb. Correctness refinement made during the
+build: **only a fresh Draw Four is challengeable** — a Draw Four legally stacked onto a pending
+draw isn't, because a same-colour card was never a legal alternative there. Opt-in behind the
+Settings toggle "Draw Four challenge" (`drawFourChallengeEnabled` → `RuleProfile.drawFourChallengeable`,
+default off). Engine + AI heuristic + human overlay + 7 regression tests; verified on-device via
+the `--uitest-drawfour-challenge` demo hook.
 
 **B3. Side-to-Side turn order: partner immediately after human (new default).**
 User decision: this becomes the new default order for `sideToSide` mode, replacing today's

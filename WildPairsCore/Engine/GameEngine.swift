@@ -63,8 +63,10 @@ public struct GameEngine {
             return reduce(state: state, action: inner)
         case .advancePendingDecision:
             var s = state; s.pendingDecision = nil; return (s, [])
-        case .challengeDrawFour:
-            return (state, [])   // Phase 4 extension
+        case .challengeDrawFour(let challengerID):
+            return handleDrawFourChallenge(challengerID: challengerID, challenge: true, state: state)
+        case .acceptDrawFour(let challengerID):
+            return handleDrawFourChallenge(challengerID: challengerID, challenge: false, state: state)
         case .forceState(let forced):
             return (forced, [])
         }
@@ -416,14 +418,32 @@ public struct GameEngine {
             switch topCard.type {
 
             case .drawFour:
+                // A Draw Four is *challengeable* only when it is a fresh play, not one legally
+                // stacked onto a pending draw (there, a same-colour card was never a legal
+                // alternative, so a challenge could never be fair — see game-rules.md §Draw Four
+                // Challenge). `priorColour` is the colour in force before this choice.
+                let wasAnsweringStack = state.pendingDrawCount != nil
+                let challengeable = s.ruleProfile.drawFourChallengeable && !wasAnsweringStack
+                let priorColour = state.currentColour
+                let targetIndex = GameRules.nextIndex(
+                    from: playerIndex, direction: s.turnDirection, playerCount: s.players.count)
+
                 if s.ruleProfile.stackDrawCards {
                     s.pendingDrawCount = (s.pendingDrawCount ?? 0) + 4
                     s.pendingDrawType = .drawFour
-                    s.currentPlayerIndex = GameRules.nextIndex(
-                        from: playerIndex, direction: s.turnDirection, playerCount: s.players.count)
+                    s.currentPlayerIndex = targetIndex
+                    if challengeable {
+                        s.pendingDecision = .drawFourChallenge(
+                            challengerID: s.players[targetIndex].id, challengedID: playerID,
+                            priorColour: priorColour, pendingTotal: s.pendingDrawCount ?? 4)
+                    }
+                } else if challengeable {
+                    // Defer the draw so the target can challenge before absorbing it.
+                    s.currentPlayerIndex = targetIndex
+                    s.pendingDecision = .drawFourChallenge(
+                        challengerID: s.players[targetIndex].id, challengedID: playerID,
+                        priorColour: priorColour, pendingTotal: 4)
                 } else {
-                    let targetIndex = GameRules.nextIndex(
-                        from: playerIndex, direction: s.turnDirection, playerCount: s.players.count)
                     var rng = SeededRNG(seed: s.rngSeed &+ UInt64(s.actionCount))
                     let drawn = drawCards(count: 4, into: &s, rng: &rng)
                     s.players[targetIndex].hand.append(contentsOf: drawn)
@@ -460,6 +480,74 @@ public struct GameEngine {
             }
         }
 
+        effects.append(.triggerAutosave)
+        return (s, effects)
+    }
+
+    // MARK: - Draw Four challenge
+
+    /// Resolves a pending `.drawFourChallenge` (Phase 17 B2 — opt-in, `drawFourChallengeable`).
+    /// `challenge == false` accepts the Draw Four (normal resolution); `true` challenges it: the
+    /// challenged player's hand is revealed and checked against `priorColour`. See
+    /// `docs/game-rules.md` §Draw Four Challenge.
+    private static func handleDrawFourChallenge(
+        challengerID: UUID,
+        challenge: Bool,
+        state: GameState
+    ) -> (GameState, [GameEffect]) {
+        guard case .drawFourChallenge(let expected, let challengedID, let priorColour, let pendingTotal)
+                = state.pendingDecision,
+              expected == challengerID,
+              let challengerIndex = state.players.firstIndex(where: { $0.id == challengerID }),
+              let challengedIndex = state.players.firstIndex(where: { $0.id == challengedID }) else {
+            return (state, [])
+        }
+
+        var s = state
+        var effects: [GameEffect] = []
+        s.pendingDecision = nil
+        s.actionCount += 1
+        var rng = SeededRNG(seed: s.rngSeed &+ UInt64(s.actionCount))
+        let stacking = s.pendingDrawCount != nil
+
+        if !challenge {
+            // Accept. In stacking mode the +N is already pending and the turn is on the target,
+            // so just clearing the decision drops them into the normal stack-or-absorb flow. In
+            // immediate mode the draw was deferred — deliver it now and skip the target.
+            if !stacking {
+                let drawn = drawCards(count: pendingTotal, into: &s, rng: &rng)
+                s.players[challengerIndex].hand.append(contentsOf: drawn)
+                s.currentPlayerIndex = GameRules.nextIndex(
+                    from: challengerIndex, direction: s.turnDirection, playerCount: s.players.count)
+                effects.append(.animateCardDraw(toPlayerID: challengerID, count: pendingTotal))
+            }
+            effects.append(.triggerAutosave)
+            return (s, effects)
+        }
+
+        // Challenge: the play was a bluff iff the challenged player held a same-colour card.
+        let bluff = GameRules.handHoldsColourMatch(s.players[challengedIndex].hand, colour: priorColour)
+        s.pendingDrawCount = nil
+        s.pendingDrawType = nil
+
+        if bluff {
+            // Upheld: the challenged (bluffing) player draws the penalty; the target plays on.
+            let drawn = drawCards(count: pendingTotal, into: &s, rng: &rng)
+            s.players[challengedIndex].hand.append(contentsOf: drawn)
+            s.currentPlayerIndex = challengerIndex
+            effects.append(.animateCardDraw(toPlayerID: challengedID, count: pendingTotal))
+            effects.append(.accessibilityAnnounce(
+                "Challenge upheld. \(s.players[challengedIndex].name) drew \(pendingTotal) cards."))
+        } else {
+            // Wrong: the challenger draws the penalty plus the wrong-challenge penalty, and is skipped.
+            let total = pendingTotal + GameRules.drawFourWrongChallengePenalty
+            let drawn = drawCards(count: total, into: &s, rng: &rng)
+            s.players[challengerIndex].hand.append(contentsOf: drawn)
+            s.currentPlayerIndex = GameRules.nextIndex(
+                from: challengerIndex, direction: s.turnDirection, playerCount: s.players.count)
+            effects.append(.animateCardDraw(toPlayerID: challengerID, count: total))
+            effects.append(.accessibilityAnnounce("Challenge failed. You drew \(total) cards."))
+        }
         effects.append(.triggerAutosave)
         return (s, effects)
     }

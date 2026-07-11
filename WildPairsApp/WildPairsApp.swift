@@ -40,6 +40,9 @@ struct RootView: View {
     private let autostart = ProcessInfo.processInfo.arguments.contains("--uitest-autostart")
     private let autostartTwoPlayer = ProcessInfo.processInfo.arguments.contains("--uitest-autostart-2p")
     private let showGallery = ProcessInfo.processInfo.arguments.contains("--uitest-cardgallery")
+    /// Lands straight on a pending Draw Four challenge for the human (Phase 17 B2), so the
+    /// challenge overlay can be verified deterministically.
+    private let drawFourChallengeDemo = ProcessInfo.processInfo.arguments.contains("--uitest-drawfour-challenge")
 
     init() {
         // UI tests pass this to start from a clean slate (no saved game/settings/stats),
@@ -75,15 +78,41 @@ struct RootView: View {
             } else if autostart {
                 startGame(.standardFourPlayer(mode: .standardTeams, difficulty: .medium,
                                               cardSet: .standard))
+            } else if drawFourChallengeDemo {
+                startGame(fromState: Self.drawFourChallengeDemoState())
             }
         }
+    }
+
+    /// Drives a scratch game to a pending Draw Four challenge owned by the human (seat 0), using
+    /// only the public engine — seat 3 plays a fresh Draw Four and picks a colour, leaving the
+    /// human to challenge or accept. Used only by `--uitest-drawfour-challenge`.
+    private static func drawFourChallengeDemoState() -> GameState {
+        var profile = RuleProfile.standardTeams()
+        profile.drawFourChallengeable = true
+        let df = CardFactory.drawFour()
+        let base = GameStateBuilder()
+            .withPlayers()
+            .withRuleProfile(profile)
+            .withCurrentColour(.crimson)
+            .withTopDiscard(CardFactory.number(7, .crimson))
+            .withHand(forPlayer: 0, cards: [CardFactory.number(5, .jade),
+                                            CardFactory.number(3, .amber), CardFactory.skip(.cobalt)])
+            .withHand(forPlayer: 3, cards: [df, CardFactory.number(2, .amber)])
+            .withCurrentPlayer(3)
+            .withDrawPile((0..<30).map { CardFactory.number($0 % 10, .amber) })
+            .build()
+        let p3 = base.players[3].id
+        let (afterPlay, _) = GameEngine.reduce(state: base, action: .playCard(df, playerID: p3))
+        let (afterColour, _) = GameEngine.reduce(state: afterPlay, action: .selectColour(.jade, playerID: p3))
+        return afterColour
     }
 
     private var showOnboardingBinding: Binding<Bool> {
         Binding(
             get: {
                 !settings.userSettings.hasSeenOnboarding && !autostart
-                    && !autostartTwoPlayer && !showGallery
+                    && !autostartTwoPlayer && !showGallery && !drawFourChallengeDemo
             },
             set: { _ in }
         )
@@ -95,6 +124,13 @@ struct RootView: View {
 
     private func startGame(_ config: GameConfig) {
         let presenter = GamePresenter(config: config, persistence: persistence)
+        game = makeViewModel(presenter)
+    }
+
+    private func startGame(fromState state: GameState) {
+        let humanID = state.players.first { $0.role == .human }?.id ?? state.players.first?.id
+        guard let humanID else { return }
+        let presenter = GamePresenter(state: state, localPlayerID: humanID, persistence: persistence)
         game = makeViewModel(presenter)
     }
 

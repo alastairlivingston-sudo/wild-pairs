@@ -145,11 +145,23 @@ public enum GameRules {
         if mode == .allWild { return true }                   // every card is playable
         if drawFourChallengeable { return true }              // house rule: always playable
         // Legal only when no other card matches the current colour
-        return !hand.contains { card in
+        return !handHoldsColourMatch(hand, colour: currentColour)
+    }
+
+    /// True if `hand` holds a non-wild, non-Draw-Four card of `colour` — i.e. a card that would
+    /// have been a legal same-colour alternative to a Draw Four. Shared by the standard
+    /// Draw-Four restriction and the Draw-Four challenge resolution (a challenge succeeds iff
+    /// this is true for the challenged player against the pre-choice colour).
+    public static func handHoldsColourMatch(_ hand: [Card], colour: CardColour) -> Bool {
+        hand.contains { card in
             guard !card.isWild, card.type != .drawFour else { return false }
-            return card.colour == currentColour
+            return card.colour == colour
         }
     }
+
+    /// Extra cards a wrong challenger draws on top of the Draw Four's own penalty (standard
+    /// convention: 4 + 2 = 6). See `docs/game-rules.md` §Draw Four Challenge.
+    public static let drawFourWrongChallengePenalty = 2
 
     // MARK: Solo! declaration
 

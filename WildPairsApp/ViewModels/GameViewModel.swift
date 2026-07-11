@@ -154,6 +154,11 @@ final class GameViewModel: ObservableObject {
     func passTeamCard(_ card: Card?)       { apply { presenter.passTeamCard(card, as: displayedHumanID) } }
     func callSolo()                        { haptics.soloCall(); sound.play(.soloCall); apply { presenter.callSolo(as: displayedHumanID) } }
     func callOut(_ id: UUID)               { apply { presenter.callOut(id, as: displayedHumanID) } }
+    /// Draw Four challenge (Phase 17 B2): challenge the Draw Four, or accept it.
+    func resolveDrawFourChallenge(_ challenge: Bool) {
+        if challenge { haptics.illegalCard() }
+        apply { presenter.resolveDrawFourChallenge(challenge, as: displayedHumanID) }
+    }
 
     /// Pass-and-play: the receiving player has the device — flip the table to their
     /// perspective and resume their timers.

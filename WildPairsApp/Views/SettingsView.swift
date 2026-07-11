@@ -22,6 +22,9 @@ struct SettingsView: View {
                     Toggle("Draw stacking", isOn: s.stackingEnabled)
                         .accessibilityIdentifier("settings-stacking-toggle")
                         .accessibilityHint("When on, a Draw Two or Draw Four can be answered with another instead of drawing.")
+                    Toggle("Draw Four challenge", isOn: s.drawFourChallengeEnabled)
+                        .accessibilityIdentifier("settings-drawfour-challenge-toggle")
+                        .accessibilityHint("When on, a Draw Four may be played as a bluff and its target may challenge it. Applies to new games.")
                 }
                 .listRowBackground(Color.black.opacity(0.25))
 

@@ -97,6 +97,9 @@ public enum GameAction: Codable, Equatable, Sendable {
     /// had a legal alternative play.
     case challengeDrawFour(challengerID: UUID)
 
+    /// The specified player declines to challenge the draw-four and accepts its penalty.
+    case acceptDrawFour(challengerID: UUID)
+
     // MARK: Game Control
 
     /// Pause the game (e.g., app goes to background).

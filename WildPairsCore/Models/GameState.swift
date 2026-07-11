@@ -37,8 +37,11 @@ public enum PendingDecision: Codable, Equatable, Sendable {
     case targetChoice(playerID: UUID, validTargets: [UUID])
     /// The player with this ID must submit (or decline) their Team Pass card.
     case teamPass(playerID: UUID)
-    /// A challenged draw-four is awaiting resolution.
-    case drawFourChallenge(challengerID: UUID, challengedID: UUID)
+    /// The target of a fresh, challengeable Draw Four must decide whether to challenge it
+    /// (alleging the challenged player held a playable card of `priorColour` — the colour in
+    /// force before the Draw Four's own colour choice) or accept it. `pendingTotal` is the draw
+    /// the loser of the exchange takes (always 4 for a fresh Draw Four).
+    case drawFourChallenge(challengerID: UUID, challengedID: UUID, priorColour: CardColour, pendingTotal: Int)
 }
 
 /// The result recorded when a game or round ends.

@@ -78,6 +78,35 @@ public enum AIPlayer {
         }
     }
 
+    /// Draw Four challenge (Phase 17 B2, opt-in): decides whether an AI target challenges a
+    /// fresh Draw Four alleging it was a bluff (the challenged player held a `priorColour` card).
+    /// When the challenged hand is actually visible (they are this AI's partner, possible under
+    /// Side-to-Side seating) the AI decides optimally; otherwise it estimates — a larger hidden
+    /// hand is likelier to hold a colour match, so the challenge rate rises with the challenged
+    /// player's card count, capped by difficulty (Easy rarely challenges; Master often).
+    public static func shouldChallengeDrawFour(
+        observation o: AIObservation,
+        priorColour: CardColour,
+        challengedID: UUID,
+        difficulty: Difficulty,
+        rng: inout SeededRNG
+    ) -> Bool {
+        if challengedID == o.partnerID {
+            return GameRules.handHoldsColourMatch(o.partnerHand, colour: priorColour)
+        }
+        let handSize = o.cardCounts[challengedID] ?? 7
+        let sizeFactor = min(1.0, Double(handSize) / 12.0)
+        let ceiling: Double
+        switch difficulty {
+        case .easy:            ceiling = 0.10
+        case .medium:          ceiling = 0.28
+        case .hard:            ceiling = 0.45
+        case .expert, .master: ceiling = 0.65
+        }
+        let probability = ceiling * (0.4 + 0.6 * sizeFactor)
+        return Double.random(in: 0..<1, using: &rng) < probability
+    }
+
     public static func thinkDelay(for difficulty: Difficulty) -> TimeInterval {
         switch difficulty {
         case .easy:   return 0.3
