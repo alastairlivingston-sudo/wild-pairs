@@ -174,8 +174,9 @@ struct RoundEndView: View {
 }
 
 // A brief, lightweight confetti burst from the top of the screen (ux-spec.md §10 "Round
-// win celebration", normal duration 1.5s). Pieces are plain shapes, not images, to stay
-// fully offline with no bundled assets.
+// win celebration", normal duration 1.5s). Pieces are plain drawn shapes, not images — cheap
+// and resolution-independent. (The card faces do bundle art since Phase 17; the app remains
+// fully offline — no network, ever.)
 private struct ConfettiView: View {
     private struct Piece: Identifiable {
         let id = Int.random(in: 0..<Int.max)
