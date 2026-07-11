@@ -630,3 +630,54 @@ the user's requested order).
 
 ### Sign-off
 - [ ] ios-architect / game-engine-engineer / ux-lead confirm the gate criteria above are met
+
+---
+
+## Phase 17 — Playability & UX Pass
+
+> Phases 12–16 were tracked via their own design/requirements docs; this section resumes the
+> in-repo gate record for Phase 17. Gate run 2026-07-11 on macOS + Xcode (iPhone 17 + iPad Air
+> 13-inch simulators).
+
+### Features (all merged to `main`)
+- [x] A1 — draw-stack total display fixed (Draw Four's +4 reflected immediately)
+- [x] A2/A3 — move legality centralised on `GameRules`; no illegal play on a pending stack (human or AI)
+- [x] Scoring display + `game-rules.md` corrected (winner banks losers' points)
+- [x] B1 — optional decline-to-stack (draw the pending total instead of stacking)
+- [x] B2 — Draw Four challenge, opt-in house rule (Settings toggle, default off); fresh-only, caught bluffer draws 4 / wrong challenger draws 6; engine + AI heuristic + human overlay + 7 tests
+- [x] B3 — Side-to-Side partner-after-human seating (new default)
+- [x] B4a — Colour Burst moved Advanced → Standard set
+- [x] B4b — Draw Eight (+8) added to Advanced; escalation stacking (+2←+2/+4/+8, +4←+4/+8, +8←+8)
+- [x] C1 swipe-to-play · C2+ direction chip · C3 skip/draw seat cues · C4 opponent card piles · C5 colour picker off the hand · C7 persistent Solo! · C8 hand sort (verified) · C9 iPad-landscape fit · C10 10s/5s move timer
+- [x] Stage 3 — cross-table played-card travel (3.1), turn hand-off spotlight (3.3), "Reversed!" callout (3.4), count-scaled draw travel (3.5); captured proof frames
+- [x] D1 — pass-and-play dual-ended "Active-Half Focus" table (chosen from 3 explored directions); no handoff popup
+- [x] E — card art replaced outright with the Solo asset pack (image skin + procedural back + Draw Eight stand-in)
+
+### Documentation
+- [x] `docs/game-rules.md` — Draw Eight, Colour Burst set move, scoring model, Side-to-Side order, §Draw Four Challenge (numbers pinned + BUILT)
+- [x] `CLAUDE.md` — Draw Eight / Colour Burst vocabulary, card sets, modes
+- [x] `docs/phase-17-requirements.md` — delivery-status block; per-item BUILT status; accessibility finding
+- [x] `docs/phase-17-design/` — current-UX audit, Stage 3 motion proof, D1 brief + 3 prototypes + design plan + impl proof
+- [x] `docs/permission-audit.md` — Phase 17 disposition row (network-scan FP + newly-bundled card art)
+- [x] `docs/known-issues.md` — KI-035 root-caused + resolved
+- [x] This Phase 17 section added
+
+### Quality gates (`quality_full.sh`, 2026-07-11 — Passed 8 / Failed 1 / Skipped 0)
+- [x] Swift Package build · All unit tests (**296**, up from 289) · AI simulation tests
+- [x] Minimal permissions · No entitlements files · Minimal capabilities · Privacy manifest
+- [x] **UI Tests on iPhone 17 (compact)** and **iPad Air 13-inch (regular)** — both pass
+- [x] Xcode app build
+- [~] `check_no_network_usage.sh` FAILs on 3 documented false positives only (`Theme.swift`/`InkFoilFace.swift` `.tracking()` letter-spacing + `SettingsView.swift` "tracking your stats" copy) — zero genuine network usage; dispositioned in `permission-audit.md`
+- [x] Brand grep clean of user-visible UNO/Mattel matches
+- [x] Zero open P1/critical known issues (KI-030 medium, KI-036 low remain, non-blocking)
+
+### Sign-off
+- **Verdict: GO.** Every acceptance criterion is met; the only failing sub-check is the standing,
+  documented network-scan false positive. All Phase 17 features are built, verified, and merged.
+- [x] game-engine-engineer — engine rules (Draw Eight, Draw Four challenge, stacking, scoring) covered by 296 unit tests incl. 1000-game batches
+- [x] ux-lead / ios-architect — Stage 3 legibility, D1 dual-ended table, and E card art verified on iPhone + iPad
+- [x] qa-lead — full UI suite green on both form factors; draw-driven harness fragility root-caused and fixed
+- [x] privacy-brand-safety-lead / enterprise-build-lead — permissions/capabilities/privacy manifest clean; no network usage
+
+### Release history
+- 2026-07-11 — **Phase 17 gate: GO** (quality_full 8/1/0; sole FAIL = documented network-scan false positive).
