@@ -127,6 +127,83 @@ final class GameViewModel: ObservableObject {
     }
 
     var localPlayerID: UUID { presenter.localPlayerID }
+
+    // MARK: Pass-and-play (D1 — Active-Half Focus dual-ended table)
+
+    /// Two human teammates share one device; the table renders both ends at once (no handoff).
+    var isPassAndPlay: Bool { presenter.state.players.filter { $0.role == .human }.count >= 2 }
+    /// The bottom (local) human — "You".
+    var bottomHumanID: UUID { presenter.localPlayerID }
+    /// The top human — the partner sharing the device.
+    var topHumanID: UUID? {
+        presenter.state.players.first { $0.role == .human && $0.id != presenter.localPlayerID }?.id
+    }
+    /// Which human is to act right now (their hand is live), if any.
+    var currentHumanID: UUID? {
+        presenter.state.currentPlayer.flatMap { $0.role == .human ? $0.id : nil }
+    }
+    /// The acting human's perspective — drives the shared centre's draw affordance + prompt so
+    /// they follow whoever is to act. Falls back to the bottom human during AI turns.
+    var activeViewState: GameViewState { presenter.viewState(for: currentHumanID ?? bottomHumanID) }
+
+    /// A mid-resolution decision plus the human who owns it, so the dual-ended view can render
+    /// the right overlay at the right end (rotated 180° when the top human owns it).
+    enum ActiveDecision: Equatable {
+        case colour(owner: UUID)
+        case target(owner: UUID, candidates: [UUID])
+        case teamPass(owner: UUID)
+        case drawFourChallenge(owner: UUID, challengedName: String, priorColour: CardColour?)
+
+        var owner: UUID {
+            switch self {
+            case .colour(let o), .target(let o, _), .teamPass(let o): return o
+            case .drawFourChallenge(let o, _, _): return o
+            }
+        }
+    }
+
+    /// The pending decision owned by a human (either end), for the pass-and-play overlays.
+    var activeDecision: ActiveDecision? {
+        let s = presenter.state
+        switch s.pendingDecision {
+        case .colourChoice(let pid):
+            return isHuman(pid) ? .colour(owner: pid) : nil
+        case .targetChoice(let pid, let targets):
+            return isHuman(pid) ? .target(owner: pid, candidates: targets) : nil
+        case .teamPass(let pid):
+            return isHuman(pid) ? .teamPass(owner: pid) : nil
+        case .drawFourChallenge(let challengerID, let challengedID, let priorColour, _):
+            guard isHuman(challengerID) else { return nil }
+            let name = s.players.first { $0.id == challengedID }?.name ?? "The previous player"
+            return .drawFourChallenge(owner: challengerID, challengedName: name, priorColour: priorColour)
+        case .none:
+            return nil
+        }
+    }
+
+    /// The hand held by `playerID`, for rendering either human's fan in the dual-ended view.
+    func hand(for playerID: UUID) -> [Card] {
+        presenter.state.players.first { $0.id == playerID }?.hand ?? []
+    }
+    func handCount(for playerID: UUID) -> Int { hand(for: playerID).count }
+    func name(for playerID: UUID) -> String {
+        presenter.state.players.first { $0.id == playerID }?.name ?? ""
+    }
+    private func isHuman(_ id: UUID) -> Bool {
+        presenter.state.players.first { $0.id == id }?.role == .human
+    }
+
+    // Explicit-actor intents — the dual-ended view dispatches as the acting human at either end.
+    func play(_ card: Card, as playerID: UUID) { apply { presenter.play(card, as: playerID) } }
+    func drawCard(as playerID: UUID) { apply { presenter.draw(as: playerID) } }
+    func callSolo(as playerID: UUID) { haptics.soloCall(); sound.play(.soloCall); apply { presenter.callSolo(as: playerID) } }
+    func chooseColour(_ c: CardColour, as playerID: UUID) { apply { presenter.chooseColour(c, as: playerID) } }
+    func chooseTarget(_ id: UUID, as playerID: UUID) { apply { presenter.chooseTarget(id, as: playerID) } }
+    func passTeamCard(_ card: Card?, as playerID: UUID) { apply { presenter.passTeamCard(card, as: playerID) } }
+    func resolveDrawFourChallenge(_ challenge: Bool, as playerID: UUID) {
+        if challenge { haptics.illegalCard() }
+        apply { presenter.resolveDrawFourChallenge(challenge, as: playerID) }
+    }
     var roundTimeLimit: TimeInterval { presenter.state.ruleProfile.roundTimeLimitSeconds }
     /// Effective per-move limit — 10s normally, 5s once the round enters its final minute (C10).
     var moveTimeLimit: TimeInterval {
@@ -219,6 +296,11 @@ final class GameViewModel: ObservableObject {
     /// Pass-and-play: when the game starts waiting on a human other than the one shown,
     /// surface the handoff overlay (perspective flips only on `confirmHandoff`).
     private func updateHandoff() {
+        // Pass-and-play renders both ends at once (D1), so there is no "pass the device" handoff.
+        if isPassAndPlay {
+            if pendingHandoffSeat != nil { pendingHandoffSeat = nil }
+            return
+        }
         let waiting = presenter.humanAwaitingInput()
         if let waiting, waiting != displayedHumanID {
             pendingHandoffSeat = presenter.viewState(for: waiting).seats.first { $0.id == waiting }
@@ -343,11 +425,14 @@ final class GameViewModel: ObservableObject {
         moveDeadline = nil
         // Paused while a pass-the-device handoff is on screen — the receiving player
         // shouldn't lose move time before they've even taken the device.
+        // In pass-and-play the timer applies to whichever human is currently to act (either end);
+        // otherwise only to the single displayed human.
+        let acting: UUID? = isPassAndPlay ? currentHumanID
+            : (presenter.state.currentPlayer?.id == displayedHumanID ? displayedHumanID : nil)
         guard presenter.state.phase == .playing,
               presenter.state.pendingDecision == nil,
               pendingHandoffSeat == nil,
-              presenter.state.currentPlayer?.id == displayedHumanID else { return }
-        let actingID = displayedHumanID
+              let actingID = acting else { return }
         // 10s per move, tightening to 5s in the round's final minute (Phase 17 C10).
         let seconds = presenter.state.ruleProfile.effectiveMoveLimit(
             roundRemaining: roundDeadline?.timeIntervalSinceNow)

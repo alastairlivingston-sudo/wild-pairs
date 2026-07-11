@@ -58,8 +58,14 @@ struct RootView: View {
             if showGallery {
                 CardGalleryView()
             } else if let game {
-                GameTableView(vm: game, settings: settings, onExit: endGame)
-                    .transition(.opacity)
+                Group {
+                    if game.isPassAndPlay {
+                        PassAndPlayTableView(vm: game, settings: settings, onExit: endGame)
+                    } else {
+                        GameTableView(vm: game, settings: settings, onExit: endGame)
+                    }
+                }
+                .transition(.opacity)
             } else {
                 HomeView(settings: settings, onStart: startGame, onContinue: continueGame)
             }

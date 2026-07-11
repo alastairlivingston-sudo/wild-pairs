@@ -1,0 +1,103 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>D1 · Active-Half Focus</title>
+<style>
+  :root{--fire:#E24A3B;--rain:#2E7BFF;--earth:#16C98A;--wind:#E8A23D;--teal:#36E0C8;
+        --teamA:#16E08A;--teamB:#FF2E63;--ink:#EEF0FF;}
+  *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif}
+  body{background:#05060a;display:flex;justify-content:center;padding:18px;color:var(--ink)}
+  .phone{width:390px;height:820px;border-radius:44px;padding:12px;
+    background:radial-gradient(120% 90% at 50% 0%,#141a2e,#0a0b18 60%,#07070f);
+    box-shadow:0 0 0 10px #1a1c24,0 30px 80px rgba(0,0,0,.6);position:relative;overflow:hidden;
+    display:flex;flex-direction:column}
+  .felt{position:absolute;inset:0;background:
+    repeating-linear-gradient(135deg,rgba(255,255,255,.02) 0 2px,transparent 2px 22px);pointer-events:none}
+  .name{font-size:12px;font-weight:700}
+  .count{background:var(--teal);color:#04130f;font-weight:800;font-size:11px;border-radius:999px;
+    padding:1px 8px;min-width:22px;text-align:center;display:inline-block}
+  .count.urgent{background:var(--wind)}
+  .card{width:48px;height:69px;border-radius:9px;background:linear-gradient(160deg,#1b1723,#0b0910);
+    border:1.5px solid rgba(255,255,255,.14);position:relative;flex:0 0 auto;box-shadow:0 4px 10px rgba(0,0,0,.45)}
+  .card b{position:absolute;top:5px;left:6px;font-size:12px;font-weight:800}
+  .card .g{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900}
+  .card.back{background:linear-gradient(160deg,#0b0910,#05040a);border-color:rgba(54,224,200,.25)}
+  .card.back .g{color:var(--teal);font-size:13px;opacity:.85}
+  .fire{color:var(--fire)}.rain{color:var(--rain)}.earth{color:var(--earth)}.wind{color:var(--wind)}
+  .fan{display:flex;justify-content:center}.fan .card{margin-left:-15px}.fan .card:first-child{margin-left:0}
+  .flip{transform:rotate(180deg)}
+  /* collapsed strip (inactive teammate) */
+  .strip{padding:10px 14px;display:flex;align-items:center;justify-content:center;gap:10px;
+    background:linear-gradient(#0c0e18,#0a0b14);border-bottom:1px solid #1c1e2a;position:relative;z-index:1;opacity:.72}
+  .strip .mini{width:26px;height:38px;border-radius:6px;background:linear-gradient(160deg,#0b0910,#05040a);
+    border:1px solid rgba(54,224,200,.25);margin-left:-14px}
+  .strip .mini:first-child{margin-left:0}
+  .strip .stk{display:flex}
+  /* active half */
+  .half{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+    padding:14px 10px 18px;position:relative;z-index:1;
+    background:radial-gradient(90% 70% at 50% 100%,rgba(54,224,200,.16),transparent 72%)}
+  .turnbar{display:inline-flex;align-items:center;gap:8px;color:var(--teal);font-size:12px;font-weight:800;
+    margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em}
+  .centre{display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:14px}
+  .piles{display:flex;align-items:center;gap:14px}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(#3a8bff,#2E7BFF);
+    color:#fff;font-weight:700;font-size:13px;border-radius:999px;padding:4px 12px;box-shadow:0 0 16px rgba(46,123,255,.5)}
+  .dir{background:rgba(54,224,200,.9);color:#04130f;font-weight:800;font-size:11px;border-radius:999px;padding:2px 8px}
+  .discard{width:64px;height:92px;border-radius:11px;background:linear-gradient(160deg,#1b2740,#0b1220);
+    border:2px solid rgba(255,255,255,.9);display:flex;align-items:center;justify-content:center;position:relative;
+    box-shadow:0 6px 20px rgba(46,123,255,.35)}
+  .discard b{position:absolute;top:6px;left:8px;font-size:13px}.discard .g{font-size:36px;font-weight:900}
+  .drawp{width:52px;height:76px;border-radius:10px;background:linear-gradient(160deg,#0b0910,#05040a);
+    border:1.5px solid rgba(54,224,200,.3);color:var(--teal);display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:12px;position:relative}
+  .drawp span{position:absolute;bottom:-8px;background:#000a;border:1px solid var(--teal);color:#fff;font-size:10px;border-radius:999px;padding:0 6px}
+  .opprow{display:flex;gap:18px;margin-bottom:8px;font-size:11px;color:#c3c7d4}
+  .opprow .stk{display:inline-flex;vertical-align:middle;margin-right:5px}
+  .opprow .mini{width:20px;height:28px;border-radius:5px;background:linear-gradient(160deg,#0b0910,#05040a);
+    border:1px solid rgba(255,255,255,.15);margin-left:-11px}.opprow .mini:first-child{margin-left:0}
+  .solo{background:var(--wind);color:#3a2a02;font-weight:800;font-size:12px;border-radius:999px;padding:4px 14px;border:none}
+  .cap{background:#0a0b14;color:#9aa0b4;font-size:11px;padding:8px 14px;text-align:center;line-height:1.4;
+    z-index:3;border-top:1px solid #1c1e2a}
+  .cap b{color:var(--teal)}
+</style></head>
+<body>
+<div class="phone"><div class="felt"></div>
+
+  <!-- Beth: collapsed (not her turn) — slim rotated strip of backs -->
+  <div class="strip flip">
+    <span class="name">Beth</span><span class="count">4</span>
+    <div class="stk"><div class="mini"></div><div class="mini"></div><div class="mini"></div><div class="mini"></div></div>
+    <span style="font-size:10px;color:#7f8598;text-transform:uppercase;letter-spacing:.08em">waiting</span>
+  </div>
+
+  <!-- You: expanded + active. Opponents shown as a compact row just above the centre -->
+  <div class="half">
+    <div class="opprow">
+      <span><span class="stk"><span class="mini"></span><span class="mini"></span></span>Left <b class="wind">6</b></span>
+      <span><span class="stk"><span class="mini"></span><span class="mini"></span></span>Right <b>4</b></span>
+    </div>
+
+    <div class="centre">
+      <div class="piles">
+        <div class="drawp">WP<span>41</span></div>
+        <div class="discard"><b class="rain">7</b><div class="g rain">7</div></div>
+      </div>
+      <div><span class="chip">≈ Rain</span> <span class="dir">Play ↻</span></div>
+    </div>
+
+    <div class="turnbar">◆ Your turn — Beth is next</div>
+    <div class="fan">
+      <div class="card"><b class="fire">5</b><div class="g fire">5</div></div>
+      <div class="card"><b class="rain">7</b><div class="g rain">7</div></div>
+      <div class="card"><b class="earth">3</b><div class="g earth">3</div></div>
+      <div class="card"><b class="wind">9</b><div class="g wind">9</div></div>
+      <div class="card"><b class="rain">⊘</b><div class="g rain">⊘</div></div>
+    </div>
+    <div style="margin-top:10px"><button class="solo">Solo!</button></div>
+  </div>
+
+  <div class="cap"><b>02 · Active-Half Focus.</b> Only the player to act gets the big lit half + full-size hand.
+    The waiting teammate collapses to a slim rotated strip. On Beth's turn the halves swap — the spotlight
+    <b>sweeps</b> top, her strip expands, yours collapses. Best hand size on a phone; no popup.</div>
+</div>
+</body></html>

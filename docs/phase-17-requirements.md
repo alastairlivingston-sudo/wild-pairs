@@ -18,9 +18,13 @@ flagged **[NEEDS DESIGN]**.
 - **Stage 3 (heavier half)** — **3.1** cross-table played-card travel · **3.3** turn hand-off spotlight · **3.4** "Reversed!" callout · **3.5** count-scaled draw travel.
 - **E** — card art replaced outright with the Solo asset pack (image skin + procedural back + Draw Eight stand-in).
 
-**In progress:**
-
-- **D1 partner-view (pass-and-play) table redesign** — design-led; being explored via design-direction-lab (2–3 directions) before building the winner. See §D below. **[NEEDS DESIGN]**
+**D1 partner-view (pass-and-play) redesign — BUILT (v1):** explored 3 directions via
+design-direction-lab (`docs/phase-17-design/partner-view/`); user picked **02 Active-Half Focus**.
+Shipped `PassAndPlayTableView`: two-ended shared-device table (You bottom, Partner top rotated
+180°), the acting teammate's half expands + lights while the waiting one collapses to a slim strip,
+no "pass the device" handoff, decision overlays route to the owning end. Verified on iPhone
+(`--uitest-autostart-2p`). v2 deferrals (timer bar in the dual view, porting the Stage-3 travel
+overlay, rotated-hand swipe) are listed in the design plan.
 
 **Accessibility check (Phase 17, verified by inspection):** VoiceOver is **intact** for the new
 image skin — `CardView`'s accessibility lives on the skin-independent shell
