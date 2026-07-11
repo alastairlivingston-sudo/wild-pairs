@@ -598,4 +598,25 @@ final class WildPairsScreenshotCapture: XCTestCase {
         sleep(2)
         try save(app, "07-two-row-hand")
     }
+
+    /// Stage 3 motion capture (Phase 17): hands the turn to the AI, then passively burst-
+    /// captures frames while opponents play, so the cross-table card flights (3.1), the draw
+    /// travel (3.5), and the turn hand-off sweep (3.3) are caught mid-transition. Captures
+    /// passively — an XCUITest interaction auto-waits animations out, so we must not tap during
+    /// the burst. Frames land as motion-NN.png for the design team / verification.
+    func testCaptureStage3Motion() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitest-autostart"]
+        app.launch()
+
+        let draw = app.buttons["game-draw-card-button"]
+        XCTAssertTrue(draw.waitForExistence(timeout: 15))
+        // Kick the turn to the AI so autonomous plays (card flights + hand-off sweeps) begin.
+        if draw.isEnabled { draw.tap() }
+
+        for i in 0..<36 {
+            try save(app, String(format: "motion-%02d", i))
+            usleep(100_000)
+        }
+    }
 }
