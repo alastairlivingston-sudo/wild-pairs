@@ -31,6 +31,9 @@ struct TableCenterView: View {
     /// The last few real discards beneath the top card, drawn fanned underneath as a played
     /// history (Phase 16 discard memory) — oldest→newest.
     var recentDiscards: [Card] = []
+    /// Named table coordinate space for the cross-table travel animation (Phase 17 Stage 3.1);
+    /// the discard reports its frame so ghost cards can land on it. Nil disables reporting.
+    var flightSpace: String? = nil
     let onDraw: () -> Void
 
     /// Escalating "+N" pop shown when the pending draw stack grows (Phase 13).
@@ -43,6 +46,8 @@ struct TableCenterView: View {
     /// Accumulated spin for the direction chip — bumped ±360° whenever play reverses so the
     /// flip is *felt* (Phase 17 C2+).
     @State private var directionSpin: Double = 0
+    /// Momentary "Reversed!" flash by the direction chip when play flips (Phase 17 Stage 3.4).
+    @State private var showReversed = false
 
     /// Draw pile back — slightly smaller than the discard so the discard stays the focal
     /// element, but large enough to read as a real, tappable deck (the previous 38pt back was
@@ -128,6 +133,7 @@ struct TableCenterView: View {
                ?? "Double tap to draw a card")
             : "")
         .accessibilityIdentifier("game-draw-card-button")
+        .reportTableAnchor(.drawPile, in: flightSpace)
     }
 
     @ViewBuilder private func drawHint(_ text: String, emphatic: Bool) -> some View {
@@ -172,10 +178,12 @@ struct TableCenterView: View {
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Discard pile. Top card: \(discardCardLabel(top)). Current colour: \(currentColour.displayName).")
+            .reportTableAnchor(.discard, in: flightSpace)
         } else {
             RoundedRectangle(cornerRadius: Theme.Radius.r3)
                 .strokeBorder(Theme.Palette.accent.opacity(0.4), style: StrokeStyle(lineWidth: 1, dash: [4]))
                 .frame(width: cardSize.width, height: cardSize.height)
+                .reportTableAnchor(.discard, in: flightSpace)
         }
     }
 
@@ -242,6 +250,20 @@ struct TableCenterView: View {
         .background(Capsule().fill(Theme.Palette.accent.opacity(0.9)))
         .overlay(Capsule().strokeBorder(.white.opacity(0.3), lineWidth: 1))
         .shadow(color: reducedMotion ? .clear : Theme.Palette.accent.opacity(0.5), radius: 6)
+        .overlay(alignment: .top) {
+            if showReversed {
+                Text("Reversed!")
+                    .font(.caption2).fontWeight(.heavy)
+                    .foregroundStyle(Theme.Palette.onAccent)
+                    .padding(.horizontal, Theme.Space.s2).padding(.vertical, 3)
+                    .background(Capsule().fill(Theme.Palette.warning))
+                    .shadow(color: .black.opacity(0.35), radius: 4, y: 2)
+                    .offset(y: -26)
+                    .transition(.scale(scale: 0.4).combined(with: .opacity))
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
         .accessibilityElement()
         .accessibilityLabel(turnDirection == .clockwise ? "Play direction clockwise" : "Play direction counter-clockwise")
     }
@@ -265,6 +287,10 @@ struct TableCenterView: View {
         guard !reducedMotion else { return }
         withAnimation(.spring(response: 0.5, dampingFraction: 0.55)) {
             directionSpin += (turnDirection == .clockwise ? 360 : -360)
+        }
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) { showReversed = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            withAnimation(.easeOut(duration: 0.3)) { showReversed = false }
         }
     }
 }

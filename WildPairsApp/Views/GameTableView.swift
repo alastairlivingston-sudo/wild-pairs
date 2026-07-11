@@ -19,8 +19,20 @@ struct GameTableView: View {
     /// The seat cue (skip / forced draw) currently on screen; the ViewModel emits one and this
     /// view shows it briefly then clears it (Phase 17 C3).
     @State private var activeCue: SeatCueEvent?
+    /// Live frames of each seat + the discard, in the table coordinate space, feeding the
+    /// cross-table played-card travel (Phase 17 Stage 3.1).
+    @State private var tableAnchors: [TableAnchor: CGRect] = [:]
+    /// Ghost cards currently flying from an acting seat to the discard.
+    @State private var flights: [CardFlight] = []
+    /// Card-backs currently flying from the draw pile to a seat (Phase 17 Stage 3.5).
+    @State private var drawFlights: [DrawFlight] = []
+    /// Turn hand-off spotlights sweeping from the finishing seat to the next (Phase 17 Stage 3.3).
+    @State private var spotlights: [TurnSpotlight] = []
+    private let tableSpace = "wpTable"
 
     private var vs: GameViewState { vm.viewState }
+    /// Table position (0…3) of the seat whose turn it currently is — drives the hand-off sweep.
+    private var currentSeatPosition: Int? { vs.seats.first { $0.isCurrentPlayer }?.tablePosition }
     private var handCardSize: CGSize {
         let large = settings.userSettings.largeCards
         // iPad hand reads larger so the deck has real presence on the wide canvas (ux-spec §7).
@@ -30,6 +42,9 @@ struct GameTableView: View {
     private var showColourName: Bool { settings.userSettings.colourBlindMode }
     private var showPattern: Bool { settings.userSettings.colourBlindMode && settings.userSettings.patternFills }
     private var reducedMotion: Bool { settings.userSettings.reducedVisualEffects }
+    /// Skip the cross-table travel ghost entirely when motion is off (Reduced Motion, or the
+    /// user's Animation → Off setting) — the discard just updates in place.
+    private var travelDisabled: Bool { reducedMotion || settings.userSettings.animationSpeed == .off }
     /// Dot count by difficulty (ux-spec.md §10 thinking-indicator table): Easy gets fewer
     /// dots than Medium/Hard/Expert/Master, which all show the full three.
     private var thinkingDotCount: Int { vm.thinkingDifficulty == .easy ? 2 : 3 }
@@ -119,6 +134,7 @@ struct GameTableView: View {
                                     HandView(hand: vs.localHand, cardSize: handSize,
                                              showColourName: showColourName, showPattern: showPattern,
                                              reducedMotion: reducedMotion, onPlay: vm.play)
+                                        .reportTableAnchor(.seat(0), in: tableSpace)
                                 }
                                 .frame(maxWidth: contentMaxWidth)
                                 .frame(maxWidth: .infinity)
@@ -158,7 +174,37 @@ struct GameTableView: View {
                         }
                         .transition(.opacity)
                     }
+
+                    // Turn hand-off sweep (Stage 3.3): a glowing orb travels from the finishing
+                    // seat to the next, under the flying cards so a play/draw reads on top.
+                    ForEach(spotlights) { spot in
+                        TurnSpotlightView(spotlight: spot, tint: elementGlow) {
+                            spotlights.removeAll { $0.id == spot.id }
+                        }
+                    }
+
+                    // Cross-table draw travel (Stage 3.5): card-backs fly from the draw pile to
+                    // the drawing seat, staggered so a big penalty visibly takes longer.
+                    ForEach(drawFlights) { flight in
+                        FlyingBackView(flight: flight, cardSize: drawFlightSize(centerSize)) {
+                            drawFlights.removeAll { $0.id == flight.id }
+                        }
+                    }
+
+                    // Cross-table played-card travel (Stage 3.1): ghost cards fly from the
+                    // acting seat to the discard. Sits above the table but below modals.
+                    ForEach(flights) { flight in
+                        FlyingCardView(flight: flight, cardSize: centerSize,
+                                       reducedMotion: reducedMotion) {
+                            flights.removeAll { $0.id == flight.id }
+                        }
+                    }
                 }
+                .coordinateSpace(name: tableSpace)
+                .onPreferenceChange(TableAnchorPreference.self) { tableAnchors = $0 }
+                .onChange(of: vm.cardFlight) { _, event in launchFlight(event) }
+                .onChange(of: vm.drawFlight) { _, event in launchDrawFlights(event) }
+                .onChange(of: currentSeatPosition) { old, new in launchSpotlight(from: old, to: new) }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
@@ -294,6 +340,7 @@ struct GameTableView: View {
                            reducedMotion: reducedMotion, isThinking: partner.id == vm.thinkingPlayerID,
                            thinkingDotCount: thinkingDotCount, accent: elementGlow,
                            cue: cue(for: partner))
+                .reportTableAnchor(.seat(2), in: tableSpace)
         }
     }
 
@@ -330,7 +377,7 @@ struct GameTableView: View {
             showColourName: showColourName, showPattern: showPattern,
             reducedMotion: reducedMotion, cardSize: size,
             colourChoicePending: vs.colourChoicePending,
-            recentDiscards: vs.recentDiscards, onDraw: vm.drawCard
+            recentDiscards: vs.recentDiscards, flightSpace: tableSpace, onDraw: vm.drawCard
         )
     }
 
@@ -343,6 +390,7 @@ struct GameTableView: View {
             onCatchSolo: seat.id == vs.catchableSoloPlayerID ? { vm.callOut(seat.id) } : nil
         )
         .frame(width: width)
+        .reportTableAnchor(.seat(seat.tablePosition), in: tableSpace)
     }
 
     private func invalidTooltip(_ hint: String, handCardSize: CGSize) -> some View {
@@ -363,6 +411,51 @@ struct GameTableView: View {
     /// seat number, so a pass-and-play perspective flip rotates the whole table.
     private func seat(at position: Int) -> PlayerSeatViewState? {
         vs.seats.first { $0.tablePosition == position }
+    }
+
+    /// Launch a ghost card from the acting seat to the discard for a play event (Stage 3.1).
+    /// No-op when motion is disabled or the endpoints haven't been measured yet.
+    private func launchFlight(_ event: CardFlightEvent?) {
+        guard let event, !travelDisabled,
+              let seat = vs.seats.first(where: { $0.id == event.fromSeatID }),
+              let fromRect = tableAnchors[.seat(seat.tablePosition)],
+              let toRect = tableAnchors[.discard] else { return }
+        flights.append(CardFlight(
+            card: event.card,
+            from: CGPoint(x: fromRect.midX, y: fromRect.midY),
+            to: CGPoint(x: toRect.midX, y: toRect.midY)))
+    }
+
+    /// Launch `count` card-backs from the draw pile to the drawing seat (Stage 3.5), staggered
+    /// so the pickup's duration scales with how many cards it is. Visible backs are capped, but
+    /// the stagger still lengthens for the true count so a 6-card penalty reads longer than one.
+    private func launchDrawFlights(_ event: DrawFlightEvent?) {
+        guard let event, !travelDisabled,
+              let seat = vs.seats.first(where: { $0.id == event.toSeatID }),
+              let fromRect = tableAnchors[.drawPile],
+              let toRect = tableAnchors[.seat(seat.tablePosition)] else { return }
+        let from = CGPoint(x: fromRect.midX, y: fromRect.midY)
+        let to = CGPoint(x: toRect.midX, y: toRect.midY)
+        let visible = min(max(event.count, 1), 8)
+        for i in 0..<visible {
+            drawFlights.append(DrawFlight(from: from, to: to, delay: Double(i) * 0.11))
+        }
+    }
+
+    /// A travelling card-back reads best a touch smaller than the focal discard.
+    private func drawFlightSize(_ centerSize: CGSize) -> CGSize {
+        CGSize(width: centerSize.width * 0.72, height: centerSize.height * 0.72)
+    }
+
+    /// Sweep a spotlight orb from the finishing seat to the seat whose turn it now is (Stage 3.3).
+    /// No-op when motion is off, the turn didn't actually move seats, or an anchor is unmeasured.
+    private func launchSpotlight(from old: Int?, to new: Int?) {
+        guard !travelDisabled, let old, let new, old != new,
+              let fromRect = tableAnchors[.seat(old)],
+              let toRect = tableAnchors[.seat(new)] else { return }
+        spotlights.append(TurnSpotlight(
+            from: CGPoint(x: fromRect.midX, y: fromRect.midY),
+            to: CGPoint(x: toRect.midX, y: toRect.midY)))
     }
 
     private var targetCandidates: [PlayerSeatViewState] {

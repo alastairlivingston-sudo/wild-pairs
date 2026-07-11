@@ -700,6 +700,62 @@ The first card flipped to start the discard pile can be an action card, not just
 | Draw Four | Wild cards are never used as the starting card — one is reshuffled back into the deck and another card is flipped instead (see "Draw Pile Exhaustion" wild-card handling above). |
 | Number / other action | No special effect — the first player opens play normally. |
 
+## Draw Four Challenge (Optional House Rule — Phase 17 numeric spec, default OFF)
+
+This section pins the exact challenge behaviour and penalty numbers that Phase 11 deferred, so
+the scaffolded flow can be built without further design decisions. The rule is gated by
+`RuleProfile.drawFourChallengeable`, which is **`false` in all three factory profiles** — turning
+it on is a pure addition and changes nothing about default play.
+
+**What the flag changes.** When ON, a Draw Four may be played as a *bluff*: it becomes legal to
+play even while the player still holds a colour-matching card (`GameRules.drawFourIsLegal` already
+returns `true` whenever this flag is set). To keep the bluff honest, the **target** of the Draw
+Four may challenge it.
+
+**When the option appears.** Immediately after the Draw Four's colour is chosen and its +4 lands
+on the target (the next player in turn order), and *before* that target resolves the penalty, the
+target is offered a one-time choice: **Challenge**, or **Accept**. Accepting falls straight
+through to the existing behaviour unchanged — the target absorbs the pending total, or, if draw
+stacking is ON, answers with their own Draw Four / Draw Eight per the stacking rules. Only the
+immediate target may challenge, and only the Draw Four just played (not one buried earlier in a
+stack).
+
+**Resolving a challenge.** Reveal the challenged player's hand and check whether it contained a
+card matching **the active colour in force *before* the Draw Four's own colour choice** — i.e.
+whether the Draw Four was an illegal bluff. (The engine must therefore capture that pre-choice
+colour on the `.drawFourChallenge` decision, since `selectColour` overwrites `currentColour`.)
+
+| Outcome | Meaning | Penalty |
+|---|---|---|
+| **Challenge succeeds** | The challenged player *did* hold a colour-matching card — the Draw Four was a bluff. | The **challenged player** draws the pending total instead (the +4 plus any earlier stacked penalty). The target draws nothing and takes their turn normally. |
+| **Challenge fails** | The challenged player held no colour-matching card — the Draw Four was legal. | The **challenger** draws the pending total **plus 2** extra cards, then is skipped as a normal Draw Four target would be. |
+
+These are the standard convention (bluffer draws the 4; a wrong challenger draws 4 + 2 = 6),
+generalised to the pending-stack **total** so a challenge on top of a stack stays consistent. No
+new numeric `RuleProfile` fields are needed — the "+2 wrong-challenge penalty" is a fixed
+constant of the rule (expose it as a named constant if a future profile must tune it).
+
+**Interaction with draw stacking.** The challenge is offered *before* the target chooses to stack
+or absorb. Challenging resolves the pending penalty directly (no stacking for that decision);
+declining leaves the Phase 11 / Phase 17 B1 stacking-or-absorb flow untouched.
+
+**AI behaviour.** An AI target challenges on a difficulty-scaled heuristic from its
+`AIObservation` (it can weigh how likely a bluff was from the visible colour and the challenged
+player's earlier discards): Easy rarely challenges, Master challenges when the odds favour it. An
+AI *plays* a bluff Draw Four (while holding a legal colour card) only at higher difficulties.
+
+**Build checklist (scaffold already present).** `GameAction.challengeDrawFour(challengerID:)`,
+`PendingDecision.drawFourChallenge(challengerID:, challengedID:)`, and the `challengeDrawFour`
+reducer stub (currently a no-op) exist. Building this needs: (a) create the `.drawFourChallenge`
+decision — carrying the pre-choice colour — where the +4 lands on the target when the rule is ON;
+(b) implement the reducer to reveal the hand and apply the table above; (c) a human challenge
+prompt (sibling to the colour picker in `DecisionViews.swift`) plus the AI heuristic. Because it
+threads through the colour-choice and stacking flow that Phase 17 A2/A3 hardened, it must ship
+with regression tests: both outcomes, the both-hands-reveal invariant, and no stacking-legality
+leak during the challenge window.
+
+---
+
 ## Rule Audit Findings (Phase 11 G)
 
 A review of the engine against this document and standard UNO-style conventions, conducted as
@@ -719,8 +775,9 @@ part of Phase 11:
 - **Draw Four challenge** (`PendingDecision.drawFourChallenge`, `RuleProfile.drawFourChallengeable`):
   scaffolded in the model layer but intentionally **out of scope for Phase 11** — the engine
   keeps today's default restriction (a Draw Four is only legal when the player holds no
-  colour-matching card) rather than implementing a challenge flow. A future phase can wire up
-  the existing `PendingDecision` case.
+  colour-matching card) rather than implementing a challenge flow. The exact behaviour and
+  penalty numbers are now pinned in **§Draw Four Challenge** above (Phase 17), ready to build
+  behind the still-default-off `drawFourChallengeable` flag.
 
 ---
 

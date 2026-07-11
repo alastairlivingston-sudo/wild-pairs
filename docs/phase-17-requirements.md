@@ -7,6 +7,34 @@ flagged **[NEEDS DESIGN]**.
 
 ---
 
+## Delivery status (updated 2026-07-11)
+
+**Shipped & merged to `main`** (each stage verified; see the per-commit notes and
+`docs/phase-17-design/stage3-motion/` for captured proof of the play choreography):
+
+- **A1, A2, A3** — draw-stack legality centralised + stack-total display fixed; scoring display/docs corrected.
+- **B1** — optional decline-to-stack. **B3** — Side-to-Side partner-after-human default. **B4a** — Colour Burst → Standard. **B4b** — Draw Eight (Advanced, escalation stacking).
+- **C1** swipe-to-play · **C2+** stronger direction chip · **C3** skip/draw seat cues · **C4** opponent card piles · **C5** colour picker off the hand · **C7** persistent Solo! · **C8** hand sort (already present, verified) · **C9** iPad-landscape fit · **C10** 10s/5s move timer.
+- **Stage 3 (heavier half)** — **3.1** cross-table played-card travel · **3.3** turn hand-off spotlight · **3.4** "Reversed!" callout · **3.5** count-scaled draw travel.
+- **E** — card art replaced outright with the Solo asset pack (image skin + procedural back + Draw Eight stand-in).
+
+**Specced, not yet built (needs a go-ahead):**
+
+- **B2 Draw Four challenge** — exact numbers now pinned in `docs/game-rules.md` §Draw Four Challenge; opt-in (default off). Not started: it threads through the just-hardened stacking flow and adds a decision point — wants scope/number sign-off first. See §B2 below.
+- **D1 partner-view (pass-and-play) table redesign** — design-led; recommended via a short design-direction-lab for 2–3 directions before building. See §D below. **[NEEDS DESIGN]**
+
+**Accessibility check (Phase 17, verified by inspection):** VoiceOver is **intact** for the new
+image skin — `CardView`'s accessibility lives on the skin-independent shell
+(`CardView.swift:56–59`), deriving the label from the engine `Card` (colour + type +
+`accessibilityDescription` + pattern name), so swapping to `soloArt` cannot lose it. Two residual
+notes for a fuller audit pass: (1) the Solo art bakes the colour-blind pattern in **always-on**,
+so the `patternFills` setting no longer changes the *visual*, yet the spoken "…pattern" suffix is
+still gated on `showPattern` — harmless (VoiceOver users rely on the always-present spoken
+colour+type) but worth reconciling; (2) confirm the baked patterns + corner symbols still read at
+the smallest two-row hand sizes — recommend a visual QA sweep in colour-blind mode.
+
+---
+
 ## A. Correctness bugs (fix engine to match documented rules)
 
 **A1. Stacking total display is inconsistent.**
@@ -56,9 +84,16 @@ is played against a player, they get the option to challenge. A challenge checks
 player who played the Draw Four had a legal same-colour (or otherwise legally playable) card
 available at the time — if they did, the challenge succeeds (the played card is retracted, the
 challenged player draws instead, or per standard convention draws a reduced/no penalty) and if
-it fails the challenger draws the stack plus a penalty. Exact success/failure penalty numbers
-need to be pinned down against `docs/game-rules.md` conventions before implementation — flag to
-game-engine-engineer for the precise numeric spec before coding.
+it fails the challenger draws the stack plus a penalty.
+
+**SPEC PINNED (Phase 17):** the exact challenge behaviour and penalty numbers are now written up
+in `docs/game-rules.md` §Draw Four Challenge (bluffer draws the +4; a wrong challenger draws the
+pending total + 2; challenge offered to the immediate target after the colour choice, before they
+stack/absorb; opt-in behind the still-default-off `drawFourChallengeable` flag). Implementation
+was deliberately **not** started in this pass: it threads through the colour-choice + draw-stack
+flow that A2/A3 just hardened and introduces a new flow-interrupting decision point, so it wants a
+green light on scope (and the numbers) before coding, plus its own regression tests. Ready to
+build on confirmation.
 
 **B3. Side-to-Side turn order: partner immediately after human (new default).**
 User decision: this becomes the new default order for `sideToSide` mode, replacing today's

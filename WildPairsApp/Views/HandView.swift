@@ -169,12 +169,12 @@ struct HandView: View {
                     }
             )
             .animation(Theme.Motion.cardPlay, value: item.isPlayable)
-            // A9 / Phase 16 card travel: a played card flies up toward the discard pile as it
-            // leaves the hand (not a shrink-in-place), while a drawn/dealt card still pops in.
-            // Skipped under Reduced Motion (A12).
+            // A drawn/dealt card pops in; a played card fades as it leaves the hand while the
+            // Stage 3.1 travel ghost carries it across the table to the discard (so the motion
+            // isn't duplicated in-hand). Skipped under Reduced Motion (A12).
             .transition(reducedMotion ? .identity : .asymmetric(
                 insertion: .scale(scale: 0.5).combined(with: .opacity),
-                removal: .move(edge: .top).combined(with: .opacity)))
+                removal: .opacity.combined(with: .scale(scale: 0.85))))
             // Deal-in stagger (Phase 11 B): each new card (a fresh deal, or one drawn mid-round)
             // fades/scales in with a per-index delay instead of every card popping at once.
             .modifier(DealStaggerModifier(index: staggerIndex, reducedMotion: reducedMotion))
