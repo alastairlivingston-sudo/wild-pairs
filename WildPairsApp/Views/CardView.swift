@@ -40,6 +40,7 @@ struct CardView: View {
             switch Theme.activeCardSkin {
             case .glossPrint: glossPrintFace
             case .inkFoil:    InkFoilFace(context: faceContext)
+            case .soloArt:    SoloArtFace(context: faceContext)
             }
 
             // Playable ring (accent when the card is legal to play) — skin-independent.
@@ -851,61 +852,42 @@ struct CardBackView: View {
     var size: CGSize = Theme.CardSize.opponentBack
 
     private var isCompact: Bool { size.width < 56 }
-    private var borderWidth: CGFloat { size.width * 0.062 }
-    private var faceRadius: CGFloat { max(3, Theme.Radius.card - size.width * 0.03) }
 
+    // Dark-glass deck back (Phase 17 E) matching the Solo card art — the old white cardstock
+    // read as a different deck under the near-black faces.
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: Theme.Radius.card)
-                .fill(
-                    LinearGradient(colors: [Color(hex: 0xFFFFFF), Color(hex: 0xE8E4DA)],
-                                   startPoint: .topLeading, endPoint: .bottomTrailing)
-                )
-            RoundedRectangle(cornerRadius: Theme.Radius.card)
-                .strokeBorder(
-                    LinearGradient(colors: [.white.opacity(0.9), .black.opacity(0.22)],
-                                   startPoint: .topLeading, endPoint: .bottomTrailing),
-                    lineWidth: max(0.8, size.width * 0.012))
+        let rr = RoundedRectangle(cornerRadius: Theme.Radius.card)
+        return ZStack {
+            rr.fill(LinearGradient(colors: [Color(hex: 0x1B1723), Color(hex: 0x0B0910)],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing))
 
-            ZStack {
-                RoundedRectangle(cornerRadius: faceRadius)
-                    .fill(
-                        LinearGradient(colors: [Color(hex: 0x1A1242), Color(hex: 0x0D0820)],
-                                       startPoint: .topLeading, endPoint: .bottomTrailing)
-                    )
-                if !isCompact {
-                    ForEach(Array(CardColour.allCases.enumerated()), id: \.offset) { index, colour in
-                        SuitSymbol(colour: colour, lineWidth: max(1, size.width * 0.02))
-                            .frame(width: size.width * 0.12, height: size.width * 0.12)
-                            .foregroundStyle(colour.highlightColor(.dark).opacity(0.7))
-                            .offset(x: (index % 2 == 0 ? -1 : 1) * size.width * 0.28,
-                                    y: (index < 2 ? -1 : 1) * size.height * 0.3)
-                    }
-                    Circle()
-                        .strokeBorder(Theme.Palette.accent.opacity(0.5), lineWidth: max(0.8, size.width * 0.014))
-                        .frame(width: size.width * 0.5, height: size.width * 0.5)
+            if !isCompact {
+                ForEach(Array(CardColour.allCases.enumerated()), id: \.offset) { index, colour in
+                    SuitSymbol(colour: colour, lineWidth: max(1, size.width * 0.02))
+                        .frame(width: size.width * 0.12, height: size.width * 0.12)
+                        .foregroundStyle(colour.highlightColor(.dark).opacity(0.6))
+                        .offset(x: (index % 2 == 0 ? -1 : 1) * size.width * 0.28,
+                                y: (index < 2 ? -1 : 1) * size.height * 0.3)
                 }
-                Text("WP")
-                    .font(.system(size: size.width * (isCompact ? 0.36 : 0.2), weight: .black, design: .rounded))
-                    .foregroundStyle(Theme.Palette.accent)
-                    .shadow(color: .black.opacity(0.5), radius: 0, x: size.width * 0.014, y: size.width * 0.018)
-                    .shadow(color: Theme.Palette.accent.opacity(0.5), radius: size.width * 0.06)
-                Color.clear
-                    .overlay(
-                        Ellipse()
-                            .fill(
-                                LinearGradient(colors: [.white.opacity(0.2), .white.opacity(0.04), .clear],
-                                               startPoint: .top, endPoint: .bottom)
-                            )
-                            .frame(width: size.width * 1.7, height: size.height * 0.85)
-                            .rotationEffect(.degrees(-22))
-                            .offset(x: -size.width * 0.12, y: -size.height * 0.34)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: faceRadius))
-                RoundedRectangle(cornerRadius: faceRadius)
-                    .strokeBorder(.black.opacity(0.3), lineWidth: max(0.6, size.width * 0.008))
+                Circle()
+                    .strokeBorder(Theme.Palette.accent.opacity(0.5), lineWidth: max(0.8, size.width * 0.014))
+                    .frame(width: size.width * 0.5, height: size.width * 0.5)
             }
-            .padding(borderWidth)
+            Text("WP")
+                .font(.system(size: size.width * (isCompact ? 0.36 : 0.2), weight: .black, design: .rounded))
+                .foregroundStyle(Theme.Palette.accent)
+                .shadow(color: Theme.Palette.accent.opacity(0.5), radius: size.width * 0.06)
+
+            // Gloss sweep, clipped to the card.
+            Ellipse()
+                .fill(LinearGradient(colors: [.white.opacity(0.16), .white.opacity(0.03), .clear],
+                                     startPoint: .top, endPoint: .bottom))
+                .frame(width: size.width * 1.7, height: size.height * 0.85)
+                .rotationEffect(.degrees(-22))
+                .offset(x: -size.width * 0.12, y: -size.height * 0.34)
+                .clipShape(rr)
+
+            rr.strokeBorder(.white.opacity(0.12), lineWidth: max(0.8, size.width * 0.014))
         }
         .frame(width: size.width, height: size.height)
         .shadow(color: .black.opacity(0.3), radius: 3, x: 0, y: 1.5)

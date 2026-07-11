@@ -201,9 +201,13 @@ implementing directly from the JSON — that gives a side-by-side comparison aga
 Ink & Foil deck before committing. At minimum, the action-iconography table in the JSON is
 useful as a content reference even if the surrounding production-material styling isn't adopted.
 
-**Open question for the user:** confirm whether this is meant to *replace* Ink & Foil entirely,
-or is one candidate direction to compare against it — affects whether Tier 1 roadmap's
-already-"delivered" deck reskin gets reopened.
+**RESOLVED (Phase 17 Stage 5 E):** replace Ink & Foil outright. A full 75-image asset pack was
+supplied (`docs/solo_swiftui_asset_pack.zip`) and integrated: downscaled to 500×750 into
+`WildPairsApp/SoloCards.xcassets` (`scripts/prepare_solo_card_assets.sh`), rendered by a new
+image-based `.soloArt` `CardSkin` (`SoloArtFace`), with procedural stand-ins for the card back
+(dark-glass) and Draw Eight (no supplied art). `Theme.activeCardSkin = .soloArt`; `.inkFoil`
+kept as rollback. Colour-blind patterns are baked into the art (always on) — run an
+accessibility-audit to confirm legibility at small hand sizes.
 
 ---
 

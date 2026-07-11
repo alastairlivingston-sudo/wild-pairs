@@ -14,6 +14,7 @@ import WildPairsCore
 enum CardSkin {
     case glossPrint   // Phase 15c photoreal gloss-print deck
     case inkFoil      // Phase 16 black-glass "Ink & Foil" deck
+    case soloArt      // Phase 17 pre-rendered "Solo" asset-pack art (SoloCards.xcassets)
 }
 
 /// Everything a skin needs to render one card face. Skin-independent shell concerns (playable

@@ -23,8 +23,9 @@ extension EnvironmentValues {
 
 enum Theme {
 
-    /// The deck look. Flip to `.glossPrint` to instantly roll back to the Phase 15c deck.
-    static let activeCardSkin: CardSkin = .inkFoil
+    /// The deck look. Phase 17: the pre-rendered "Solo" asset-pack art. Flip to `.inkFoil` to
+    /// roll back to the Phase 16 procedural deck, or `.glossPrint` for the Phase 15c deck.
+    static let activeCardSkin: CardSkin = .soloArt
 
     // MARK: Spacing (§4)
     enum Space {
