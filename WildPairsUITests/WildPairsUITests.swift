@@ -334,24 +334,27 @@ final class WildPairsUITests: XCTestCase {
         // A leftover saved game from an earlier test would show "Continue Game" instead of
         // going straight into New Game flow, breaking the tap sequence below.
         let app = XCUIApplication()
-        app.launchArguments = ["--uitest-reset-state"]
+        app.launchArguments = ["--uitest-reset-state", "--uitest-fast-timers"]
         app.launch()
         dismissOnboardingIfPresent(app)
         app.buttons["home-new-game"].tap()
         app.buttons["newgame-start"].tap()
         XCTAssertTrue(app.buttons["game-pause-button"].waitForExistence(timeout: 5))
 
-        // Only ever tap the always-on-screen, fixed-position draw pile — drawing is legal
-        // any time it's the local player's turn (TableCenterView's canDraw doesn't require
-        // having no legal play), so this alone lets turns advance without ever touching the
-        // horizontally-scrolling hand, which can report flaky off-screen hit points for
-        // cards not currently scrolled into view.
+        // Advance by tapping the fixed-position draw pile (avoids the horizontally-scrolling
+        // hand, which can report flaky off-screen hit points). A draw no-ops when the human
+        // holds a legal play (the enforced draw rule), so their turns advance on the move timer;
+        // a move-timed-out move can play a wild, leaving a colour choice pending that must be
+        // resolved here or the loop stalls. The round's ~3-minute timer is the ultimate backstop,
+        // so budget generously past it.
         let nextRound = app.buttons["roundend-next"]
         let backToHome = app.buttons["End game"]
         let draw = app.buttons["game-draw-card-button"]
-        let deadline = Date().addingTimeInterval(150)
+        let colourPick = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'colour-pick-'")).firstMatch
+        let deadline = Date().addingTimeInterval(220)
         while Date() < deadline, !nextRound.exists, !backToHome.exists {
-            if draw.exists, draw.isEnabled, draw.frame.width > 0 { draw.tap() }
+            if colourPick.exists { colourPick.tap() }
+            else if draw.exists, draw.isEnabled, draw.frame.width > 0 { draw.tap() }
             usleep(200_000)
         }
 
@@ -382,7 +385,7 @@ final class WildPairsUITests: XCTestCase {
         continueAfterFailure = true
 
         let app = XCUIApplication()
-        app.launchArguments = ["--uitest-reset-state"]
+        app.launchArguments = ["--uitest-reset-state", "--uitest-fast-timers"]
         app.launch()
         dismissOnboardingIfPresent(app)
         app.buttons["home-new-game"].tap()
@@ -393,15 +396,19 @@ final class WildPairsUITests: XCTestCase {
         let backToHome = app.buttons["End game"]
         let draw = app.buttons["game-draw-card-button"]
 
+        let colourPick = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'colour-pick-'")).firstMatch
         func drawUntil(_ condition: @autoclosure () -> Bool, timeout: TimeInterval) {
             let deadline = Date().addingTimeInterval(timeout)
             while Date() < deadline, !condition() {
-                if draw.exists, draw.isEnabled, draw.frame.width > 0 { draw.tap() }
+                // Resolve a forced wild's colour choice so play keeps advancing (see note in
+                // testRoundEndCelebrationRenders), else fall back to the draw pile.
+                if colourPick.exists { colourPick.tap() }
+                else if draw.exists, draw.isEnabled, draw.frame.width > 0 { draw.tap() }
                 usleep(200_000)
             }
         }
 
-        drawUntil(nextRound.exists || backToHome.exists, timeout: 150)
+        drawUntil(nextRound.exists || backToHome.exists, timeout: 220)
         guard nextRound.exists else {
             // The first round ended in a game-over (best-of-N reached) rather than a round
             // win — there's no second round to advance to in that case, which is a valid
@@ -498,39 +505,31 @@ final class WildPairsScreenshotCapture: XCTestCase {
         try save(app, "06-pause")
     }
 
-    /// Two-player pass-and-play (Phase 15): drives Alex's turns by drawing until the game
-    /// waits on Beth, then asserts the handoff overlay appears, confirms it, and checks the
-    /// table has flipped to Beth's perspective (her seat is now the local/bottom seat).
-    func testCaptureTwoPlayerHandoff() throws {
+    /// Two-player pass-and-play (Phase 17 D1 — Active-Half Focus): the shared-device dual-ended
+    /// table shows both ends at once with **no** "pass the device" handoff. Verify the table
+    /// renders, the handoff overlay is gone, turns advance by drawing from the shared centre, and
+    /// capture the dual-ended layout.
+    func testCaptureTwoPlayerDualEnded() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--uitest-reset-state", "--uitest-autostart-2p"]
         app.launch()
 
         XCTAssertTrue(app.buttons["game-pause-button"].waitForExistence(timeout: 10))
+        // The dual-ended table replaces the pass-the-device handoff entirely.
+        XCTAssertFalse(app.buttons["handoff-confirm"].exists,
+                       "Pass-and-play must not show a handoff overlay under the Active-Half Focus table")
+        try save(app, "14-two-player-dual-ended")
 
-        // Play Alex's turns via the draw pile until the handoff to Beth appears. Easy AI +
-        // turn order 0→1→2 means Beth's turn comes within a few cycles.
-        let handoff = app.buttons["handoff-confirm"]
+        // Turns advance by drawing from the shared centre pile (enabled for whichever end is
+        // active), swapping the lit half between the two ends with no popup.
         let draw = app.buttons["game-draw-card-button"]
-        let deadline = Date().addingTimeInterval(90)
-        var lap = 0
-        while !handoff.exists && Date() < deadline {
+        for _ in 0..<6 {
             if draw.exists && draw.isEnabled && draw.isHittable { draw.tap() }
             Thread.sleep(forTimeInterval: 1.0)
-            lap += 1
-            if lap % 10 == 0 { try save(app, "debug-2p-lap\(lap)") }
         }
-        XCTAssertTrue(handoff.exists, "Handoff overlay never appeared for the second human")
-        try save(app, "14-two-player-handoff")
-
-        handoff.tap()
-        Thread.sleep(forTimeInterval: 1.5)
-        try save(app, "15-two-player-beth-perspective")
-
-        // After the flip Beth is the local player: her prompt line and hand are live, and
-        // the overlay is gone.
-        XCTAssertFalse(handoff.exists, "Handoff overlay must dismiss on confirm")
+        try save(app, "15-two-player-dual-ended-later")
         XCTAssertTrue(app.buttons["game-pause-button"].exists)
+        XCTAssertFalse(app.buttons["handoff-confirm"].exists)
     }
 
     /// iPad landscape capture (Phase 15): rotates the device before reaching the table so

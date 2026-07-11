@@ -49,8 +49,13 @@ final class WildPairsPerformanceTests: XCTestCase {
         let draw = app.buttons["game-draw-card-button"]
         let nextRound = app.buttons["roundend-next"]
         let backToHome = app.buttons["End game"]
+        // A move-timed-out human move can play a wild, leaving a colour choice pending — the
+        // move timer is then gated off, so the drive loop must resolve it or the round stalls.
+        let colourPick = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'colour-pick-'")).firstMatch
         var roundsSeen = 0
-        let deadline = Date().addingTimeInterval(Double(count) * 60)
+        // Human turns advance on the move timer (drawing no-ops when a legal play exists), so a
+        // round can run to its ~3-minute timer backstop; budget generously past it.
+        let deadline = Date().addingTimeInterval(Double(count) * 90)
 
         while roundsSeen < count, Date() < deadline {
             if nextRound.exists {
@@ -59,6 +64,8 @@ final class WildPairsPerformanceTests: XCTestCase {
                 nextRound.tap()
             } else if backToHome.exists {
                 break
+            } else if colourPick.exists {
+                colourPick.tap()
             } else if draw.exists, draw.isEnabled, draw.frame.width > 0 {
                 draw.tap()
             }
@@ -80,12 +87,17 @@ final class WildPairsPerformanceTests: XCTestCase {
     // uncancelled Task, a retained closure) without needing Instruments attached.
     func testMemoryAcrossMultipleRounds() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["--uitest-reset-state"]
+        app.launchArguments = ["--uitest-reset-state", "--uitest-fast-timers"]
         app.launch()
         dismissOnboardingIfPresent(app)
 
-        measure(metrics: [XCTMemoryMetric()]) {
-            playSeveralRounds(app, count: 3)
+        // One measured pass over two rounds: enough to catch a memory blow-up across rounds
+        // without a 15-round (5 iterations × 3 rounds) runtime now that human turns are
+        // move-timer-paced (see playSeveralRounds).
+        let options = XCTMeasureOptions()
+        options.iterationCount = 1
+        measure(metrics: [XCTMemoryMetric()], options: options) {
+            playSeveralRounds(app, count: 2)
         }
     }
 
