@@ -56,7 +56,14 @@ struct GameTableView: View {
                 // presence: bigger on iPhone, bigger still on iPad's wider canvas.
                 let isPad = hSize == .regular
                 let isLandscape = isPad && geo.size.width > geo.size.height
-                let centerSize = isPad ? Theme.CardSize.padTableFocus : Theme.CardSize.tableFocus
+                // Landscape height is the scarce axis on iPad — shrink the focal cards, partner
+                // fan, and hand so the whole table fits without vertical scrolling on smaller
+                // iPads (Phase 17 C9).
+                let centerSize = isPad ? (isLandscape ? Theme.CardSize.tableFocus : Theme.CardSize.padTableFocus)
+                                       : Theme.CardSize.tableFocus
+                let handSize: CGSize = (isPad && isLandscape)
+                    ? (settings.userSettings.largeCards ? Theme.CardSize.padHand : Theme.CardSize.regularHand)
+                    : handCardSize
                 let resolvedSide = max(sideWidth, 80)
                 // iPad uses its width deliberately (ux-spec §7): the table is a centred block of
                 // a sensible max width with opponents pushed out to its edges and larger cards,
@@ -66,7 +73,7 @@ struct GameTableView: View {
                     ? (isLandscape ? min(geo.size.width - Theme.Space.s6 * 2, 1120) : 820)
                     : .infinity
                 let availableWidth = contentMaxWidth.isFinite ? contentMaxWidth : geo.size.width
-                let partnerCardSize = isPad ? Theme.CardSize.padPartnerHand : Theme.CardSize.partnerHand
+                let partnerCardSize = (isPad && !isLandscape) ? Theme.CardSize.padPartnerHand : Theme.CardSize.partnerHand
                 // Clamp the partner's open-hand fan to the real on-screen width so it never
                 // clips off the right edge (A6).
                 let partnerMaxWidth = min(resolvedSide * 2 + centerSize.width * 2 + Theme.Space.s3,
@@ -109,7 +116,7 @@ struct GameTableView: View {
                                     }
                                     bottomControls
                                     pointsAtRiskPill
-                                    HandView(hand: vs.localHand, cardSize: handCardSize,
+                                    HandView(hand: vs.localHand, cardSize: handSize,
                                              showColourName: showColourName, showPattern: showPattern,
                                              reducedMotion: reducedMotion, onPlay: vm.play)
                                 }
@@ -126,7 +133,7 @@ struct GameTableView: View {
                         .animation(.easeInOut(duration: 0.6), value: tableSaturation)
                     }
 
-                    if let hint = vm.lastInvalidHint { invalidTooltip(hint, handCardSize: handCardSize) }
+                    if let hint = vm.lastInvalidHint { invalidTooltip(hint, handCardSize: handSize) }
 
                     if let handoff = vm.pendingHandoffSeat {
                         HandoffOverlay(seat: handoff, onReady: vm.confirmHandoff)
@@ -135,13 +142,26 @@ struct GameTableView: View {
                     if vs.phase == .roundEnded || vs.phase == .gameEnded {
                         RoundEndView(vs: vs, settings: settings, onNext: vm.beginNextRound, onExit: onExit)
                     }
+
+                    // Colour choice as a centred in-table overlay (Phase 17 C5) — biased toward
+                    // the top so it sits over the table centre and never covers the hand or the
+                    // partner's open hand. The scrim keeps the cards visible (just dimmed).
+                    if vs.awaitingLocalColourChoice {
+                        ZStack {
+                            Color.black.opacity(0.35).ignoresSafeArea()
+                            VStack(spacing: 0) {
+                                Spacer(minLength: 0)
+                                ColourPickerView(onChoose: vm.chooseColour, showPattern: showPattern)
+                                Spacer(minLength: 0)
+                                Spacer(minLength: 0)   // bias the panel above centre, clear of the hand
+                            }
+                        }
+                        .transition(.opacity)
+                    }
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
-        }
-        .sheet(isPresented: colourSheetBinding) {
-            ColourPickerView(onChoose: vm.chooseColour, showPattern: showPattern)
         }
         .sheet(isPresented: targetSheetBinding) {
             TargetPickerView(candidates: targetCandidates, onChoose: vm.chooseTarget)
@@ -211,17 +231,23 @@ struct GameTableView: View {
         .padding(.horizontal, Theme.Space.s4)
     }
 
+    /// Solo! is always on screen (Phase 17 C7) but only enabled at the legal moment — while
+    /// you hold two cards on your turn, or at one card within the effect-drop grace window.
     @ViewBuilder private var bottomControls: some View {
-        if vs.soloButtonVisible {
-            Button { vm.callSolo() } label: {
-                Label("Solo!", systemImage: "exclamationmark.circle.fill")
-                    .fontWeight(.bold)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(Theme.Palette.warning)
-            .accessibilityIdentifier("game-solo-button")
-            .accessibilityHint("Call Solo before playing your second-to-last card, or you can be caught for a penalty.")
+        let enabled = vs.soloButtonVisible
+        Button { vm.callSolo() } label: {
+            Label("Solo!", systemImage: "exclamationmark.circle.fill")
+                .fontWeight(.bold)
         }
+        .buttonStyle(.borderedProminent)
+        .tint(enabled ? Theme.Palette.warning : Color.gray)
+        .opacity(enabled ? 1 : 0.45)
+        .disabled(!enabled)
+        .animation(.easeInOut(duration: 0.2), value: enabled)
+        .accessibilityIdentifier("game-solo-button")
+        .accessibilityHint(enabled
+            ? "Call Solo before playing your second-to-last card, or you can be caught for a penalty."
+            : "Solo can be called when you are about to play down to your last card.")
     }
 
     /// Live "points at risk" (Phase 11 E) — the raw card-value sum of the local player's own
@@ -343,9 +369,6 @@ struct GameTableView: View {
         vs.seats.filter { vs.localTargetChoices.contains($0.id) }
     }
 
-    private var colourSheetBinding: Binding<Bool> {
-        Binding(get: { vs.awaitingLocalColourChoice }, set: { _ in })
-    }
     private var targetSheetBinding: Binding<Bool> {
         Binding(get: { !vs.localTargetChoices.isEmpty }, set: { _ in })
     }

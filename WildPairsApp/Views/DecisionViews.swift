@@ -4,49 +4,51 @@ import WildPairsCore
 // Modal sheets for the two mid-resolution decisions: choosing a colour after a wild, and
 // choosing a target after Targeted Draw / Forced Swap.
 
+/// A compact "Choose a new colour" panel shown as an in-table overlay (Phase 17 C5) rather than
+/// a bottom sheet, so it never covers the local hand or the partner's hand. The caller centres it
+/// over the table (above the hand) with a light scrim.
 struct ColourPickerView: View {
     let onChoose: (CardColour) -> Void
     var showPattern: Bool = false
 
     var body: some View {
-        ZStack {
-            TableBackground()
-            VStack(spacing: Theme.Space.s4) {
-                Text("Choose a new colour").font(.title).fontWeight(.semibold).foregroundStyle(.white)
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Theme.Space.s3) {
-                    ForEach(CardColour.allCases, id: \.self) { colour in
-                        Button { onChoose(colour) } label: {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: Theme.Radius.r3)
-                                    .fill(
-                                        LinearGradient(colors: [colour.highlightColor(.dark), colour.fillColor(.dark)],
-                                                       startPoint: .top, endPoint: .bottom)
-                                    )
-                                if showPattern {
-                                    CardPatternFill(colour: colour).clipShape(RoundedRectangle(cornerRadius: Theme.Radius.r3))
-                                }
-                                VStack(spacing: Theme.Space.s2) {
-                                    SuitSymbol(colour: colour, lineWidth: 2.4).frame(width: 28, height: 28)
-                                    Text(showPattern ? colour.displayName.uppercased() : colour.displayName)
-                                        .fontWeight(.semibold)
-                                }
-                                .foregroundStyle(.white)
+        VStack(spacing: Theme.Space.s3) {
+            Text("Choose a new colour").font(.headline).fontWeight(.semibold).foregroundStyle(.white)
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Theme.Space.s2) {
+                ForEach(CardColour.allCases, id: \.self) { colour in
+                    Button { onChoose(colour) } label: {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: Theme.Radius.r3)
+                                .fill(
+                                    LinearGradient(colors: [colour.highlightColor(.dark), colour.fillColor(.dark)],
+                                                   startPoint: .top, endPoint: .bottom)
+                                )
+                            if showPattern {
+                                CardPatternFill(colour: colour).clipShape(RoundedRectangle(cornerRadius: Theme.Radius.r3))
                             }
-                            // ux-spec.md §5 "Choose a new colour": each swatch minimum 100×100pt.
-                            .frame(minWidth: 100, minHeight: 100)
-                            .shadow(color: colour.fillColor(.dark).opacity(0.5), radius: 14)
+                            VStack(spacing: Theme.Space.s1) {
+                                SuitSymbol(colour: colour, lineWidth: 2.4).frame(width: 24, height: 24)
+                                Text(showPattern ? colour.displayName.uppercased() : colour.displayName)
+                                    .font(.subheadline).fontWeight(.semibold)
+                            }
+                            .foregroundStyle(.white)
                         }
-                        .buttonStyle(ElementTileButtonStyle())
-                        .accessibilityLabel("\(colour.displayName), \(colour.symbolDisplayName) symbol, button")
-                        .accessibilityIdentifier("colour-pick-\(colour.rawValue)")
+                        // Compact swatch (~84pt) so the centred panel clears the hand.
+                        .frame(minWidth: 84, minHeight: 84)
+                        .shadow(color: colour.fillColor(.dark).opacity(0.5), radius: 10)
                     }
+                    .buttonStyle(ElementTileButtonStyle())
+                    .accessibilityLabel("\(colour.displayName), \(colour.symbolDisplayName) symbol, button")
+                    .accessibilityIdentifier("colour-pick-\(colour.rawValue)")
                 }
             }
-            .padding(Theme.Space.s5)
         }
-        .presentationDetents([.height(340)])
-        .interactiveDismissDisabled()
-        .preferredColorScheme(.dark)
+        .padding(Theme.Space.s4)
+        .frame(maxWidth: 300)
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.r4).fill(Theme.Felt.base(.dark)))
+        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.r4).strokeBorder(.white.opacity(0.15), lineWidth: 1))
+        .shadow(color: .black.opacity(0.45), radius: 24, y: 6)
+        .accessibilityAddTraits(.isModal)
     }
 }
 

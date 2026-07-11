@@ -15,6 +15,10 @@ struct HandView: View {
     let onPlay: (CardViewModel) -> Void
 
     @State private var shakingCardID: UUID?
+    /// The card currently being dragged, and its live vertical translation (Phase 17 C1
+    /// swipe-to-play). Only one card drags at a time, so a single shared pair is enough.
+    @State private var draggingCardID: UUID?
+    @GestureState private var dragOffsetY: CGFloat = 0
     /// Echoed out of the GeometryReader so the outer frame can grow for the second row.
     /// Stable: the row count depends only on the width and hand size, never on height.
     @State private var rowsShown = 1
@@ -148,9 +152,22 @@ struct HandView: View {
                  isPlayable: item.isPlayable, showColourName: showColourName,
                  showPattern: showPattern, announcePlayability: true, reducedMotion: reducedMotion)
             .rotationEffect(.degrees(centred * anglePerCard), anchor: .bottom)
-            .offset(y: (item.isPlayable ? -cardSize.height * 0.18 : 0) + bow)
+            .offset(y: (item.isPlayable ? -cardSize.height * 0.18 : 0) + bow
+                    + (draggingCardID == item.id ? min(0, dragOffsetY) : 0))
             .modifier(ShakeEffect(animatableData: shakingCardID == item.id ? 1 : 0))
             .onTapGesture { tap(item) }
+            // Swipe-to-play (Phase 17 C1): flick a card up toward the discard to play it — the
+            // same path as a tap. Only upward drags count; anything else snaps back. Tap still
+            // works (a drag needs to move past minimumDistance first).
+            .gesture(
+                DragGesture(minimumDistance: 12)
+                    .updating($dragOffsetY) { value, state, _ in state = value.translation.height }
+                    .onChanged { _ in if draggingCardID != item.id { draggingCardID = item.id } }
+                    .onEnded { value in
+                        draggingCardID = nil
+                        if value.translation.height < -cardSize.height * 0.35 { tap(item) }
+                    }
+            )
             .animation(Theme.Motion.cardPlay, value: item.isPlayable)
             // A9 / Phase 16 card travel: a played card flies up toward the discard pile as it
             // leaves the hand (not a shrink-in-place), while a drawn/dealt card still pops in.
