@@ -19,15 +19,14 @@
 ## Process (per .claude/ROUTER.md)
 1. Before coding the Tier-1 items, run `/premortem` then `/promoter-score-review`.
 2. **Design elements come from ChatGPT** (owner decision, 2026-07-17), replacing the
-   `/design-direction-lab` HTML-prototype step. Two rounds, both driven by the paste-ready
-   brief in [`chatgpt-design-brief.md`](./chatgpt-design-brief.md) (same folder) with the
-   Phase-17 screenshots attached:
-   - **Round 1 — concept mockups** of the redesigned table, seats, and end-game ceremony;
-     the owner picks a direction.
-   - **Round 2 — finished assets** for the winning direction (avatar crests, card-back art,
-     direction glyphs) at the export sizes listed in the brief.
-   SwiftUI implementation then matches the picked mockup; keep the `/simulator-verify`
-   parity checks exactly as before.
+   `/design-direction-lab` HTML-prototype step. **One prompt**, in
+   [`chatgpt-design-brief.md`](./chatgpt-design-brief.md) (same folder), with the LATEST
+   screenshots attached (`docs/phase-17-design/stage3-motion/*.png` +
+   `partner-view/impl-active-half-beth-turn.png`, all 2026-07-11 — not the older
+   `current-ux` set). The prompt demands directly usable output: mockups, transparent-PNG
+   assets, and a compiling `TableRedesignKit.swift` (SwiftUI, iOS 17) plus integration
+   notes. The implementing session adapts that file to the MVVM/reducer structure and
+   keeps the `/simulator-verify` parity checks exactly as before.
 3. Rule/behaviour changes travel as a unit (engine + game-rules.md + CLAUDE.md + tests).
 4. Verify every visual change with `/simulator-verify` (iPhone → iPad, checkpoint between),
    then `/swiftui-quality-review` and `/accessibility-audit` for anything with new affordances.
@@ -54,7 +53,7 @@ d. Thermal/battery: device runs hot during play — instrument frame + energy lo
    **fanned card backs**, not a bare count circle; the direction-of-play indicator is
    **always visible**, flips on Reverse, and whose-turn signalling gets markedly stronger.
    Targets: `TableCenterView.swift` (draw pile + direction chip at `:238`),
-   `PlayerZoneView.swift` (opponent fans). Visuals come from the ChatGPT Round-1 mockups.
+   `PlayerZoneView.swift` (opponent fans). Visuals come from the ChatGPT deliverables.
 
 **Tier 2 (independent polish):**
 3. Elevate the per-move timer in the final seconds (central numeral / stronger pulse; keep the
@@ -64,8 +63,8 @@ d. Thermal/battery: device runs hot during play — instrument frame + energy lo
 5. Optional AI-personality reaction bubbles (difficulty-scaled, rare, settings-gated) — the
    offline analogue to UNO's quick-chat. Run `/promoter-score-review` on this one.
 
-Start with the Tier-0 bug fixes, then Tier 1. Show me the ChatGPT Round-1 mockups and stop
-for my pick before building.
+Start with the Tier-0 bug fixes, then Tier 1. Show me the ChatGPT mockups/assets and stop
+for my sign-off before building.
 
 ## Other issues I'm noticing (ADD YOURS HERE)
 <!-- Template per issue: Screen/flow · what you saw · why it feels off · video timestamp if any -->
