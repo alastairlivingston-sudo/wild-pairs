@@ -33,11 +33,15 @@ raw video or per-frame reads. Budgets per analysis, absent user instruction othe
 
 ## Steps
 
-1. **Fetch.** `scripts/fetch_video.sh <url> <scratch-dir> [--max-height 720] [--section "*MM:SS-MM:SS"]`
-   — installs yt-dlp/ffmpeg if missing, writes `meta.json` (title, duration, chapters),
-   downloads preferring HLS (progressive formats 403 from datacenter IPs). If download fails
-   (region lock, members-only, IP block): ask the user to download it on their machine and
-   provide the file — do not fight YouTube's defences further.
+1. **Fetch.** `scripts/fetch_video.sh <url-or-local-file> <scratch-dir> [--max-height 720] [--section "*MM:SS-MM:SS"]`
+   — installs yt-dlp/ffmpeg if missing, writes `meta.json` (title, duration, chapters), and
+   walks the acquisition ladder: **local file (best)** → HLS m3u8 (works when exposed) → DASH/
+   progressive (usually 403 here) → storyboard (last resort, ~396x180, HUD-unreadable).
+   Reality check (proven 2026-07): YouTube gates real streams behind a PO token this
+   datacenter IP cannot mint, so **many videos will not download here at all** — the reliable
+   path is the user downloading the video on their machine and re-running with the file path.
+   Ask for the file the moment only the storyboard is reachable; do not fight the wall
+   further or try to analyse UX from storyboard glitch.
 
 2. **Plan the sampling** from `meta.json`: duration and chapter titles decide scan interval
    and which segments matter. State the plan in one paragraph before extracting.
