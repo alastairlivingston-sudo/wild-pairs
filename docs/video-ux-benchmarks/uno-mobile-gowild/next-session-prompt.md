@@ -18,14 +18,30 @@
 
 ## Process (per .claude/ROUTER.md)
 1. Before coding the Tier-1 items, run `/premortem` then `/promoter-score-review`.
-2. For the seat + end-of-game redesign, use `/design-direction-lab` (HTML prototypes → my
-   pick → SwiftUI with parity) rather than implementing by eye.
+2. **Design elements come from ChatGPT** (owner decision, 2026-07-17), replacing the
+   `/design-direction-lab` HTML-prototype step. Two rounds, both driven by the paste-ready
+   brief in [`chatgpt-design-brief.md`](./chatgpt-design-brief.md) (same folder) with the
+   Phase-17 screenshots attached:
+   - **Round 1 — concept mockups** of the redesigned table, seats, and end-game ceremony;
+     the owner picks a direction.
+   - **Round 2 — finished assets** for the winning direction (avatar crests, card-back art,
+     direction glyphs) at the export sizes listed in the brief.
+   SwiftUI implementation then matches the picked mockup; keep the `/simulator-verify`
+   parity checks exactly as before.
 3. Rule/behaviour changes travel as a unit (engine + game-rules.md + CLAUDE.md + tests).
 4. Verify every visual change with `/simulator-verify` (iPhone → iPad, checkpoint between),
    then `/swiftui-quality-review` and `/accessibility-audit` for anything with new affordances.
 5. Commit per item; do not open a PR unless I ask.
 
-## Work items (from ux-match-plan.md)
+## Work items (from ux-match-plan.md + owner playtest 2026-07-17)
+**Tier 0 (bug fixes — before or parallel to design work; route via `/playtest-fix`):**
+a. Round timer resets every turn instead of counting down once per round (should be a single
+   3-minute round-long countdown).
+b. Skip does not resolve correctly in partner/Side-to-Side mode.
+c. Draw Four challenge prompt sometimes offers only "Accept", never "Decline".
+d. Thermal/battery: device runs hot during play — instrument frame + energy load
+   (continuous animation/timer/redraw suspects); route performance-reliability-lead.
+
 **Tier 1 (do first):**
 1. Opponent identity — bundled offline avatar/elemental crest per AI seat, glowing on their
    turn. Targets: `PlayerZoneView.swift` seat content; an `AIProfile` where seats are built in
@@ -33,6 +49,12 @@
 2. End-of-game rank ceremony + one-tap "Play again" that restarts the full game with the same
    opponents/mode/teammate. Targets: `RoundEndView` game-over branch in `PauseMenuView.swift`;
    `restartWithSameConfig()` on `GameViewModel`. Skippable + Reduced-Motion safe.
+3. Table centre + presence redesign (promoted from playtest feedback, was "Q5") — draw pile
+   becomes a **stacked physical deck** (not the translucent "WP" panel); opponents show
+   **fanned card backs**, not a bare count circle; the direction-of-play indicator is
+   **always visible**, flips on Reverse, and whose-turn signalling gets markedly stronger.
+   Targets: `TableCenterView.swift` (draw pile + direction chip at `:238`),
+   `PlayerZoneView.swift` (opponent fans). Visuals come from the ChatGPT Round-1 mockups.
 
 **Tier 2 (independent polish):**
 3. Elevate the per-move timer in the final seconds (central numeral / stronger pulse; keep the
@@ -42,49 +64,51 @@
 5. Optional AI-personality reaction bubbles (difficulty-scaled, rare, settings-gated) — the
    offline analogue to UNO's quick-chat. Run `/promoter-score-review` on this one.
 
-Start with Tier 1. Show me the prototypes/screenshots and stop for my pick before building.
+Start with the Tier-0 bug fixes, then Tier 1. Show me the ChatGPT Round-1 mockups and stop
+for my pick before building.
 
 ## Other issues I'm noticing (ADD YOURS HERE)
 <!-- Template per issue: Screen/flow · what you saw · why it feels off · video timestamp if any -->
 <!-- Playtest feedback from owner, 2026-07-17. Mix of bugs (B) and enhancements (E).
-     Cross-refs to the Tier work items above noted in [brackets]. -->
+     Open questions Q1–Q6 were resolved with the owner on 2026-07-17; decisions inline. -->
 
 - **(E) Solo! enhancements** — the one-card-left ("Solo!") mechanic wants more polish.
-  Scope TBD — see open question Q1. [related to HUD Solo! button, not yet in a work item]
+  **Decision (Q1): all three strands.** (a) Call-moment drama — bigger, more satisfying
+  Solo! button + call animation/sound; (b) catching flow — clearer window and affordance to
+  catch an AI that forgot, with a visible +2 penalty moment; (c) AI seats visibly react to
+  calls/catches (ties into Tier-2 item 5). [new work item; design via ChatGPT mockups]
 - **(B/perf) Device runs hot** — phone heats up during play; suspected too battery-intensive.
   Likely continuous animation/timer/redraw load. Needs a performance pass
-  (route: performance-reliability-lead / instrument frame + energy). Not in any work item yet.
+  (route: performance-reliability-lead / instrument frame + energy). **Now Tier-0 item d.**
 - **(B+E) Partner mode** — (1) Skip is not resolving correctly in partner/Side-to-Side play
-  (bug); (2) still want a small peek at my partner's hand. Note: CLAUDE.md says partner hands
-  are *open by design* and the human should already see the AI partner's hand — so this reads
-  as the peek affordance being missing/too hidden in this mode. See Q2.
+  (bug, **now Tier-0 item b**); (2) still want a small peek at my partner's hand.
+  **Decision (Q2): the peek exists but is too small/hidden in this mode** — make it clearer
+  and bigger without dominating the screen (partner hands are open by design per CLAUDE.md).
 - **(E) Turn-order + whose-turn clarity** — the direction-of-play indicator (clockwise /
   anticlockwise) should be **always visible** and flip when order reverses; and more broadly
-  it's **too subtle whose turn it is**. Overlaps Tier-1 item 1 (active-seat identity) and the
-  existing direction chip (`TableCenterView.swift:238`) — but current prominence is judged
-  insufficient by the owner. See Q3.
-- **(E) Quick-chat** — want a small chat with pre-programmed phrases the player can tap
-  (e.g. "Play +2", "Change colour"). NOTE potential conflict: the plan lists *player* chat as a
-  DIVERGENT non-goal and offers only AI-personality reactions (Tier-2 item 5). A local,
-  same-device, canned-phrase chat needs no network, so it may be compliant — needs a decision.
-  See Q4.
-- **(B/E) Middle-of-table redesign** — the centre is poorly designed (see attached screenshot).
-  The draw pile should look like a **stack of physical cards**, not the current translucent
-  panel; and I should see the **backs of opponents' cards** (fanned hand), not just a count.
-  Overlaps the two "candidate observations" below (fan the opponent pile; pick-up pile look).
-  This is arguably a new Tier-1 item. See Q5.
+  it's **too subtle whose turn it is**. **Decision (Q3): folded into the new Tier-1 item 3**
+  (table centre + presence redesign), alongside Tier-1 item 1's active-seat identity.
+- **(E) Quick-chat** — small chat with pre-programmed phrases the player can tap
+  (e.g. "Play +2", "Change colour"). **Decision (Q4): approved as a local, same-device,
+  canned-phrase strip — and tapping a phrase is a REAL hint the AI partner weighs in its
+  next-move heuristics** (not just cosmetic). This supersedes the match plan's "player chat"
+  non-goal for the local case only; networked chat remains out. [new work item]
+- **(B/E) Middle-of-table redesign** — the centre is poorly designed (see
+  `docs/phase-17-design/current-ux/iphone-02-table-autostart.png`). The draw pile should look
+  like a **stack of physical cards**, not the current translucent panel; and I should see the
+  **backs of opponents' cards** (fanned hand), not just a count.
+  **Decision (Q5): promoted to Tier-1 item 3.**
 - **(B) Challenge flow** — the challenge prompt (Draw Four challenge, Phase 17 B2) does not
-  reliably offer both choices; sometimes only "Accept" is available, never "Decline". Bug.
-- **(E) Colour renaming** — rename the displayed colours: sky (blue), grass (green), sun
-  (yellow), lava (red). NOTE: Solo's colours are the elemental Fire/Rain/Earth/Wind set
-  (internal `crimson`/`cobalt`/`jade`/`amber`), a display-only theme; this is a request for a
-  *new* display theme via `CardColour.displayName` (internal names never change). Mapping needs
-  confirming — see Q6.
+  reliably offer both choices; sometimes only "Accept" is available, never "Decline". Bug,
+  **now Tier-0 item c.**
+- **(E) Colour renaming** — **Decision (Q6): confirmed mapping** — `crimson` → **Lava** (red),
+  `cobalt` → **Sky** (blue), `jade` → **Grass** (green), `amber` → **Sun** (yellow), replacing
+  Fire/Rain/Earth/Wind. Display-only via `CardColour.displayName`; internal names, raw values,
+  and save files never change (same pattern as the Phase 11 retheme). Update the symbols/
+  patterns doc row + VoiceOver strings that read through `displayName`.
 - **(B) Round timer resets** — the 3-minute *total* round timer is being reset after every
   turn instead of counting down for the whole round. Bug — it should be a single round-long
-  countdown.
-
-<!-- Candidate observations from the analysis — keep, edit, or delete:
+  countdown. **Now Tier-0 item a.**
 
 <!-- Candidate observations from the analysis — keep, edit, or delete:
 - Wild colour picker is a flat 2x2 swatch grid; feels less satisfying than the video's
