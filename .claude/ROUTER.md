@@ -33,6 +33,7 @@ How to route work in this repo to the project's skills (`.claude/skills/`), agen
 | "When I played, X happened" (bug from a play session) | `/playtest-fix` | Engine fix + docs + regression test as one atomic change | Fix with no doc drift |
 | UI change needs visual proof | `/simulator-verify` | Proven unattended screenshot loop, per-form-factor checkpoints | Screenshots + verdict per form factor |
 | Open-ended visual brief ("redesign", "explore looks") | `/design-direction-lab` | Divergent HTML prototypes before SwiftUI commitment | User-picked direction, parity-checked implementation |
+| Game video shared with "match this UX" / "analyse this video" | `/video-ux-analysis` | Frame-evidence benchmarking via timestamped contact sheets, not transcripts | Feature inventory + gap analysis + match plan |
 | Phase complete (after gate GO) or major stretch ends | `/phase-handoff` | Next session must continue without recap questions | Brief + reconciled KIs + memory update |
 | Flaky XCUITest (see docs/known-issues.md) | flake-hardener agent, background, isolated worktree | Pattern proven on testResumeAfterBackgrounding (merge 9a1ba4a) | Hardened test + repeat-run proof |
 | Memory files stale, duplicated, or bloated | `/consolidate-memory` (harness) | Purpose-built reflective pass; don't hand-roll | Merged/pruned memory + index |
