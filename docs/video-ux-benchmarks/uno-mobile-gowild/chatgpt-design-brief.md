@@ -1,5 +1,11 @@
 # ChatGPT design brief — Solo table redesign (single prompt)
 
+> **OUTCOME (2026-07-18): this brief has been executed — historical record only.**
+> ChatGPT returned a project-aware integration package (patch + assets + contracts +
+> HTML preview), committed at repo root under `WORKING_FILES/`. It supersedes this
+> brief's `TableRedesignKit.swift` and Solo-burst/+2-badge PNG deliverables (rulings
+> R1/R5). Integration instructions and conflict rulings: `next-session-prompt.md`.
+
 > Owner decision 2026-07-17: design elements come from ChatGPT in **one prompt** that
 > returns everything — mockups, production assets, and implementable SwiftUI code —
 > replacing the `/design-direction-lab` HTML-prototype step. SwiftUI integration and
