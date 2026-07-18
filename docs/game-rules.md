@@ -408,6 +408,8 @@ Team Play is double-edged: it gives both teammates more cards (potentially valua
 
 **Turn order (Phase 17 B3):** Unlike Standard Teams, Side-to-Side seats your partner immediately after you (seats 0,1 = your team; seats 2,3 = opponents), so play goes You → Partner → Opponent → Opponent. This is the mode default. The table still renders you at the bottom and your partner across the top.
 
+**Action cards use literal seat order (intentional).** Skip, Skip Two, Draw Two/Four/Eight and every other action resolve against the physical seat order above — they do **not** know about teams. Because your partner sits immediately after you, a Skip you play skips *your own partner* and passes the turn to the opponents; this is by design (owner decision, 2026-07-18), matching how these cards work in every mode. It is a genuine tactical cost of the adjacent seating, not a bug.
+
 **Team Pass (optional, configurable):** At the very start of each round, after dealing but before the first card is played, each team may perform a team pass:
 
 1. Each player privately selects exactly one card from their hand.
