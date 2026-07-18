@@ -274,23 +274,27 @@ public struct GameViewState: Equatable, Sendable {
             self.colourChoicePending = false
         }
 
-        // Pending decisions that belong to the local player
-        if case .colourChoice(let pid) = state.pendingDecision, pid == localPlayerID {
+        // Pending decisions that belong to the local player. Only live while the round is in
+        // play (or the pre-round team pass) — once it has ended, a decision overlay must never
+        // linger on top of the round-end screen with dead buttons (Tier 0c).
+        let decisionsLive = state.phase == .playing || state.phase == .teamPass
+        if decisionsLive, case .colourChoice(let pid) = state.pendingDecision, pid == localPlayerID {
             self.awaitingLocalColourChoice = true
         } else {
             self.awaitingLocalColourChoice = false
         }
-        if case .targetChoice(let pid, let targets) = state.pendingDecision, pid == localPlayerID {
+        if decisionsLive, case .targetChoice(let pid, let targets) = state.pendingDecision, pid == localPlayerID {
             self.localTargetChoices = targets
         } else {
             self.localTargetChoices = []
         }
-        if case .teamPass(let pid) = state.pendingDecision, pid == localPlayerID {
+        if decisionsLive, case .teamPass(let pid) = state.pendingDecision, pid == localPlayerID {
             self.awaitingLocalTeamPass = true
         } else {
             self.awaitingLocalTeamPass = false
         }
-        if case .drawFourChallenge(let challengerID, let challengedID, let priorColour, _) = state.pendingDecision,
+        if decisionsLive,
+           case .drawFourChallenge(let challengerID, let challengedID, let priorColour, _) = state.pendingDecision,
            challengerID == localPlayerID {
             self.awaitingLocalDrawFourChallenge = true
             self.drawFourChallengedName = state.players.first { $0.id == challengedID }?.name

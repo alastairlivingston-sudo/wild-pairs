@@ -984,6 +984,9 @@ public struct GameEngine {
     private static func handleRoundTimerExpired(state: GameState) -> (GameState, [GameEffect]) {
         guard state.phase == .playing, !state.players.isEmpty else { return (state, []) }
         var s = state
+        // A decision pending when the round ends is moot — clear it so no decision overlay
+        // (e.g. a Draw Four challenge) is stranded on top of the round-end screen (Tier 0c).
+        s.pendingDecision = nil
 
         let winner = s.players.min { lhs, rhs in
             let lhsPoints = pointValue(for: lhs.hand)

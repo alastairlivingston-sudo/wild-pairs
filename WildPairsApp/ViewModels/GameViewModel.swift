@@ -171,6 +171,8 @@ final class GameViewModel: ObservableObject {
     /// The pending decision owned by a human (either end), for the pass-and-play overlays.
     var activeDecision: ActiveDecision? {
         let s = presenter.state
+        // Suppressed once the round has ended so no overlay lingers over the round-end screen (Tier 0c).
+        guard s.phase == .playing || s.phase == .teamPass else { return nil }
         switch s.pendingDecision {
         case .colourChoice(let pid):
             return isHuman(pid) ? .colour(owner: pid) : nil

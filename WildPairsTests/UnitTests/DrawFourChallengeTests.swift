@@ -51,6 +51,21 @@ struct DrawFourChallengeTests {
         #expect(total == 4)
     }
 
+    @Test("Round-timer expiry clears a pending challenge (no stranded overlay over round-end)")
+    func testRoundTimerExpiryClearsPendingChallenge() {
+        // Tier 0c: a Draw Four challenge is pending on the target when the round timer fires.
+        // The round must end AND the decision must be cleared, so the challenge overlay can't
+        // linger on top of the round-end screen with dead buttons.
+        let (state, _, _) = challengeState(
+            seat0Hand: [CardFactory.drawFour(), CardFactory.number(5, .crimson), CardFactory.number(1, .amber)],
+            stacking: true)
+        #expect(state.pendingDecision != nil)   // precondition: a challenge is pending
+        let (after, _) = GameEngine.reduce(state: state, action: .roundTimerExpired)
+        #expect(after.pendingDecision == nil)
+        #expect(after.phase != .playing)
+        #expect(after.winState != nil)
+    }
+
     @Test("Challenge upheld (bluff): the challenged player draws 4 and the target plays on")
     func testChallengeUpheld() {
         // Seat 0 keeps a crimson card after the Draw Four → the play was a bluff.
