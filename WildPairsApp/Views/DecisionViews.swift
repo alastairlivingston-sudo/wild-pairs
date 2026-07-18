@@ -296,28 +296,9 @@ struct ThinkingDotsView: View {
     }
 }
 
-// Tasteful, unobtrusive countdown for the 3-minute round-wide fallback timer (game-rules.md
-// "Round Timer Fallback") — only shown once a round is actually running with the rule active.
-struct RoundTimerBadge: View {
-    let remaining: TimeInterval
-    let total: TimeInterval
-
-    private var isUrgent: Bool { remaining <= 30 }
-    private var label: String {
-        let seconds = max(0, Int(remaining.rounded()))
-        return String(format: "%d:%02d", seconds / 60, seconds % 60)
-    }
-
-    var body: some View {
-        Label(label, systemImage: "clock")
-            .font(.caption).fontWeight(.semibold).monospacedDigit()
-            .foregroundStyle(isUrgent ? Theme.Palette.warning : .white.opacity(0.8))
-            .padding(.horizontal, Theme.Space.s3).padding(.vertical, 4)
-            .wpGlassCapsule(tint: isUrgent ? Theme.Palette.warning : nil)
-            .accessibilityLabel("Round time remaining: \(label)")
-            .accessibilityIdentifier("game-round-timer")
-    }
-}
+// The round-wide fallback countdown now lives in the unified state rail (GameTableView's
+// TableStateRail, which owns the `game-round-timer` identifier) — the old standalone
+// RoundTimerBadge was removed in the Phase 18 table redesign (ruling R3).
 
 // The local player's 10-second per-move countdown (game-rules.md "Per-Move Timer") — a thin
 // progress bar above the hand, only shown on the local player's turn. Colour shifts from

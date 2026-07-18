@@ -19,6 +19,9 @@ struct GameTableView: View {
     /// The seat cue (skip / forced draw) currently on screen; the ViewModel emits one and this
     /// view shows it briefly then clears it (Phase 17 C3).
     @State private var activeCue: SeatCueEvent?
+    /// One-shot presentation state for the seat that has just been caught missing Solo. The
+    /// rules engine already applies the draw; this state only positions the transient stamp.
+    @State private var activeSoloPenalty: SoloPenaltyEvent?
     /// Live frames of each seat + the discard, in the table coordinate space, feeding the
     /// cross-table played-card travel (Phase 17 Stage 3.1).
     @State private var tableAnchors: [TableAnchor: CGRect] = [:]
@@ -33,6 +36,19 @@ struct GameTableView: View {
     private var vs: GameViewState { vm.viewState }
     /// Table position (0…3) of the seat whose turn it currently is — drives the hand-off sweep.
     private var currentSeatPosition: Int? { vs.seats.first { $0.isCurrentPlayer }?.tablePosition }
+    private var activeSeat: PlayerSeatViewState? { vs.seats.first { $0.isCurrentPlayer } }
+    private var activeTurnLabel: String {
+        guard let seat = activeSeat else { return "TURN" }
+        if seat.isLocalPlayer { return "YOUR TURN" }
+        if seat.tablePosition == 2 { return "PARTNER'S TURN" }
+        return "\(seat.name.uppercased())'S TURN"
+    }
+    private var activeSeatIsThinking: Bool { activeSeat?.id == vm.thinkingPlayerID }
+    private var localCaughtPenaltyCount: Int? {
+        guard let localID = vs.seats.first(where: { $0.isLocalPlayer })?.id,
+              activeSoloPenalty?.seatID == localID else { return nil }
+        return activeSoloPenalty?.count
+    }
     private var handCardSize: CGSize {
         let large = settings.userSettings.largeCards
         // iPad hand reads larger so the deck has real presence on the wide canvas (ux-spec §7).
@@ -79,7 +95,9 @@ struct GameTableView: View {
                 let handSize: CGSize = (isPad && isLandscape)
                     ? (settings.userSettings.largeCards ? Theme.CardSize.padHand : Theme.CardSize.regularHand)
                     : handCardSize
-                let resolvedSide = max(sideWidth, 80)
+                // 72pt keeps the crest, five-card fan, and count badge readable while allowing
+                // the 24pt draw/discard gap to fit on a 375pt-wide iPhone without clipping.
+                let resolvedSide = max(sideWidth, 72)
                 // iPad uses its width deliberately (ux-spec §7): the table is a centred block of
                 // a sensible max width with opponents pushed out to its edges and larger cards,
                 // instead of phone-width content marooned in the middle of a 1024pt screen.
@@ -112,13 +130,11 @@ struct GameTableView: View {
                                     partnerZone(maxWidth: partnerMaxWidth, seatBackSize: seatBackSize,
                                                 openHandCardSize: partnerCardSize)
                                     zoneGap(isPad: isPad, compact: isLandscape)
+                                    tableStateRail(compact: isLandscape)
                                     opponentCenterRow(spacing: spacing, seatBackSize: seatBackSize,
                                                       centerSize: centerSize, sideWidth: resolvedSide, spread: isPad)
                                     zoneGap(isPad: isPad, compact: isLandscape)
 
-                                    if let roundRemaining = vm.roundTimeRemaining {
-                                        RoundTimerBadge(remaining: roundRemaining, total: vm.roundTimeLimit)
-                                    }
                                     PromptBanner(prompt: vs.prompt, tint: elementGlow)
                                         .padding(.horizontal, Theme.Space.s4)
                                     // Per-move countdown over the effective limit (10s, or 5s in
@@ -225,6 +241,7 @@ struct GameTableView: View {
                 .onChange(of: vm.cardFlight) { _, event in launchFlight(event) }
                 .onChange(of: vm.drawFlight) { _, event in launchDrawFlights(event) }
                 .onChange(of: currentSeatPosition) { old, new in launchSpotlight(from: old, to: new) }
+                .onChange(of: vm.soloPenalty) { _, event in presentSoloPenalty(event) }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
@@ -297,23 +314,41 @@ struct GameTableView: View {
         .padding(.horizontal, Theme.Space.s4)
     }
 
-    /// Solo! is always on screen (Phase 17 C7) but only enabled at the legal moment — while
-    /// you hold two cards on your turn, or at one card within the effect-drop grace window.
-    @ViewBuilder private var bottomControls: some View {
-        let enabled = vs.soloButtonVisible
-        Button { vm.callSolo() } label: {
-            Label("Solo!", systemImage: "exclamationmark.circle.fill")
-                .fontWeight(.bold)
+    /// Solo! remains visible so its location is learned, but the urgent legal state becomes a
+    /// deliberate thumb-zone callout rather than another generic bordered button.
+    private var bottomControls: some View {
+        HStack(alignment: .center) {
+            if let count = localCaughtPenaltyCount {
+                CaughtPenaltyStamp(count: count)
+                    .scaleEffect(0.84)
+                    .frame(width: 72, height: 64)
+                    .transition(reducedMotion ? .opacity : .scale(scale: 0.45).combined(with: .opacity))
+            }
+            Spacer(minLength: Theme.Space.s4)
+            SoloTableCallButton(
+                isEnabled: vs.soloButtonVisible,
+                reducedMotion: reducedMotion,
+                action: vm.callSolo
+            )
         }
-        .buttonStyle(.borderedProminent)
-        .tint(enabled ? Theme.Palette.warning : Color.gray)
-        .opacity(enabled ? 1 : 0.45)
-        .disabled(!enabled)
-        .animation(.easeInOut(duration: 0.2), value: enabled)
-        .accessibilityIdentifier("game-solo-button")
-        .accessibilityHint(enabled
-            ? "Call Solo before playing your second-to-last card, or you can be caught for a penalty."
-            : "Solo can be called when you are about to play down to your last card.")
+        .padding(.horizontal, Theme.Space.s4)
+        .frame(maxWidth: .infinity)
+    }
+
+    /// One compact rail replaces separate colour, turn-owner, and round-timer pills. It is the
+    /// dominant state readout, while the physical cards remain the dominant visual objects.
+    private func tableStateRail(compact: Bool) -> some View {
+        TableStateRail(
+            colour: vs.currentColour,
+            ownerLabel: activeTurnLabel,
+            isLocalTurn: vs.isLocalPlayerTurn,
+            isThinking: activeSeatIsThinking,
+            roundRemaining: vm.roundTimeRemaining,
+            roundTotal: vm.roundTimeLimit,
+            accent: elementGlow,
+            compact: compact
+        )
+        .padding(.horizontal, Theme.Space.s4)
     }
 
     /// Live "points at risk" (Phase 11 E) — the raw card-value sum of the local player's own
@@ -359,7 +394,8 @@ struct GameTableView: View {
                            maxFanWidth: maxWidth,
                            reducedMotion: reducedMotion, isThinking: partner.id == vm.thinkingPlayerID,
                            thinkingDotCount: thinkingDotCount, accent: elementGlow,
-                           cue: cue(for: partner))
+                           cue: cue(for: partner),
+                           caughtPenaltyCount: penaltyCount(for: partner))
                 .reportTableAnchor(.seat(2), in: tableSpace)
         }
     }
@@ -397,7 +433,8 @@ struct GameTableView: View {
             showColourName: showColourName, showPattern: showPattern,
             reducedMotion: reducedMotion, cardSize: size,
             colourChoicePending: vs.colourChoicePending,
-            recentDiscards: vs.recentDiscards, flightSpace: tableSpace, onDraw: vm.drawCard
+            recentDiscards: vs.recentDiscards, flightSpace: tableSpace,
+            pileSpacing: Theme.Table.drawDiscardGap, onDraw: vm.drawCard
         )
     }
 
@@ -407,10 +444,28 @@ struct GameTableView: View {
             reducedMotion: reducedMotion,
             isThinking: seat.id == vm.thinkingPlayerID, thinkingDotCount: thinkingDotCount,
             accent: elementGlow, cue: cue(for: seat),
+            caughtPenaltyCount: penaltyCount(for: seat),
             onCatchSolo: seat.id == vs.catchableSoloPlayerID ? { vm.callOut(seat.id) } : nil
         )
         .frame(width: width)
         .reportTableAnchor(.seat(seat.tablePosition), in: tableSpace)
+    }
+
+    private func penaltyCount(for seat: PlayerSeatViewState) -> Int? {
+        activeSoloPenalty?.seatID == seat.id ? activeSoloPenalty?.count : nil
+    }
+
+    private func presentSoloPenalty(_ event: SoloPenaltyEvent?) {
+        guard let event else { return }
+        withAnimation(reducedMotion ? nil : .spring(response: 0.38, dampingFraction: 0.68)) {
+            activeSoloPenalty = event
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.55) {
+            guard activeSoloPenalty?.token == event.token else { return }
+            withAnimation(reducedMotion ? nil : .easeOut(duration: 0.22)) {
+                activeSoloPenalty = nil
+            }
+        }
     }
 
     private func invalidTooltip(_ hint: String, handCardSize: CGSize) -> some View {
@@ -487,5 +542,334 @@ struct GameTableView: View {
     }
     private var teamPassSheetBinding: Binding<Bool> {
         Binding(get: { vs.awaitingLocalTeamPass }, set: { _ in })
+    }
+}
+
+// MARK: - Project-aware table chrome
+
+/// The single state rail at the centre of the information hierarchy. It combines the three
+/// facts a player checks most often — active element, whose turn, and round time — without
+/// creating three unrelated floating pills. Every fact is encoded with text and shape as well
+/// as colour, and `ViewThatFits` provides a compact Dynamic Type fallback.
+private struct TableStateRail: View {
+    let colour: CardColour
+    let ownerLabel: String
+    let isLocalTurn: Bool
+    let isThinking: Bool
+    let roundRemaining: TimeInterval?
+    let roundTotal: TimeInterval
+    let accent: Color
+    let compact: Bool
+
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            horizontalLayout
+            compactLayout
+        }
+        .padding(.horizontal, compact ? Theme.Space.s3 : Theme.Space.s4)
+        .padding(.vertical, compact ? Theme.Space.s1 : Theme.Space.s2)
+        .frame(maxWidth: compact ? 430 : 520)
+        .background(
+            RoundedRectangle(cornerRadius: Theme.Radius.r4, style: .continuous)
+                .fill(Color.black.opacity(0.58))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.r4, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [.white.opacity(0.46), accent.opacity(0.38), .white.opacity(0.10)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
+        .overlay(alignment: .bottom) {
+            TurnRailPointer()
+                .fill(Color.black.opacity(0.58))
+                .frame(width: 18, height: 8)
+                .overlay(
+                    TurnRailPointer()
+                        .stroke(accent.opacity(0.42), lineWidth: 1)
+                )
+                .offset(y: 7)
+                .accessibilityHidden(true)
+        }
+        .shadow(color: .black.opacity(0.34), radius: 8, y: 4)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(accessibilitySummary)
+        .accessibilityIdentifier("game-turn-rail")
+    }
+
+    private var horizontalLayout: some View {
+        HStack(spacing: Theme.Space.s3) {
+            elementChip
+            Divider()
+                .overlay(.white.opacity(0.18))
+                .frame(height: 28)
+                .accessibilityHidden(true)
+            turnOwner
+            Spacer(minLength: Theme.Space.s2)
+            if let roundRemaining {
+                RoundClock(
+                    remaining: roundRemaining,
+                    total: roundTotal,
+                    accent: accent
+                )
+            }
+        }
+    }
+
+    private var compactLayout: some View {
+        VStack(spacing: Theme.Space.s1) {
+            HStack(spacing: Theme.Space.s2) {
+                elementChip
+                Spacer(minLength: Theme.Space.s2)
+                if let roundRemaining {
+                    RoundClock(
+                        remaining: roundRemaining,
+                        total: roundTotal,
+                        accent: accent
+                    )
+                }
+            }
+            turnOwner
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var elementChip: some View {
+        HStack(spacing: Theme.Space.s1) {
+            SuitSymbol(colour: colour, lineWidth: 1.9)
+                .frame(width: 17, height: 17)
+            Text(colour.displayName.uppercased())
+                .font(.caption.weight(.black))
+                .tracking(0.45)
+                .lineLimit(1)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, Theme.Space.s2)
+        .padding(.vertical, 6)
+        .background(Capsule().fill(colour.fillColor(scheme).opacity(0.92)))
+        .overlay(Capsule().strokeBorder(.white.opacity(0.76), lineWidth: 1))
+        .shadow(color: colour.highlightColor(scheme).opacity(0.24), radius: 5)
+        .accessibilityHidden(true)
+    }
+
+    private var turnOwner: some View {
+        HStack(spacing: Theme.Space.s2) {
+            ZStack {
+                Circle()
+                    .fill(isLocalTurn ? .white : .white.opacity(0.14))
+                Circle()
+                    .strokeBorder(.white.opacity(0.72), lineWidth: 1)
+                Image(systemName: isLocalTurn ? "hand.point.up.left.fill" : "arrowtriangle.down.fill")
+                    .font(.system(size: 10, weight: .black))
+                    .foregroundStyle(isLocalTurn ? Color.black : Color.white)
+            }
+            .frame(width: 25, height: 25)
+
+            VStack(alignment: .leading, spacing: 0) {
+                Text(ownerLabel)
+                    .font(.subheadline.weight(.black))
+                    .foregroundStyle(.white)
+                    .tracking(0.25)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.64)
+                Text(isThinking ? "THINKING" : (isLocalTurn ? "PLAY NOW" : "UP NOW"))
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.62))
+                    .tracking(0.7)
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    private var accessibilitySummary: String {
+        var parts = ["Current element: \(colour.displayName)", ownerLabel]
+        if isThinking { parts.append("thinking") }
+        return parts.joined(separator: ", ")
+    }
+}
+
+/// A compact timer with a progress ring. The digits carry the exact value; the ring only provides
+/// peripheral urgency, so the state remains understandable in greyscale and with VoiceOver.
+private struct RoundClock: View {
+    let remaining: TimeInterval
+    let total: TimeInterval
+    let accent: Color
+
+    private var progress: Double {
+        guard total > 0 else { return 0 }
+        return max(0, min(1, remaining / total))
+    }
+
+    private var isUrgent: Bool { remaining <= 30 }
+
+    private var label: String {
+        let seconds = max(0, Int(remaining.rounded()))
+        return String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+
+    var body: some View {
+        HStack(spacing: Theme.Space.s1) {
+            ZStack {
+                Circle().stroke(.white.opacity(0.16), lineWidth: 2)
+                Circle()
+                    .trim(from: 0, to: progress)
+                    .stroke(
+                        isUrgent ? Theme.Palette.warning : accent,
+                        style: StrokeStyle(lineWidth: 2.5, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+                Image(systemName: "timer")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.84))
+            }
+            .frame(width: 25, height: 25)
+
+            Text(label)
+                .font(.caption.weight(.bold))
+                .monospacedDigit()
+                .foregroundStyle(isUrgent ? Theme.Palette.warning : .white.opacity(0.88))
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Round time remaining: \(label)")
+        .accessibilityIdentifier("game-round-timer")
+    }
+}
+
+private struct TurnRailPointer: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// Native SwiftUI Solo control. The urgent state has the energy of a table call, but the text,
+/// outline, and megaphone carry the meaning when motion, glow, or colour are unavailable.
+private struct SoloTableCallButton: View {
+    let isEnabled: Bool
+    let reducedMotion: Bool
+    let action: () -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    @State private var pulse = false
+
+    private var motionDisabled: Bool { reducedMotion || systemReduceMotion }
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                if isEnabled {
+                    SoloBurstShape(points: 15, innerRatio: 0.82)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color(hex: 0xFFD85A), Theme.Palette.warning, Color(hex: 0xD46A1A)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                    SoloBurstShape(points: 15, innerRatio: 0.82)
+                        .strokeBorder(.white.opacity(0.90), lineWidth: 1.5)
+                } else {
+                    Capsule()
+                        .fill(Color.black.opacity(0.50))
+                    Capsule()
+                        .strokeBorder(.white.opacity(0.22), lineWidth: 1)
+                }
+
+                HStack(spacing: Theme.Space.s2) {
+                    Image(systemName: "megaphone.fill")
+                        .font(.system(size: 16, weight: .black))
+                    Text("Solo!")
+                        .font(.title3.weight(.black))
+                        .minimumScaleFactor(0.72)
+                        .lineLimit(1)
+                }
+                .foregroundStyle(isEnabled ? Theme.Palette.onAccent : .white.opacity(0.58))
+                .shadow(color: isEnabled ? .white.opacity(0.28) : .clear, radius: 1, y: -1)
+            }
+            .frame(width: 116, height: 58)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(SoloCallPressStyle(motionDisabled: motionDisabled))
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.62)
+        .scaleEffect(isEnabled && pulse ? 1.045 : 1)
+        .shadow(
+            color: isEnabled ? Theme.Palette.warning.opacity(pulse ? 0.52 : 0.30) : .clear,
+            radius: pulse ? 16 : 9,
+            y: 3
+        )
+        .onAppear { updatePulse() }
+        .onChange(of: isEnabled) { _, _ in updatePulse() }
+        .onChange(of: motionDisabled) { _, _ in updatePulse() }
+        .accessibilityLabel("Solo!")
+        .accessibilityIdentifier("game-solo-button")
+        .accessibilityValue(isEnabled ? "Ready to call" : "Not available yet")
+        .accessibilityHint(
+            isEnabled
+                ? "Call Solo before playing down to your final card."
+                : "Solo becomes available when you are about to play down to your final card."
+        )
+    }
+
+    private func updatePulse() {
+        pulse = false
+        guard isEnabled, !motionDisabled else { return }
+        withAnimation(.easeInOut(duration: 0.72).repeatForever(autoreverses: true)) {
+            pulse = true
+        }
+    }
+}
+
+private struct SoloCallPressStyle: ButtonStyle {
+    let motionDisabled: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed && !motionDisabled ? 0.94 : 1)
+            .brightness(configuration.isPressed ? -0.06 : 0)
+            .animation(motionDisabled ? nil : .easeOut(duration: 0.10), value: configuration.isPressed)
+    }
+}
+
+private struct SoloBurstShape: InsettableShape {
+    let points: Int
+    let innerRatio: CGFloat
+    var insetAmount: CGFloat = 0
+
+    func path(in rect: CGRect) -> Path {
+        let bounds = rect.insetBy(dx: insetAmount, dy: insetAmount)
+        let centre = CGPoint(x: bounds.midX, y: bounds.midY)
+        let outer = min(bounds.width, bounds.height) * 0.5
+        let inner = outer * innerRatio
+        let vertexCount = max(points, 3) * 2
+        var path = Path()
+
+        for index in 0..<vertexCount {
+            let angle = -CGFloat.pi / 2 + CGFloat(index) * CGFloat.pi / CGFloat(points)
+            let radius = index.isMultiple(of: 2) ? outer : inner
+            let point = CGPoint(
+                x: centre.x + cos(angle) * radius,
+                y: centre.y + sin(angle) * radius
+            )
+            if index == 0 { path.move(to: point) } else { path.addLine(to: point) }
+        }
+        path.closeSubpath()
+        return path
+    }
+
+    func inset(by amount: CGFloat) -> SoloBurstShape {
+        var copy = self
+        copy.insetAmount += amount
+        return copy
     }
 }

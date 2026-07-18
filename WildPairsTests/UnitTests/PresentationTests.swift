@@ -160,7 +160,7 @@ struct GameViewStateTests {
             .withHand(forPlayer: 0, cards: [CardFactory.number(7, .crimson)])
             .build()
         let hint = GameViewState.matchHint(state: state)
-        #expect(hint.contains("Rain"))
+        #expect(hint.contains("Sky"))     // cobalt's display name (Phase 18 rename)
         #expect(hint.contains("7"))
         #expect(hint.contains("wild"))
     }

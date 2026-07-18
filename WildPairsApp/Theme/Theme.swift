@@ -75,6 +75,22 @@ enum Theme {
         static let tableFocus = CGSize(width: 96, height: 144)
     }
 
+    // MARK: Game-table composition
+    // Project-aware tokens for the table redesign. These live in the existing Theme namespace
+    // rather than introducing a parallel design-token type that could drift or collide.
+    enum Table {
+        /// Physical separation between the face-down draw deck and the played-card pile.
+        /// 24pt keeps the two hit targets visually distinct at iPhone size while preserving the
+        /// existing centre-row fit; constrained layouts may reduce to Space.s4, never below 16pt.
+        static let drawDiscardGap: CGFloat = Space.s5
+        /// The direction orbit is deliberately quieter than cards and turn brackets.
+        static let directionOrbitOpacity: Double = 0.30
+        /// Width of the non-colour white bracket stroke used to identify the active seat.
+        static let activeSeatBracketWidth: CGFloat = 2
+        /// Maximum number of physical backs shown in an opponent fan. The count badge remains exact.
+        static let visibleOpponentBacks = 5
+    }
+
     // MARK: Elevation (§11) — one elevation level per element, never stacked.
     enum Elevation {
         struct Spec { let color: Color; let radius: CGFloat; let x: CGFloat; let y: CGFloat }
@@ -361,10 +377,10 @@ struct SuitSymbolShape: Shape {
 
     func path(in rect: CGRect) -> Path {
         switch colour {
-        case .crimson: return flame(in: rect)      // Fire
-        case .cobalt: return wave(in: rect)         // Rain
-        case .jade: return crystal(in: rect)        // Earth
-        case .amber: return swirl(in: rect)         // Wind
+        case .crimson: return flame(in: rect)      // Lava
+        case .cobalt: return wave(in: rect)         // Sky
+        case .jade: return crystal(in: rect)        // Grass
+        case .amber: return swirl(in: rect)         // Sun
         }
     }
 
@@ -415,7 +431,7 @@ struct SuitSymbolShape: Shape {
         return path
     }
 
-    /// Earth: a faceted crystal/mountain — a hexagonal gem outline with internal facet lines.
+    /// Grass: a faceted crystal/mountain — a hexagonal gem outline with internal facet lines.
     private func crystal(in rect: CGRect) -> Path {
         var path = Path()
         let w = rect.width, h = rect.height
@@ -439,7 +455,7 @@ struct SuitSymbolShape: Shape {
         return path
     }
 
-    /// Wind: a gust/swirl — three concentric arcs sweeping outward, like a breeze curling.
+    /// Sun: a gust/swirl — three concentric arcs sweeping outward, like a breeze curling.
     private func swirl(in rect: CGRect) -> Path {
         var path = Path()
         let center = CGPoint(x: rect.midX, y: rect.midY)
@@ -469,24 +485,24 @@ struct SuitSymbol: View {
 // MARK: - Game colour → SwiftUI Color (§7, light/dark adjusted)
 
 extension CardColour {
-    /// The card face base colour — elemental retheme (Fire/Rain/Earth/Wind, Phase 11 D):
+    /// The card face base colour — elemental retheme (Lava/Sky/Grass/Sun display names, Phase 11 D):
     /// red→orange, deep-blue→cyan, green→stone, gold→grey, all scheme-independent (dark-first).
     func fillColor(_ scheme: ColorScheme) -> Color {
         switch self {
-        case .crimson: return Color(hex: 0xE8431F)  // Fire: red-orange
-        case .cobalt:  return Color(hex: 0x1B5FD9)  // Rain: deep blue
-        case .jade:    return Color(hex: 0x2F8F5B)  // Earth: green-stone
-        case .amber:   return Color(hex: 0xC9A227)  // Wind: gold-grey
+        case .crimson: return Color(hex: 0xE8431F)  // Lava: red-orange
+        case .cobalt:  return Color(hex: 0x1B5FD9)  // Sky: deep blue
+        case .jade:    return Color(hex: 0x2F8F5B)  // Grass: green-stone
+        case .amber:   return Color(hex: 0xC9A227)  // Sun: gold-grey
         }
     }
 
     /// Brighter top-of-gradient stop for the card face, explicit neon highlight (not a white blend).
     func highlightColor(_ scheme: ColorScheme) -> Color {
         switch self {
-        case .crimson: return Color(hex: 0xFF8A3D)  // Fire: orange
-        case .cobalt:  return Color(hex: 0x4FD2F0)  // Rain: cyan
-        case .jade:    return Color(hex: 0x8FAE99)  // Earth: stone grey-green
-        case .amber:   return Color(hex: 0xD8C77E)  // Wind: pale gold-grey
+        case .crimson: return Color(hex: 0xFF8A3D)  // Lava: orange
+        case .cobalt:  return Color(hex: 0x4FD2F0)  // Sky: cyan
+        case .jade:    return Color(hex: 0x8FAE99)  // Grass: stone grey-green
+        case .amber:   return Color(hex: 0xD8C77E)  // Sun: pale gold-grey
         }
     }
 

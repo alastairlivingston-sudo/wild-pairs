@@ -38,6 +38,15 @@ struct DrawFlightEvent: Equatable {
     let token: Int
 }
 
+/// One-shot presentation event for a successful missed-Solo catch. This is deliberately not
+/// game state: the engine remains authoritative for the penalty draw; the UI only needs a stable
+/// seat ID and token so it can place the "+2 caught" stamp on the correct seat once.
+struct SoloPenaltyEvent: Equatable {
+    let seatID: UUID
+    let count: Int
+    let token: Int
+}
+
 /// What one finished round means for the local statistics.
 struct RoundResult {
     let localTeamWon: Bool
@@ -78,6 +87,12 @@ final class GameViewModel: ObservableObject {
     /// from the draw pile to the target seat when this changes.
     @Published private(set) var drawFlight: DrawFlightEvent?
     private var drawFlightToken = 0
+    /// The most recent successful missed-Solo catch, used only for a transient seat stamp.
+    @Published private(set) var soloPenalty: SoloPenaltyEvent?
+    private var soloPenaltyToken = 0
+    /// `GameEffect.soloCallMissed` carries a display name rather than an ID. Remember the target
+    /// while the synchronous call-out action is handled so the UI never has to match by name.
+    private var pendingSoloCallOutTargetID: UUID?
 
     private let presenter: GamePresenter
     private let settings: AppSettings
@@ -240,7 +255,11 @@ final class GameViewModel: ObservableObject {
     func chooseTarget(_ id: UUID)          { apply { presenter.chooseTarget(id, as: displayedHumanID) } }
     func passTeamCard(_ card: Card?)       { apply { presenter.passTeamCard(card, as: displayedHumanID) } }
     func callSolo()                        { haptics.soloCall(); sound.play(.soloCall); apply { presenter.callSolo(as: displayedHumanID) } }
-    func callOut(_ id: UUID)               { apply { presenter.callOut(id, as: displayedHumanID) } }
+    func callOut(_ id: UUID) {
+        pendingSoloCallOutTargetID = id
+        apply { presenter.callOut(id, as: displayedHumanID) }
+        pendingSoloCallOutTargetID = nil
+    }
     /// Draw Four challenge (Phase 17 B2): challenge the Draw Four, or accept it.
     func resolveDrawFourChallenge(_ challenge: Bool) {
         if challenge { haptics.illegalCard() }
@@ -549,6 +568,14 @@ final class GameViewModel: ObservableObject {
             case .soloCallMissed(let name, let penalty):
                 haptics.drawPenalty()
                 sound.play(.soloMissed)
+                // A local catch supplies the exact ID. AI catches arrive only with the engine's
+                // display name, so fall back to the existing player list to keep the presentation
+                // stamp visible for every successful catch without creating new rules state.
+                let targetID = pendingSoloCallOutTargetID
+                    ?? presenter.state.players.first(where: { $0.name == name })?.id
+                if let targetID {
+                    emitSoloPenalty(to: targetID, count: penalty)
+                }
                 announce(soloMissedAnnouncement(for: name, penaltyCards: penalty))
             case .playRoundEnd(let team):
                 announceRoundEnd(team, sound: .roundWin, isGameEnd: false)
@@ -575,6 +602,11 @@ final class GameViewModel: ObservableObject {
     private func emitDrawFlight(to seatID: UUID, count: Int) {
         drawFlightToken += 1
         drawFlight = DrawFlightEvent(toSeatID: seatID, count: count, token: drawFlightToken)
+    }
+
+    private func emitSoloPenalty(to seatID: UUID, count: Int) {
+        soloPenaltyToken += 1
+        soloPenalty = SoloPenaltyEvent(seatID: seatID, count: count, token: soloPenaltyToken)
     }
 
     /// Posts a VoiceOver live-region announcement without moving the accessibility cursor

@@ -292,6 +292,30 @@ final class WildPairsUITests: XCTestCase {
         add(attachment)
     }
 
+    // Project-aware table redesign regression: the single state rail, physical draw deck,
+    // opponent seats, and thumb-zone Solo control all remain present and reachable. This does
+    // not snapshot pixels; it protects the semantic integration points across future refactors.
+    func testRedesignedTableChromeIsPresent() {
+        let app = launch()
+        app.buttons["home-new-game"].tap()
+        app.buttons["newgame-start"].tap()
+        XCTAssertTrue(app.buttons["game-pause-button"].waitForExistence(timeout: 5))
+
+        let turnRail = app.descendants(matching: .any)["game-turn-rail"]
+        XCTAssertTrue(turnRail.waitForExistence(timeout: 3), "Unified turn and element rail should be visible")
+        XCTAssertTrue(app.buttons["game-draw-card-button"].isHittable, "Physical draw deck should stay reachable")
+        XCTAssertTrue(app.buttons["game-solo-button"].exists, "Solo call control should keep a stable location")
+        XCTAssertTrue(app.descendants(matching: .any)["seat-1"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["seat-2"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["seat-3"].exists)
+
+        let screenshot = app.screenshot()
+        let attachment = XCTAttachment(screenshot: screenshot)
+        attachment.name = "project-aware-table-redesign"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
     // The round timer (3-min fallback) and per-move timer (10s, local turn only) exist in
     // the engine but previously had no on-screen representation at all — regression check
     // that the new countdown UI actually renders.

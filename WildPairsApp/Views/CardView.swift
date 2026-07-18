@@ -838,60 +838,49 @@ extension CardColour {
     /// Colour-blind pattern names, kept distinct per element (CLAUDE.md colour-blind table).
     var patternName: String {
         switch self {
-        case .crimson: return "diagonal hatching"   // Fire
-        case .cobalt: return "horizontal lines"     // Rain
-        case .jade: return "vertical lines"         // Earth
-        case .amber: return "dot grid"              // Wind
+        case .crimson: return "diagonal hatching"   // Lava
+        case .cobalt: return "horizontal lines"     // Sky
+        case .jade: return "vertical lines"         // Grass
+        case .amber: return "dot grid"              // Sun
         }
     }
 }
 
-// A face-down card back in the same physical language: white die-cut border, deep indigo
-// lacquered face, embossed monogram medallion, and the four suit marks in the corners.
+// The face-down card uses the project-specific production artwork. Keeping this behind the
+// existing `CardBackView` API means the draw pile, opponent hands, dealing flights, and any
+// future card-back use all update together without introducing a second card-back component.
 struct CardBackView: View {
     var size: CGSize = Theme.CardSize.opponentBack
 
-    private var isCompact: Bool { size.width < 56 }
+    private var radius: CGFloat {
+        max(3, min(Theme.Radius.card, size.width * 0.16))
+    }
 
-    // Dark-glass deck back (Phase 17 E) matching the Solo card art — the old white cardstock
-    // read as a different deck under the near-black faces.
     var body: some View {
-        let rr = RoundedRectangle(cornerRadius: Theme.Radius.card)
-        return ZStack {
-            rr.fill(LinearGradient(colors: [Color(hex: 0x1B1723), Color(hex: 0x0B0910)],
-                                   startPoint: .topLeading, endPoint: .bottomTrailing))
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
 
-            if !isCompact {
-                ForEach(Array(CardColour.allCases.enumerated()), id: \.offset) { index, colour in
-                    SuitSymbol(colour: colour, lineWidth: max(1, size.width * 0.02))
-                        .frame(width: size.width * 0.12, height: size.width * 0.12)
-                        .foregroundStyle(colour.highlightColor(.dark).opacity(0.6))
-                        .offset(x: (index % 2 == 0 ? -1 : 1) * size.width * 0.28,
-                                y: (index < 2 ? -1 : 1) * size.height * 0.3)
-                }
-                Circle()
-                    .strokeBorder(Theme.Palette.accent.opacity(0.5), lineWidth: max(0.8, size.width * 0.014))
-                    .frame(width: size.width * 0.5, height: size.width * 0.5)
-            }
-            Text("WP")
-                .font(.system(size: size.width * (isCompact ? 0.36 : 0.2), weight: .black, design: .rounded))
-                .foregroundStyle(Theme.Palette.accent)
-                .shadow(color: Theme.Palette.accent.opacity(0.5), radius: size.width * 0.06)
-
-            // Gloss sweep, clipped to the card.
-            Ellipse()
-                .fill(LinearGradient(colors: [.white.opacity(0.16), .white.opacity(0.03), .clear],
-                                     startPoint: .top, endPoint: .bottom))
-                .frame(width: size.width * 1.7, height: size.height * 0.85)
-                .rotationEffect(.degrees(-22))
-                .offset(x: -size.width * 0.12, y: -size.height * 0.34)
-                .clipShape(rr)
-
-            rr.strokeBorder(.white.opacity(0.12), lineWidth: max(0.8, size.width * 0.014))
-        }
-        .frame(width: size.width, height: size.height)
-        .shadow(color: .black.opacity(0.3), radius: 3, x: 0, y: 1.5)
-        .accessibilityHidden(true)
+        Image("solo_table_card_back")
+            .resizable()
+            .interpolation(.high)
+            // The supplied production back is slightly wider than the 2:3 face cards. Fill and
+            // clip rather than squeezing it, so its border weight and central rosette stay true.
+            .scaledToFill()
+            .frame(width: size.width, height: size.height)
+            .clipShape(shape)
+            .overlay(
+                shape.strokeBorder(
+                    LinearGradient(
+                        colors: [.white.opacity(0.38), .black.opacity(0.28)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: max(0.6, size.width * 0.012)
+                )
+            )
+            .shadow(color: .black.opacity(0.24), radius: max(1.5, size.width * 0.045), x: 0, y: max(1, size.width * 0.025))
+            .frame(width: size.width, height: size.height)
+            .contentShape(shape)
+            .accessibilityHidden(true)
     }
 }
 

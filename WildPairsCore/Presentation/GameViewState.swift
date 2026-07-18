@@ -413,7 +413,7 @@ public struct GameViewState: Equatable, Sendable {
         return .paused
     }
 
-    /// Builds the "play a Crimson card, a 5, or a wild card" hint from the active colour
+    /// Builds the "play a Lava card, a 5, or a wild card" hint from the active colour
     /// and top discard.
     public static func matchHint(state: GameState) -> String {
         let colour = state.currentColour.displayName
@@ -428,7 +428,7 @@ public struct GameViewState: Equatable, Sendable {
         return "Play \(parts[0]), \(parts[1]), \(parts[2])."
     }
 
-    /// "a"/"an" by sound, for our vocabulary: vowel-initial words (Earth) and the digit 8
+    /// "a"/"an" by sound, for our vocabulary: vowel-initial words and the digit 8
     /// ("eight") take "an"; everything else takes "a".
     private static func article(for word: String) -> String {
         let vowelInitial = "aeiouAEIOU".contains(word.first ?? " ")
@@ -445,15 +445,15 @@ public struct GameViewState: Equatable, Sendable {
 // Display-only retheme (Phase 11 D): the engine's internal vocabulary — case names, Codable
 // raw values, CLAUDE.md "Canonical Design Vocabulary" — stays crimson/cobalt/jade/amber for
 // save/test stability. Only what players see (and VoiceOver reads, since it reads
-// `displayName`) changes to the elemental names: crimson→Fire, cobalt→Rain, jade→Earth,
-// amber→Wind.
+// `displayName`) changes to the player-facing names: crimson→Lava, cobalt→Sky,
+// jade→Grass, amber→Sun.
 extension CardColour {
     public var displayName: String {
         switch self {
-        case .crimson: return "Fire"
-        case .cobalt:  return "Rain"
-        case .jade:    return "Earth"
-        case .amber:   return "Wind"
+        case .crimson: return "Lava"
+        case .cobalt:  return "Sky"
+        case .jade:    return "Grass"
+        case .amber:   return "Sun"
         }
     }
 }
