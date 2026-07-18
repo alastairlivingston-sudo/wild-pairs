@@ -97,6 +97,8 @@ final class GameViewModel: ObservableObject {
     private var tickTask: Task<Void, Never>?
     private var forcedPickupTask: Task<Void, Never>?
     private var roundDeadline: Date?
+    /// Round time left captured at pause, so resuming restores it instead of granting a fresh round.
+    private var pausedRoundRemaining: TimeInterval?
     private var moveDeadline: Date?
     private var turnsThisRound = 0
     private var roundResultRecorded = false
@@ -256,6 +258,9 @@ final class GameViewModel: ObservableObject {
     func beginNextRound() {
         turnsThisRound = 0
         roundResultRecorded = false
+        // Fresh round: drop any stale deadline so the scheduler arms the full limit anew.
+        roundDeadline = nil
+        pausedRoundRemaining = nil
         apply { presenter.beginNewRound() }
     }
 
@@ -269,6 +274,8 @@ final class GameViewModel: ObservableObject {
         forcedPickupTask = nil
         tickTask?.cancel()
         tickTask = nil
+        // Preserve how much round time was left so resume restores it rather than restarting.
+        pausedRoundRemaining = roundDeadline.map { max(0, $0.timeIntervalSinceNow) }
         roundDeadline = nil
         moveDeadline = nil
         roundTimeRemaining = nil
@@ -405,14 +412,25 @@ final class GameViewModel: ObservableObject {
     /// their hand before this fires, the engine decides the round by lowest score.
     private func scheduleRoundTimerIfNeeded() {
         roundTimerTask?.cancel()
-        roundDeadline = nil
-        guard presenter.state.phase == .playing else { return }
-        let seconds = presenter.state.ruleProfile.roundTimeLimitSeconds
-        guard seconds > 0 else { return }
-        roundDeadline = Date().addingTimeInterval(seconds)
+        guard presenter.state.phase == .playing else {
+            roundDeadline = nil
+            pausedRoundRemaining = nil
+            return
+        }
+        // Single per-round countdown (not a per-turn reset): keep an already-armed deadline so it
+        // actually counts down across turns. `beginNextRound`/pause seed the fresh/resume cases.
+        let deadline = RoundTimerScheduler.deadline(
+            now: Date(),
+            existing: roundDeadline,
+            pausedRemaining: pausedRoundRemaining,
+            limit: presenter.state.ruleProfile.roundTimeLimitSeconds)
+        pausedRoundRemaining = nil
+        roundDeadline = deadline
+        guard let deadline else { return }
         startTickingIfNeeded()
+        let remaining = max(0, deadline.timeIntervalSinceNow)
         roundTimerTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
             guard let self, !Task.isCancelled else { return }
             let effects = self.presenter.roundTimerExpired()
             self.roundDeadline = nil

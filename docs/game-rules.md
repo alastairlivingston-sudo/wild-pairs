@@ -441,8 +441,11 @@ always implemented this; an earlier draft of this section wrongly stated the opp
 ### Round Timer Fallback (Lowest Score Wins)
 
 Every round also runs a **3-minute wall-clock timer** (`RuleProfile.roundTimeLimitSeconds`,
-default 180 seconds). Emptying your hand still wins immediately regardless of time left on the
-clock — the timer is a fallback, not a replacement, for when nobody empties their hand in time.
+default 180 seconds). It is a **single countdown per round** — armed once when the round begins and
+counting down continuously as play advances (it is *not* restarted each turn), so it genuinely
+reaches its final minute. Pausing preserves the time remaining; resuming continues from there.
+Emptying your hand still wins immediately regardless of time left on the clock — the timer is a
+fallback, not a replacement, for when nobody empties their hand in time.
 
 If the timer elapses with the round still in progress, the round is decided by score instead: the
 player holding the **lowest card-point total** wins, crediting their team. Ties break by fewest
