@@ -4,7 +4,7 @@ import WildPairsCore
 // The physical table surface behind gameplay. It remains dark-first and re-tints to the
 // current element, but the layers are deliberately restrained so cards stay dominant:
 // a broad centre atmosphere, a colour-blind-safe element pattern, fine material variation,
-// sparse edge-biased motes, and a protective vignette. No layer carries game state by itself.
+// and a protective vignette. No layer carries game state by itself.
 struct TableBackground: View {
     var element: CardColour? = nil
 
@@ -21,7 +21,7 @@ struct TableBackground: View {
                 Rectangle().fill(reducedVisualEffects ? Theme.Element.neutral.base : palette.base)
 
                 if reducedVisualEffects {
-                    // Static, opaque fallback: no blur, transparency animation, or motes.
+                    // Static, opaque fallback: no blur, transparency animation, or particles.
                     Rectangle().fill(
                         RadialGradient(
                             colors: [Theme.Felt.baseDarkHighlight.opacity(0.78), Theme.Element.neutral.base],
@@ -31,30 +31,12 @@ struct TableBackground: View {
                         )
                     )
                 } else {
-                    if reduceMotion {
-                        atmosphere(radius: radius)
-                    } else {
-                        // A slow three-dimensional drift, capped at 12 fps. The movement is
-                        // intentionally below the salience of card and turn animations.
-                        TimelineView(.animation(minimumInterval: 1.0 / 12.0)) { timeline in
-                            let t = timeline.date.timeIntervalSinceReferenceDate
-                            atmosphere(radius: radius)
-                                .offset(
-                                    x: sin(t / 17) * radius * 0.018,
-                                    y: cos(t / 23) * radius * 0.014
-                                )
-                                .scaleEffect(1 + 0.018 * sin(t / 29))
-                        }
-                    }
+                    // The table itself stays still. Gameplay motion belongs to cards, turns, and
+                    // scoring; a moving background competed with those events in real play.
+                    atmosphere(radius: radius)
 
                     ElementSurfacePattern(element: element)
-                        .opacity(0.038)
-
-                    // Sparse motes provide depth at the edges only. They disappear entirely
-                    // under Reduce Motion rather than freezing in arbitrary positions.
-                    if !reduceMotion {
-                        ElementalMotes(colour: palette.glow)
-                    }
+                        .opacity(0.030)
                 }
 
                 // The centre stays readable while the outer thumb and status zones recede.
@@ -67,7 +49,7 @@ struct TableBackground: View {
                     )
                 )
             }
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.55), value: element)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.45), value: element)
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)
@@ -80,31 +62,15 @@ struct TableBackground: View {
         ZStack {
             Rectangle().fill(
                 RadialGradient(
-                    colors: [palette.glow.opacity(0.13), .clear],
-                    center: UnitPoint(x: 0.5, y: 0.48),
+                    colors: [palette.glow.opacity(0.12), .clear],
+                    center: UnitPoint(x: 0.5, y: 0.46),
                     startRadius: 0,
-                    endRadius: radius * 0.46
-                )
-            )
-            Rectangle().fill(
-                RadialGradient(
-                    colors: [palette.auroraA.opacity(0.15), .clear],
-                    center: UnitPoint(x: 0.12, y: 0.72),
-                    startRadius: 0,
-                    endRadius: radius * 0.52
-                )
-            )
-            Rectangle().fill(
-                RadialGradient(
-                    colors: [palette.auroraB.opacity(0.11), .clear],
-                    center: UnitPoint(x: 0.9, y: 0.38),
-                    startRadius: 0,
-                    endRadius: radius * 0.48
+                    endRadius: radius * 0.50
                 )
             )
             Rectangle().fill(
                 LinearGradient(
-                    colors: [.white.opacity(0.018), .clear, .black.opacity(0.08)],
+                    colors: [.white.opacity(0.014), .clear, .black.opacity(0.09)],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
@@ -198,46 +164,5 @@ private struct ElementSurfacePattern: View {
             context.stroke(path, with: .color(.white), lineWidth: 0.8)
             offset += spacing
         }
-    }
-}
-
-/// Five small, edge-biased motes rising on long, offset loops. Their job is material depth,
-/// not celebration; opacity and frame rate are intentionally modest for battery and hierarchy.
-private struct ElementalMotes: View {
-    let colour: Color
-
-    private static let lanes: [CGFloat] = [0.10, 0.24, 0.76, 0.90, 0.84]
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 12.0)) { timeline in
-            Canvas { context, size in
-                let t = timeline.date.timeIntervalSinceReferenceDate
-                context.addFilter(.shadow(color: colour.opacity(0.45), radius: 3))
-
-                for (index, lane) in Self.lanes.enumerated() {
-                    let seed = Double(index)
-                    let duration = 12.0 + seed * 1.9
-                    let phase = ((t / duration) + seed * 0.31)
-                        .truncatingRemainder(dividingBy: 1.0)
-                    let drift = sin(t / (8.0 + seed) + seed) * 7
-                    let x = size.width * lane + drift
-                    let y = size.height * (1.05 - phase * 1.16)
-                    let fade = min(phase / 0.16, (1.0 - phase) / 0.28, 1.0)
-                    let side: CGFloat = 3.5 + CGFloat(index % 2)
-                    var mote = Path(
-                        roundedRect: CGRect(x: -side / 2, y: -side / 2, width: side, height: side),
-                        cornerRadius: side * 0.28
-                    )
-                    mote = mote.applying(
-                        CGAffineTransform(rotationAngle: .pi / 4 + phase * .pi * 0.5)
-                            .concatenating(CGAffineTransform(translationX: x, y: y))
-                    )
-                    context.opacity = max(0, fade) * 0.42
-                    context.fill(mote, with: .color(colour))
-                }
-            }
-        }
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
     }
 }

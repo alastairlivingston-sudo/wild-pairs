@@ -22,13 +22,18 @@ struct TableCenterView: View {
     var flightSpace: String? = nil
     /// Exposed for compact device tuning; the production default is 24pt and must not fall below 16pt.
     var pileSpacing: CGFloat = Theme.Table.drawDiscardGap
+    /// The freshly played top card stays invisible while its flight ghost crosses the table.
+    /// The previous discard remains visible underneath, then the new card settles on arrival.
+    var hiddenTopCardIDs: Set<UUID> = []
     let onDraw: () -> Void
 
     @Environment(\.colorScheme) private var scheme
     @State private var stackPop: Int?
     @State private var colourPulse = false
-    @State private var directionRotation: Double = 0
     @State private var showReversed = false
+    /// Brief confirmation shown only when a pending wild colour choice resolves. Normal
+    /// number-card colour changes do not trigger it, so it remains a meaningful event.
+    @State private var confirmedWildColour: CardColour?
 
     private var drawCardSize: CGSize {
         CGSize(width: cardSize.width * 0.85, height: cardSize.height * 0.85)
@@ -61,39 +66,58 @@ struct TableCenterView: View {
             directionReadout
         }
         .onChange(of: currentColour) { _, _ in pulseColour() }
+        .onChange(of: colourChoicePending) { old, new in
+            if old, !new, topDiscard?.isWild == true { confirmWildColour() }
+        }
         .onChange(of: turnDirection) { _, _ in animateDirectionChange() }
         .onChange(of: pendingDrawCount) { old, new in
             guard let new, new > (old ?? 0) else { return }
             popStack(to: new)
         }
         .overlay {
-            if let count = stackPop {
-                StackPopBadge(count: count, reducedMotion: reducedMotion)
-                    .transition(reducedMotion ? .opacity : .scale(scale: 0.4).combined(with: .opacity))
+            ZStack {
+                if let count = stackPop {
+                    StackPopBadge(count: count, reducedMotion: reducedMotion)
+                        .transition(reducedMotion ? .opacity : .scale(scale: 0.4).combined(with: .opacity))
+                }
+
+                if let colour = confirmedWildColour {
+                    WildColourLockBadge(colour: colour)
+                        .offset(y: -(cardSize.height * 0.48))
+                        .transition(reducedMotion ? .opacity : .scale(scale: 0.6).combined(with: .opacity))
+                }
             }
         }
     }
 
     private var directionOrbit: some View {
-        Image("solo_table_direction_ring_clockwise")
+        let opacity = showReversed
+            ? Theme.Table.directionOrbitEventOpacity
+            : Theme.Table.directionOrbitRestOpacity
+
+        return Image("solo_table_direction_ring_clockwise")
             .renderingMode(.template)
             .resizable()
             .interpolation(.high)
             .scaledToFit()
-            .foregroundStyle(currentColour.highlightColor(scheme).opacity(Theme.Table.directionOrbitOpacity))
+            .foregroundStyle(currentColour.highlightColor(scheme).opacity(opacity))
             .frame(width: orbitSize, height: orbitSize)
-            // A 3D mirror communicates a genuine reversal rather than merely spinning the same
-            // arrows. Reduced Motion gets the final mirrored state immediately.
+            // A 3D mirror changes the arrow direction itself. The brief scale/glow is the impact;
+            // the ring does not also spin, which previously read as decorative motion.
             .rotation3DEffect(
                 .degrees(turnDirection == .clockwise ? 0 : 180),
                 axis: (x: 0, y: 1, z: 0),
                 perspective: 0.35
             )
-            .rotationEffect(.degrees(directionRotation))
-            .animation(
-                reducedMotion ? nil : .spring(response: 0.48, dampingFraction: 0.72),
-                value: turnDirection
+            .scaleEffect(showReversed ? 1.08 : 1)
+            .shadow(
+                color: showReversed
+                    ? currentColour.highlightColor(scheme).opacity(0.62)
+                    : .clear,
+                radius: showReversed ? 14 : 0
             )
+            .animation(reducedMotion ? nil : Theme.Motion.reverseImpact, value: turnDirection)
+            .animation(reducedMotion ? nil : Theme.Motion.reverseImpact, value: showReversed)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
     }
@@ -212,10 +236,11 @@ struct TableCenterView: View {
                         .scaleEffect(0.96)
                         .rotationEffect(.degrees(memoryRotation(depth)))
                         .offset(x: memoryOffset(depth), y: 2 + CGFloat(depth) * 1.5)
-                        .opacity(0.5)
+                        .opacity(hiddenTopCardIDs.contains(card.id) ? 0 : 0.5)
                         .accessibilityHidden(true)
                 }
 
+                let isTravelling = hiddenTopCardIDs.contains(top.id)
                 CardView(
                     card: top,
                     size: cardSize,
@@ -224,7 +249,9 @@ struct TableCenterView: View {
                     reducedMotion: reducedMotion,
                     wildTint: (top.isWild && !colourChoicePending) ? currentColour : nil
                 )
-                .scaleEffect(colourPulse ? 1.08 : 1)
+                .opacity(isTravelling ? 0 : 1)
+                .scaleEffect(isTravelling ? 0.92 : (colourPulse ? 1.08 : 1))
+                .animation(reducedMotion ? nil : Theme.Motion.cardSettle, value: isTravelling)
                 .animation(reducedMotion ? nil : Theme.Motion.moderate, value: colourChoicePending)
             }
             .accessibilityElement(children: .ignore)
@@ -314,21 +341,61 @@ struct TableCenterView: View {
         }
     }
 
-    private func animateDirectionChange() {
-        if !reducedMotion {
-            withAnimation(.spring(response: 0.48, dampingFraction: 0.68)) {
-                directionRotation += turnDirection == .clockwise ? 180 : -180
+
+    private func confirmWildColour() {
+        withAnimation(reducedMotion ? nil : Theme.Motion.cardSettle) {
+            confirmedWildColour = currentColour
+        }
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + Theme.Motion.actionConfirmationDisplayDuration
+        ) {
+            guard confirmedWildColour == currentColour else { return }
+            withAnimation(reducedMotion ? nil : .easeOut(duration: 0.18)) {
+                confirmedWildColour = nil
             }
         }
+    }
 
-        withAnimation(reducedMotion ? nil : .spring(response: 0.3, dampingFraction: 0.7)) {
+    private func animateDirectionChange() {
+        withAnimation(reducedMotion ? nil : Theme.Motion.reverseImpact) {
             showReversed = true
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + Theme.Motion.actionConfirmationDisplayDuration
+        ) {
             withAnimation(reducedMotion ? nil : .easeOut(duration: 0.25)) {
                 showReversed = false
             }
         }
+    }
+}
+
+
+/// Confirms the result of a wild colour decision with symbol + name + checkmark. It appears only
+/// after the pending choice resolves, providing the causal closure that a background tint alone
+/// cannot guarantee for colour-blind players.
+private struct WildColourLockBadge: View {
+    let colour: CardColour
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        HStack(spacing: Theme.Space.s1) {
+            SuitSymbol(colour: colour, lineWidth: 2)
+                .frame(width: 16, height: 16)
+            Text("\(colour.displayName.uppercased()) SET")
+                .font(.system(size: 10, weight: .black, design: .rounded))
+                .tracking(0.45)
+                .lineLimit(1)
+            Image(systemName: "checkmark")
+                .font(.caption2.weight(.black))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, Theme.Space.s2)
+        .padding(.vertical, 5)
+        .background(Capsule().fill(colour.fillColor(scheme).opacity(0.96)))
+        .overlay(Capsule().strokeBorder(.white.opacity(0.86), lineWidth: 1.2))
+        .shadow(color: .black.opacity(0.38), radius: 6, y: 3)
+        .accessibilityLabel("Colour set to \(colour.displayName)")
     }
 }
 

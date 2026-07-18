@@ -230,19 +230,26 @@ struct PromptBanner: View {
     /// Element glow for the border (design-plan.md §3.1) so the banner tracks the scene tint.
     var tint: Color? = nil
 
-    var body: some View {
-        Text(text)
-            .font(.body).fontWeight(.medium)
-            .foregroundStyle(.white)
-            .multilineTextAlignment(.center)
-            .padding(.horizontal, Theme.Space.s4).padding(.vertical, Theme.Space.s2)
-            .frame(maxWidth: .infinity)
-            // A capsule's corner radius is height/2, so at large Dynamic Type sizes this
-            // banner wraps to several lines, the capsule grows tall, and its semicircular
-            // ends balloon inward and clip the text. A fixed-radius rounded rect has no
-            // such failure mode regardless of how many lines the text wraps to.
-            .wpGlass(cornerRadius: Theme.Radius.r4, tint: tint)
-            .accessibilityIdentifier("game-prompt")
+    @ViewBuilder var body: some View {
+        switch prompt {
+        case .waitingFor:
+            // The turn rail already names the active seat and says THINKING; repeating the same
+            // sentence in a full-width panel added vertical chrome without adding information.
+            EmptyView()
+        default:
+            Text(text)
+                .font(.body).fontWeight(.medium)
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, Theme.Space.s4).padding(.vertical, Theme.Space.s2)
+                .frame(maxWidth: .infinity)
+                // A capsule's corner radius is height/2, so at large Dynamic Type sizes this
+                // banner wraps to several lines, the capsule grows tall, and its semicircular
+                // ends balloon inward and clip the text. A fixed-radius rounded rect has no
+                // such failure mode regardless of how many lines the text wraps to.
+                .wpGlass(cornerRadius: Theme.Radius.r4, tint: tint)
+                .accessibilityIdentifier("game-prompt")
+        }
     }
 
     private var text: String {

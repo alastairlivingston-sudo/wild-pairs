@@ -113,7 +113,7 @@ struct SoloDeclarationTests {
 
         let (declared, declareEffects) = GameEngine.reduce(state: state, action: .callSolo(playerID: humanID))
         #expect(declared.players[0].hasCalledSolo == true)
-        #expect(declareEffects.contains(.announceSolo(playerName: "You")))
+        #expect(declareEffects.contains(.announceSolo(playerName: "You", playerID: humanID)))
 
         let (next, _) = GameEngine.reduce(state: declared, action: .playCard(played, playerID: humanID))
         #expect(next.players[0].hand.count == 1)

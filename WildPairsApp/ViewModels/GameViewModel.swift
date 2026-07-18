@@ -47,6 +47,13 @@ struct SoloPenaltyEvent: Equatable {
     let token: Int
 }
 
+/// One-shot presentation event for a successful Solo declaration. The rules engine remains the
+/// source of truth; this only gives the table a seat ID and token for a brief visible shout.
+struct SoloCallEvent: Equatable {
+    let seatID: UUID
+    let token: Int
+}
+
 /// What one finished round means for the local statistics.
 struct RoundResult {
     let localTeamWon: Bool
@@ -90,6 +97,9 @@ final class GameViewModel: ObservableObject {
     /// The most recent successful missed-Solo catch, used only for a transient seat stamp.
     @Published private(set) var soloPenalty: SoloPenaltyEvent?
     private var soloPenaltyToken = 0
+    /// Most recent successful Solo declaration, used only for the visible table shout.
+    @Published private(set) var soloCall: SoloCallEvent?
+    private var soloCallToken = 0
     /// `GameEffect.soloCallMissed` carries a display name rather than an ID. Remember the target
     /// while the synchronous call-out action is handled so the UI never has to match by name.
     private var pendingSoloCallOutTargetID: UUID?
@@ -347,7 +357,8 @@ final class GameViewModel: ObservableObject {
     /// disabled animation (`AnimationSpeed.off`) or enabled Reduced Motion, in which case the
     /// new state is published instantly with no transition.
     private var stateAnimation: Animation? {
-        guard !settings.userSettings.reducedVisualEffects else { return nil }
+        guard !settings.userSettings.reducedVisualEffects,
+              !UIAccessibility.isReduceMotionEnabled else { return nil }
         switch settings.userSettings.animationSpeed {
         case .off:    return nil
         case .fast:   return Theme.Motion.fast
@@ -563,7 +574,8 @@ final class GameViewModel: ObservableObject {
                 emitSeatCue([first, second], .skipped)
             case .animateCardShuffle:            sound.play(.cardShuffle)
             case .animateHandSwap:               sound.play(.swapHands)
-            case .announceSolo(let name):
+            case .announceSolo(let name, let playerID):
+                emitSoloCall(from: playerID)
                 announce(soloAnnouncement(for: name))
             case .soloCallMissed(let name, let penalty):
                 haptics.drawPenalty()
@@ -607,6 +619,11 @@ final class GameViewModel: ObservableObject {
     private func emitSoloPenalty(to seatID: UUID, count: Int) {
         soloPenaltyToken += 1
         soloPenalty = SoloPenaltyEvent(seatID: seatID, count: count, token: soloPenaltyToken)
+    }
+
+    private func emitSoloCall(from seatID: UUID) {
+        soloCallToken += 1
+        soloCall = SoloCallEvent(seatID: seatID, token: soloCallToken)
     }
 
     /// Posts a VoiceOver live-region announcement without moving the accessibility cursor

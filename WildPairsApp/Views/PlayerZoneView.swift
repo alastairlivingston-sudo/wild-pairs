@@ -23,9 +23,6 @@ struct PlayerZoneView: View {
     var caughtPenaltyCount: Int? = nil
     var onCatchSolo: (() -> Void)? = nil
 
-    @State private var glowPulse = false
-    @State private var arrivalPop = false
-
     private var isOpponent: Bool { seat.visiblePartnerHand == nil }
     private var canCatchSolo: Bool { seat.needsSoloCall && onCatchSolo != nil }
     private var countUrgent: Bool { seat.handCount <= 2 }
@@ -43,16 +40,16 @@ struct PlayerZoneView: View {
             .overlay(activeTurnChrome)
             .overlay(cueOverlay)
             .overlay(caughtPenaltyOverlay)
-            .shadow(color: glowColor, radius: glowRadius)
-            .scaleEffect(arrivalPop ? 1.045 : 1)
-            .animation(.spring(response: 0.35, dampingFraction: 0.68), value: cue)
-            .animation(.spring(response: 0.45, dampingFraction: 0.7), value: caughtPenaltyCount)
-            .animation(.spring(response: 0.5, dampingFraction: 0.65), value: seat.needsSoloCall)
-            .onAppear { updateGlow(seat.isCurrentPlayer) }
-            .onChange(of: seat.isCurrentPlayer) { _, isCurrent in
-                updateGlow(isCurrent)
-                if isCurrent { triggerArrivalPop() }
-            }
+            // Brackets + UP NOW carry turn meaning. A restrained static shadow adds depth without
+            // a perpetual pulse competing with the card and score animations.
+            .shadow(
+                color: seat.isCurrentPlayer ? accent.opacity(0.28) : .clear,
+                radius: seat.isCurrentPlayer ? 7 : 0
+            )
+            .animation(reducedMotion ? nil : Theme.Motion.fast, value: seat.isCurrentPlayer)
+            .animation(reducedMotion ? nil : .spring(response: 0.35, dampingFraction: 0.68), value: cue)
+            .animation(reducedMotion ? nil : .spring(response: 0.45, dampingFraction: 0.7), value: caughtPenaltyCount)
+            .animation(reducedMotion ? nil : .spring(response: 0.5, dampingFraction: 0.65), value: seat.needsSoloCall)
             // Keep the test identifier and the one-element VoiceOver summary used by the existing
             // UI tests. The visible CATCH control is an affordance for the same whole-seat action.
             .contentShape(Rectangle())
@@ -192,35 +189,6 @@ struct PlayerZoneView: View {
         }
     }
 
-    private var glowColor: Color {
-        guard seat.isCurrentPlayer else { return .clear }
-        return accent.opacity(reducedMotion ? 0.22 : (glowPulse ? 0.42 : 0.20))
-    }
-
-    private var glowRadius: CGFloat {
-        guard seat.isCurrentPlayer else { return 0 }
-        return reducedMotion ? 5 : (glowPulse ? 10 : 5)
-    }
-
-    private func updateGlow(_ isCurrent: Bool) {
-        guard isCurrent, !reducedMotion else {
-            glowPulse = false
-            return
-        }
-        glowPulse = false
-        withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) {
-            glowPulse = true
-        }
-    }
-
-    private func triggerArrivalPop() {
-        guard !reducedMotion else { return }
-        withAnimation(.spring(response: 0.24, dampingFraction: 0.56)) { arrivalPop = true }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.14) {
-            withAnimation(.spring(response: 0.45, dampingFraction: 0.78)) { arrivalPop = false }
-        }
-    }
-
     // MARK: Cards and counts
 
     private var countBadge: some View {
@@ -291,7 +259,7 @@ struct PlayerZoneView: View {
             countChip.offset(x: 6, y: 6)
         }
         .frame(width: resolvedWidth, height: cardBackSize.height + 18)
-        .animation(.spring(response: 0.4, dampingFraction: 0.76), value: seat.handCount)
+        .animation(reducedMotion ? nil : .spring(response: 0.4, dampingFraction: 0.76), value: seat.handCount)
     }
 
     private func fanStep(count: Int, cardWidth: CGFloat, comfortableOverlap: CGFloat) -> CGFloat {
@@ -347,30 +315,10 @@ struct PlayerZoneView: View {
 
     @ViewBuilder private var cueOverlay: some View {
         if caughtPenaltyCount == nil, let cue {
-            Group {
-                switch cue {
-                case .skipped:
-                    Text("SKIPPED")
-                        .font(.caption.weight(.heavy))
-                        .foregroundStyle(Theme.Palette.onAccent)
-                        .padding(.horizontal, Theme.Space.s2)
-                        .padding(.vertical, 3)
-                        .background(Capsule().fill(Theme.Palette.warning))
-                        .rotationEffect(.degrees(-8))
-                case .drew(let count):
-                    Text("+\(count)")
-                        .font(.title3.weight(.heavy))
-                        .monospacedDigit()
-                        .foregroundStyle(Theme.Palette.onAccent)
-                        .padding(.horizontal, Theme.Space.s2)
-                        .padding(.vertical, 2)
-                        .background(Capsule().fill(Theme.Palette.error))
-                }
-            }
-            .shadow(color: .black.opacity(0.4), radius: 6, y: 2)
-            .transition(reducedMotion ? .opacity : .scale(scale: 0.4).combined(with: .opacity))
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
+            SeatImpactStamp(kind: cue)
+                .transition(reducedMotion ? .opacity : .scale(scale: 0.42).combined(with: .opacity))
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
         }
     }
 
@@ -480,6 +428,60 @@ private struct ActiveSeatBrackets: View {
             context.stroke(path, with: .color(tint.opacity(0.48)), style: broad)
             context.stroke(path, with: .color(.white.opacity(0.96)), style: crisp)
         }
+    }
+}
+
+/// Localised action feedback. The card remains the cause; this stamp makes the affected seat
+/// unmistakable without covering the entire table or duplicating the persistent turn rail.
+private struct SeatImpactStamp: View {
+    let kind: SeatCueKind
+
+    var body: some View {
+        Group {
+            switch kind {
+            case .skipped:
+                VStack(spacing: 2) {
+                    Image(systemName: "nosign")
+                        .font(.system(size: 24, weight: .black))
+                    Text("SKIPPED")
+                        .font(.system(size: 9, weight: .black, design: .rounded))
+                        .tracking(0.55)
+                }
+                .foregroundStyle(Theme.Palette.onAccent)
+                .frame(width: 70, height: 58)
+                .background(
+                    RoundedRectangle(cornerRadius: Theme.Radius.r3, style: .continuous)
+                        .fill(Theme.Palette.warning)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.Radius.r3, style: .continuous)
+                        .strokeBorder(.white.opacity(0.90), lineWidth: 1.5)
+                )
+                .rotationEffect(.degrees(-6))
+
+            case .drew(let count):
+                VStack(spacing: 0) {
+                    Text("+\(count)")
+                        .font(.system(size: 26, weight: .black, design: .rounded))
+                        .monospacedDigit()
+                    Text("DRAW")
+                        .font(.system(size: 9, weight: .black, design: .rounded))
+                        .tracking(0.75)
+                }
+                .foregroundStyle(.white)
+                .frame(width: 68, height: 58)
+                .background(
+                    RoundedRectangle(cornerRadius: Theme.Radius.r3, style: .continuous)
+                        .fill(Theme.Palette.error)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.Radius.r3, style: .continuous)
+                        .strokeBorder(.white.opacity(0.90), lineWidth: 1.5)
+                )
+                .rotationEffect(.degrees(5))
+            }
+        }
+        .shadow(color: .black.opacity(0.45), radius: 8, y: 4)
     }
 }
 

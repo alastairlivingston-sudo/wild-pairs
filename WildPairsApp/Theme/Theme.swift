@@ -83,8 +83,12 @@ enum Theme {
         /// 24pt keeps the two hit targets visually distinct at iPhone size while preserving the
         /// existing centre-row fit; constrained layouts may reduce to Space.s4, never below 16pt.
         static let drawDiscardGap: CGFloat = Space.s5
-        /// The direction orbit is deliberately quieter than cards and turn brackets.
-        static let directionOrbitOpacity: Double = 0.30
+        /// Resting direction orbit: always legible, always subordinate to the cards.
+        static let directionOrbitRestOpacity: Double = 0.24
+        /// Brief Reverse impact. The orbit may become dominant for less than a second, then settles.
+        static let directionOrbitEventOpacity: Double = 0.78
+        /// Compatibility alias for call sites that have not yet migrated.
+        static let directionOrbitOpacity: Double = directionOrbitRestOpacity
         /// Width of the non-colour white bracket stroke used to identify the active seat.
         static let activeSeatBracketWidth: CGFloat = 2
         /// Maximum number of physical backs shown in an opponent fan. The count badge remains exact.
@@ -110,9 +114,24 @@ enum Theme {
         static let draw = Animation.spring(response: 0.4, dampingFraction: 0.8)
         static let turnPass = Animation.easeInOut(duration: 0.3)
         static let celebration = Animation.spring(response: 0.6, dampingFraction: 0.65)
+        static let cardSettle = Animation.spring(response: 0.24, dampingFraction: 0.74)
+        static let reverseImpact = Animation.spring(response: 0.42, dampingFraction: 0.68)
+        static let soloShout = Animation.spring(response: 0.34, dampingFraction: 0.62)
+        static let roundScore = Animation.spring(response: 0.56, dampingFraction: 0.78)
         static let micro = Animation.easeOut(duration: 0.1)
         /// Per-card stagger delay used when dealing a hand; multiply by card index.
         static let dealStagger: Double = 0.06
+        /// Played-card travel completes before the real discard settles into view.
+        static let cardFlightDuration: Double = 0.46
+        /// Penalty-draw cards should read as a sequence, not a simultaneous blur.
+        static let drawFlightStagger: Double = 0.09
+        static let drawFlightDuration: Double = 0.42
+        /// Presentation-only hold times for one-shot table feedback. Rules and timers never depend
+        /// on these values; centralising them keeps event rhythm consistent across phone and pad.
+        static let seatCueDisplayDuration: TimeInterval = 1.10
+        static let caughtPenaltyDisplayDuration: TimeInterval = 1.55
+        static let soloShoutDisplayDuration: TimeInterval = 1.00
+        static let actionConfirmationDisplayDuration: TimeInterval = 1.00
     }
 
     // MARK: UI colours (§7) + Felt palette (premium dark felt table surface)

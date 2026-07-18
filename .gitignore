@@ -34,3 +34,6 @@ docs/solo_swiftui_asset_pack.zip
 # source zip is just a redundant snapshot of already-tracked .swift files. Prompts are tracked.
 docs/video-ux-benchmarks/uno-mobile-gowild/redesign-review/*.mp4
 docs/video-ux-benchmarks/uno-mobile-gowild/redesign-review/*.zip
+
+# v4 gameplay-UX handoff (working material, like WORKING_FILES) — not product
+handoff-v4/
