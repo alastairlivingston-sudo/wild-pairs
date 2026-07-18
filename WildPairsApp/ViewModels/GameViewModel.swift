@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import WildPairsCore
+import os
 
 // Thin SwiftUI binding over the platform-agnostic GamePresenter. It owns no game logic:
 // it forwards intents, republishes the derived GameViewState, schedules AI turns with a
@@ -336,6 +337,7 @@ final class GameViewModel: ObservableObject {
     }
 
     private func publishViewState() {
+        PerfSignpost.event("publishViewState")   // Tier-0d redraw suspect (R7)
         let next = presenter.viewState(for: displayedHumanID)
         guard let animation = stateAnimation else {
             viewState = next
@@ -486,6 +488,7 @@ final class GameViewModel: ObservableObject {
         guard tickTask == nil else { return }
         tickTask = Task { @MainActor [weak self] in
             while let self, !Task.isCancelled {
+                PerfSignpost.event("timerTick")   // Tier-0d redraw suspect: 5 Hz countdown republish (R7)
                 self.roundTimeRemaining = self.roundDeadline.map { max(0, $0.timeIntervalSinceNow) }
                 self.moveTimeRemaining = self.moveDeadline.map { max(0, $0.timeIntervalSinceNow) }
                 if self.roundDeadline == nil && self.moveDeadline == nil {
@@ -630,5 +633,20 @@ final class GameViewModel: ObservableObject {
             try? await Task.sleep(nanoseconds: 2_500_000_000)
             self?.lastInvalidHint = nil
         }
+    }
+}
+
+/// Tier-0d perf instrumentation (ruling R7): signposts on the redraw/timer suspects so an
+/// Instruments "os_signpost" (Points of Interest) run can quantify view-publish and timer-tick
+/// frequency after the redesign patch lands. DEBUG-only — compiles to nothing in release, and
+/// uses on-device os logging only (no telemetry, no network). See docs/phase-18-perf/.
+enum PerfSignpost {
+    #if DEBUG
+    private static let signposter = OSSignposter(subsystem: "com.wildpairs.perf", category: .pointsOfInterest)
+    #endif
+    @inline(__always) static func event(_ name: StaticString) {
+        #if DEBUG
+        signposter.emitEvent(name)
+        #endif
     }
 }
