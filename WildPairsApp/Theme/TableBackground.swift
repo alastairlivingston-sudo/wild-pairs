@@ -1,76 +1,127 @@
+import Foundation
 import SwiftUI
 import WildPairsCore
 
-// The physical table surface behind gameplay. It remains dark-first and re-tints to the
-// current element, but the layers are deliberately restrained so cards stay dominant:
-// a broad centre atmosphere, a colour-blind-safe element pattern, fine material variation,
-// and a protective vignette. No layer carries game state by itself.
+// The table surface keeps cards dominant while reinforcing the active element through a dark
+// base, a broad colour field, and the same colour-blind pattern family used on card faces.
 struct TableBackground: View {
     var element: CardColour? = nil
+    var turnDirection: TurnDirection? = nil
+    var directionAnimationDisabled = false
+    var style: TableBackgroundStyle? = nil
 
     @Environment(\.reducedVisualEffects) private var reducedVisualEffects
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var palette: Theme.Element.ScenePalette { Theme.Element.scene(for: element) }
+    private var resolvedStyle: TableBackgroundStyle { style ?? .felt }
+    private var motionDisabled: Bool {
+        directionAnimationDisabled || reducedVisualEffects || reduceMotion
+    }
 
     var body: some View {
         GeometryReader { geo in
             let radius = max(geo.size.width, geo.size.height)
 
             ZStack {
-                Rectangle().fill(reducedVisualEffects ? Theme.Element.neutral.base : palette.base)
+                Rectangle().fill(palette.base)
 
-                if reducedVisualEffects {
-                    // Static, opaque fallback: no blur, transparency animation, or particles.
-                    Rectangle().fill(
-                        RadialGradient(
-                            colors: [Theme.Felt.baseDarkHighlight.opacity(0.78), Theme.Element.neutral.base],
-                            center: .center,
-                            startRadius: 0,
-                            endRadius: radius * 0.78
-                        )
+                styleTexture(radius: radius)
+                elementField(radius: radius)
+
+                ElementSurfacePattern(element: element)
+                    .opacity(patternOpacity)
+
+                if let turnDirection {
+                    DirectionalTablePulse(
+                        direction: turnDirection,
+                        accent: palette.glow,
+                        motionDisabled: motionDisabled
                     )
-                } else {
-                    // The table itself stays still. Gameplay motion belongs to cards, turns, and
-                    // scoring; a moving background competed with those events in real play.
-                    atmosphere(radius: radius)
-
-                    ElementSurfacePattern(element: element)
-                        .opacity(0.030)
                 }
 
-                // The centre stays readable while the outer thumb and status zones recede.
                 Rectangle().fill(
                     RadialGradient(
-                        colors: [.clear, Theme.Felt.vignette.opacity(0.88)],
+                        colors: [.clear, Theme.Felt.vignette.opacity(0.82)],
                         center: .center,
-                        startRadius: radius * 0.42,
-                        endRadius: radius * 0.94
+                        startRadius: radius * 0.44,
+                        endRadius: radius * 0.96
                     )
                 )
             }
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.45), value: element)
+            .animation(motionDisabled ? nil : .easeInOut(duration: 0.45), value: element)
+            .animation(motionDisabled ? nil : .easeInOut(duration: 0.25), value: resolvedStyle)
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 
-    /// One broad centre wash plus two peripheral blooms. The centre wash visually binds the
-    /// partner rail, opponent seats, direction orbit and piles into one table object.
-    private func atmosphere(radius: CGFloat) -> some View {
+    private var patternOpacity: Double {
+        guard element != nil else { return 0.025 }
+        return reducedVisualEffects ? 0.052 : 0.072
+    }
+
+    @ViewBuilder private func styleTexture(radius: CGFloat) -> some View {
+        switch resolvedStyle {
+        case .felt:
+            Rectangle().fill(
+                LinearGradient(
+                    colors: [
+                        .white.opacity(reducedVisualEffects ? 0.008 : 0.018),
+                        .clear,
+                        .black.opacity(0.11)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+        case .aurora:
+            ZStack {
+                Rectangle().fill(
+                    RadialGradient(
+                        colors: [palette.auroraA.opacity(reducedVisualEffects ? 0.10 : 0.23), .clear],
+                        center: UnitPoint(x: 0.10, y: 0.04),
+                        startRadius: 0,
+                        endRadius: radius * 0.72
+                    )
+                )
+                Rectangle().fill(
+                    RadialGradient(
+                        colors: [palette.auroraB.opacity(reducedVisualEffects ? 0.08 : 0.18), .clear],
+                        center: UnitPoint(x: 0.92, y: 0.90),
+                        startRadius: 0,
+                        endRadius: radius * 0.68
+                    )
+                )
+            }
+        case .contours:
+            ContourSurfacePattern()
+                .opacity(reducedVisualEffects ? 0.040 : 0.070)
+        }
+    }
+
+    private func elementField(radius: CGFloat) -> some View {
         ZStack {
             Rectangle().fill(
                 RadialGradient(
-                    colors: [palette.glow.opacity(0.12), .clear],
+                    colors: [
+                        palette.glow.opacity(reducedVisualEffects ? 0.14 : 0.23),
+                        palette.auroraA.opacity(reducedVisualEffects ? 0.04 : 0.09),
+                        .clear
+                    ],
                     center: UnitPoint(x: 0.5, y: 0.46),
                     startRadius: 0,
-                    endRadius: radius * 0.50
+                    endRadius: radius * 0.62
                 )
             )
             Rectangle().fill(
                 LinearGradient(
-                    colors: [.white.opacity(0.014), .clear, .black.opacity(0.09)],
+                    colors: [
+                        palette.auroraA.opacity(reducedVisualEffects ? 0.035 : 0.075),
+                        .clear,
+                        palette.auroraB.opacity(reducedVisualEffects ? 0.030 : 0.065)
+                    ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
@@ -79,9 +130,85 @@ struct TableBackground: View {
     }
 }
 
-/// The active element is reinforced by pattern as well as colour. These are the same four
-/// pattern families used on cards, but at table-surface contrast rather than card-face contrast:
-/// Lava = diagonal hatch, Sky = horizontal lines, Grass = vertical lines, Sun = dot grid.
+private struct DirectionalTablePulse: View {
+    let direction: TurnDirection
+    let accent: Color
+    let motionDisabled: Bool
+
+    var body: some View {
+        GeometryReader { geo in
+            let isLandscape = geo.size.width > geo.size.height
+            let width = geo.size.width * (isLandscape ? 0.94 : 1.08)
+            let height = geo.size.height * (isLandscape ? 0.72 : 0.62)
+            let lineWidth = max(2, min(4, min(geo.size.width, geo.size.height) * 0.006))
+
+            ZStack {
+                Ellipse()
+                    .stroke(
+                        accent.opacity(0.055),
+                        style: StrokeStyle(lineWidth: 1, dash: [2, 13])
+                    )
+
+                if motionDisabled {
+                    pulseArc(lineWidth: lineWidth)
+                        .rotationEffect(.degrees(direction == .clockwise ? 18 : 198))
+                        .opacity(0.10)
+                } else {
+                    TimelineView(.animation(minimumInterval: 1.0 / 15.0)) { context in
+                        let elapsed = context.date.timeIntervalSinceReferenceDate
+                        let orbit = elapsed.truncatingRemainder(dividingBy: 14) / 14
+                        let sign = direction == .clockwise ? 1.0 : -1.0
+                        let pulse = (sin(elapsed * .pi / 2) + 1) / 2
+
+                        pulseArc(lineWidth: lineWidth)
+                            .rotationEffect(.degrees(orbit * 360 * sign))
+                            .opacity(0.10 + pulse * 0.08)
+                    }
+                }
+            }
+            .frame(width: width, height: height)
+            .position(x: geo.size.width / 2, y: geo.size.height * 0.50)
+        }
+    }
+
+    private func pulseArc(lineWidth: CGFloat) -> some View {
+        Ellipse()
+            .trim(from: 0.02, to: 0.23)
+            .stroke(
+                accent,
+                style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+            )
+    }
+}
+
+private struct ContourSurfacePattern: View {
+    var body: some View {
+        Canvas { context, size in
+            let step = min(size.width, size.height) * 0.052
+
+            for index in 0..<11 {
+                let inset = CGFloat(index) * step
+                let rect = CGRect(
+                    x: size.width * 0.06 + inset * 0.34,
+                    y: size.height * 0.04 + inset,
+                    width: size.width * 0.88 - inset * 0.68,
+                    height: size.height * 0.92 - inset * 2
+                )
+                guard rect.width > 10, rect.height > 10 else { break }
+                let path = Path(
+                    roundedRect: rect,
+                    cornerRadius: min(rect.width, rect.height) * 0.34
+                )
+                context.stroke(path, with: .color(.white), lineWidth: 0.8)
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+// The active element is reinforced by pattern as well as colour:
+// Lava = diagonal hatch, Sky = horizontal lines, Grass = vertical lines, Sun = dot grid.
 private struct ElementSurfacePattern: View {
     let element: CardColour?
 
@@ -163,6 +290,24 @@ private struct ElementSurfacePattern: View {
             path.addLine(to: CGPoint(x: offset + size.height, y: 0))
             context.stroke(path, with: .color(.white), lineWidth: 0.8)
             offset += spacing
+        }
+    }
+}
+
+extension TableBackgroundStyle {
+    var displayName: String {
+        switch self {
+        case .felt: return "Felt"
+        case .aurora: return "Aurora"
+        case .contours: return "Contours"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .felt: return "A restrained material surface with a focused centre glow."
+        case .aurora: return "Layered edge light that carries more of the active element colour."
+        case .contours: return "Quiet contour lines that keep the table structured and low-noise."
         }
     }
 }

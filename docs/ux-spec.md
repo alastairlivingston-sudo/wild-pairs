@@ -106,6 +106,8 @@ Wild Pairs
 │       ├── Gameplay
 │       │   ├── Animation speed (Normal / Fast / Off)
 │       │   └── Confirm end game toggle
+│       ├── Appearance
+│       │   └── Table background (Felt / Aurora / Contours)
 │       ├── Accessibility
 │       │   ├── Haptics (On / Off)
 │       │   ├── Reduced visual effects toggle

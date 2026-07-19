@@ -302,30 +302,3 @@ struct ThinkingDotsView: View {
         }
     }
 }
-
-// The round-wide fallback countdown now lives in the unified state rail (GameTableView's
-// TableStateRail, which owns the `game-round-timer` identifier) — the old standalone
-// RoundTimerBadge was removed in the Phase 18 table redesign (ruling R3).
-
-// The local player's 10-second per-move countdown (game-rules.md "Per-Move Timer") — a thin
-// progress bar above the hand, only shown on the local player's turn. Colour shifts from
-// accent to warning as time runs low, mirroring the round timer's urgency cue.
-struct MoveTimerBar: View {
-    let remaining: TimeInterval
-    let total: TimeInterval
-
-    private var progress: Double { total > 0 ? max(0, min(1, remaining / total)) : 0 }
-    private var isUrgent: Bool { remaining <= 3 }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("\(Int(remaining.rounded()))s to play")
-                .font(.caption2).foregroundStyle(isUrgent ? Theme.Palette.warning : .secondary)
-            ProgressView(value: progress)
-                .tint(isUrgent ? Theme.Palette.warning : Theme.Palette.accent)
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(Int(remaining.rounded())) seconds left to play")
-        .accessibilityIdentifier("game-move-timer")
-    }
-}

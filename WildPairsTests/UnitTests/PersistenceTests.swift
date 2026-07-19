@@ -116,6 +116,7 @@ struct UserSettingsTests {
         let settings = UserSettings(
             animationSpeed: .fast,
             confirmEndGame: false,
+            tableBackgroundStyle: .contours,
             hapticsEnabled: false,
             reducedVisualEffects: true,
             colourBlindMode: true,
@@ -126,6 +127,7 @@ struct UserSettingsTests {
         let decoded = try JSONDecoder().decode(UserSettings.self, from: data)
         #expect(decoded == settings)
         #expect(decoded.animationSpeed == .fast)
+        #expect(decoded.tableBackgroundStyle == .contours)
         #expect(decoded.colourBlindMode == true)
     }
 
@@ -136,6 +138,13 @@ struct UserSettingsTests {
         #expect(AnimationSpeed.off.rawValue == "off")
     }
 
+    @Test("TableBackgroundStyle raw values are stable")
+    func testTableBackgroundStyleRawValues() {
+        #expect(TableBackgroundStyle.felt.rawValue == "felt")
+        #expect(TableBackgroundStyle.aurora.rawValue == "aurora")
+        #expect(TableBackgroundStyle.contours.rawValue == "contours")
+    }
+
     @Test("Settings JSON missing a newer key (e.g. hasSeenOnboarding) decodes with its default rather than failing")
     func testForwardCompatibleDecodeMissingKey() throws {
         let legacyJSON = """
@@ -144,6 +153,7 @@ struct UserSettingsTests {
         """
         let decoded = try JSONDecoder().decode(UserSettings.self, from: Data(legacyJSON.utf8))
         #expect(decoded.hasSeenOnboarding == false)
+        #expect(decoded.tableBackgroundStyle == .felt)
         #expect(decoded.soundEnabled == true)
         #expect(decoded.animationSpeed == .fast)
         #expect(decoded.colourBlindMode == true)

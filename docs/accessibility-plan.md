@@ -111,6 +111,9 @@ Example: "Discard pile. Top card: Jade Skip, action card. Current colour: Jade."
 
 #### Current colour indicator
 
+The table background may reinforce the active colour with tint and the matching pattern, but
+it is decorative and hidden from accessibility. The indicator below remains the semantic source.
+
 ```
 "[Colour name], [symbol name] symbol. Current active colour."
 
@@ -421,6 +424,7 @@ Subscribe to `UIAccessibility.reduceMotionStatusDidChangeNotification` to respon
 | Reverse animation | Direction arrow rotates 180° | Direction indicator swaps to new state instantly |
 | Draw penalty | Cards fan into recipient zone | Card count badge increments; brief badge scale |
 | Colour change | Discard pile pulses in new colour | Instant colour change on discard pile |
+| Directional table ambience | A low-opacity arc orbits and gently pulses in the current play direction | Static low-opacity trace; HUD arrow and direction text remain authoritative |
 | Target selection | Pulsing ring on eligible players | Static highlight ring (no pulse) |
 | Partner assist | Luminous arc from partner to hand | No visual; event log text only |
 | Solo! badge | Scale-in spring animation | Badge appears with opacity fade-in |

@@ -2,8 +2,7 @@ import SwiftUI
 import WildPairsCore
 
 // The centre-stage table object: a physical face-down draw deck, a separate played-card pile,
-// and an always-visible direction orbit behind them. The active colour/turn owner now live in
-// GameTableView's single state rail, avoiding duplicate pills around the centre.
+// the current element, and an always-visible direction orbit behind them.
 struct TableCenterView: View {
     let topDiscard: Card?
     let currentColour: CardColour
@@ -51,19 +50,17 @@ struct TableCenterView: View {
     }
 
     var body: some View {
-        VStack(spacing: Theme.Space.s2) {
-            HStack(alignment: .center, spacing: resolvedPileSpacing) {
-                drawPile
-                discardPile
-            }
-            .padding(.vertical, Theme.Space.s2)
-            // A background does not change the HStack's measured width, so the direction orbit
-            // can extend into the inter-seat breathing room without breaking the centre-row fit.
-            .background(alignment: .center) {
-                directionOrbit
-            }
-
-            directionReadout
+        HStack(alignment: .center, spacing: resolvedPileSpacing) {
+            drawPile
+            discardPile
+        }
+        .padding(.top, Theme.Space.s5)
+        .padding(.bottom, Theme.Space.s2)
+        .background(alignment: .center) {
+            directionOrbit
+        }
+        .overlay(alignment: .top) {
+            currentElementChip
         }
         .onChange(of: currentColour) { _, _ in pulseColour() }
         .onChange(of: colourChoicePending) { old, new in
@@ -87,6 +84,10 @@ struct TableCenterView: View {
                         .transition(reducedMotion ? .opacity : .scale(scale: 0.6).combined(with: .opacity))
                 }
             }
+        }
+        .overlay(alignment: .bottom) {
+            directionChangeConfirmation
+                .offset(y: Theme.Space.s3)
         }
     }
 
@@ -287,43 +288,40 @@ struct TableCenterView: View {
         return "\(colour.displayName) \(card.type.spokenName), action card"
     }
 
-    /// Text and icon beneath the orbit are intentionally small. They make direction explicit for
-    /// low-vision and first-time players without becoming a third centre-stage object.
-    private var directionReadout: some View {
+    private var currentElementChip: some View {
         HStack(spacing: Theme.Space.s1) {
-            Image(systemName: turnDirection == .clockwise ? "arrow.clockwise" : "arrow.counterclockwise")
+            SuitSymbol(colour: currentColour, lineWidth: 1.8)
+                .frame(width: 15, height: 15)
+            Text(currentColour.displayName.uppercased())
                 .font(.caption2.weight(.black))
-            Text(turnDirection == .clockwise ? "CLOCKWISE" : "COUNTER-CLOCKWISE")
-                .font(.system(size: 9, weight: .black, design: .rounded))
                 .tracking(0.45)
+                .lineLimit(1)
         }
-        .foregroundStyle(.white.opacity(0.82))
+        .foregroundStyle(.white)
         .padding(.horizontal, Theme.Space.s2)
-        .padding(.vertical, 4)
-        .background(Capsule().fill(Color.black.opacity(0.44)))
-        .overlay(Capsule().strokeBorder(.white.opacity(0.16), lineWidth: 1))
-        .overlay(alignment: .top) {
-            if showReversed {
-                Text("REVERSED")
-                    .font(.system(size: 9, weight: .black, design: .rounded))
-                    .tracking(0.6)
-                    .foregroundStyle(Theme.Palette.onAccent)
-                    .padding(.horizontal, Theme.Space.s2)
-                    .padding(.vertical, 3)
-                    .background(Capsule().fill(Theme.Palette.warning))
-                    .shadow(color: .black.opacity(0.35), radius: 4, y: 2)
-                    .offset(y: -24)
-                    .transition(reducedMotion ? .opacity : .scale(scale: 0.5).combined(with: .opacity))
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-            }
-        }
+        .padding(.vertical, 5)
+        .background(Capsule().fill(currentColour.fillColor(scheme).opacity(0.92)))
+        .overlay(Capsule().strokeBorder(.white.opacity(0.76), lineWidth: 1))
+        .shadow(color: currentColour.highlightColor(scheme).opacity(0.24), radius: 5)
+        .allowsHitTesting(false)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(
-            turnDirection == .clockwise
-                ? "Play direction clockwise"
-                : "Play direction counter-clockwise"
-        )
+        .accessibilityLabel("Current element: \(currentColour.displayName)")
+    }
+
+    @ViewBuilder private var directionChangeConfirmation: some View {
+        if showReversed {
+            Text("REVERSED")
+                .font(.system(size: 9, weight: .black, design: .rounded))
+                .tracking(0.6)
+                .foregroundStyle(Theme.Palette.onAccent)
+                .padding(.horizontal, Theme.Space.s2)
+                .padding(.vertical, 3)
+                .background(Capsule().fill(Theme.Palette.warning))
+                .shadow(color: .black.opacity(0.35), radius: 4, y: 2)
+                .transition(reducedMotion ? .opacity : .scale(scale: 0.5).combined(with: .opacity))
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
     }
 
     private func pulseColour() {

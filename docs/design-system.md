@@ -289,8 +289,17 @@ design direction:
 | `felt.gold` | `#D9B872` | Warm accent — replaces system indigo as `Theme.Palette.accent`; used for borders, primary buttons, suit-symbol watermarks |
 | `felt.cream` | `#F3ECD9` | Warm light text/wordmark colour on felt |
 
-`TableBackground` composes these as: solid felt base → radial highlight (centre-out) → a
-faint diagonal weave texture at 5% opacity → a radial vignette (clear centre, dark edges).
+`TableBackground` keeps the same dark-first palette and supports three offline vector
+gameplay surfaces selected in Settings: **Felt** (restrained material gradient), **Aurora**
+(layered edge light), and **Contours** (quiet nested lines). Settings previews the selection;
+non-game screens retain Felt. The selected surface is decorative; every style receives the same
+authoritative active-element field and colour-blind pattern, followed by the protective radial
+vignette. No downloaded art, photo library access, or network is used.
+
+During play, a low-opacity elliptical trace moves clockwise or counter-clockwise behind the
+table according to the presenter-owned `turnDirection`. It supplements, but never replaces,
+the persistent direction arrow and full text in the HUD. System Reduced Motion, the in-app
+Reduced visual effects setting, and Animation speed Off freeze the trace into a static mark.
 The game table view (and all menu screens) lock `.preferredColorScheme(.dark)` so text/icon
 contrast tokens stay deterministic regardless of the device's system appearance setting —
 this is a deliberate "dark-first" choice, not a light-mode regression.

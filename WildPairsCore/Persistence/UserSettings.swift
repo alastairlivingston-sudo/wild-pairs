@@ -8,6 +8,12 @@ public enum AnimationSpeed: String, Codable, Equatable, Sendable, CaseIterable {
     case off
 }
 
+public enum TableBackgroundStyle: String, Codable, Equatable, Sendable, CaseIterable {
+    case felt
+    case aurora
+    case contours
+}
+
 // MARK: - UserSettings
 
 public struct UserSettings: Codable, Equatable, Sendable {
@@ -23,6 +29,9 @@ public struct UserSettings: Codable, Equatable, Sendable {
     /// played as a bluff and its target may challenge it. Off by default. Applied to
     /// `RuleProfile.drawFourChallengeable` at new-game time. See `docs/game-rules.md`.
     public var drawFourChallengeEnabled: Bool
+
+    // Appearance
+    public var tableBackgroundStyle: TableBackgroundStyle
 
     // Accessibility
     public var hapticsEnabled: Bool
@@ -44,6 +53,7 @@ public struct UserSettings: Codable, Equatable, Sendable {
     public init(
         animationSpeed: AnimationSpeed = .normal,
         confirmEndGame: Bool = true,
+        tableBackgroundStyle: TableBackgroundStyle = .felt,
         hapticsEnabled: Bool = true,
         soundEnabled: Bool = true,
         reducedVisualEffects: Bool = false,
@@ -57,6 +67,7 @@ public struct UserSettings: Codable, Equatable, Sendable {
     ) {
         self.animationSpeed = animationSpeed
         self.confirmEndGame = confirmEndGame
+        self.tableBackgroundStyle = tableBackgroundStyle
         self.hapticsEnabled = hapticsEnabled
         self.soundEnabled = soundEnabled
         self.reducedVisualEffects = reducedVisualEffects
@@ -89,6 +100,7 @@ public struct UserSettings: Codable, Equatable, Sendable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         animationSpeed = try c.decodeIfPresent(AnimationSpeed.self, forKey: .animationSpeed) ?? .normal
         confirmEndGame = try c.decodeIfPresent(Bool.self, forKey: .confirmEndGame) ?? true
+        tableBackgroundStyle = try c.decodeIfPresent(TableBackgroundStyle.self, forKey: .tableBackgroundStyle) ?? .felt
         hapticsEnabled = try c.decodeIfPresent(Bool.self, forKey: .hapticsEnabled) ?? true
         soundEnabled = try c.decodeIfPresent(Bool.self, forKey: .soundEnabled) ?? true
         reducedVisualEffects = try c.decodeIfPresent(Bool.self, forKey: .reducedVisualEffects) ?? false

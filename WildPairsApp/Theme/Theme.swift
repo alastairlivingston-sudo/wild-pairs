@@ -79,12 +79,17 @@ enum Theme {
     // Project-aware tokens for the table redesign. These live in the existing Theme namespace
     // rather than introducing a parallel design-token type that could drift or collide.
     enum Table {
+        static let edgeHUDHeight: CGFloat = 56
+        static let compactEdgeHUDHeight: CGFloat = 50
+        static let moveTimerWidth: CGFloat = 96
+        static let compactMoveTimerWidth: CGFloat = 68
+        static let moveTimerHeight: CGFloat = 42
         /// Physical separation between the face-down draw deck and the played-card pile.
         /// 24pt keeps the two hit targets visually distinct at iPhone size while preserving the
         /// existing centre-row fit; constrained layouts may reduce to Space.s4, never below 16pt.
         static let drawDiscardGap: CGFloat = Space.s5
         /// Resting direction orbit: always legible, always subordinate to the cards.
-        static let directionOrbitRestOpacity: Double = 0.24
+        static let directionOrbitRestOpacity: Double = 0.42
         /// Brief Reverse impact. The orbit may become dominant for less than a second, then settles.
         static let directionOrbitEventOpacity: Double = 0.78
         /// Compatibility alias for call sites that have not yet migrated.

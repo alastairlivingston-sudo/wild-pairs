@@ -12,11 +12,21 @@ struct PassAndPlayTableView: View {
     @ObservedObject var settings: AppSettings
     let onExit: () -> Void
 
+    @Environment(\.horizontalSizeClass) private var hSize
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @State private var showPause = false
 
     private var showColourName: Bool { settings.userSettings.colourBlindMode }
     private var showPattern: Bool { settings.userSettings.colourBlindMode && settings.userSettings.patternFills }
     private var reducedMotion: Bool { settings.userSettings.reducedVisualEffects }
+    private var motionDisabled: Bool { reducedMotion || systemReduceMotion }
+    private var effectiveLargeCards: Bool {
+        settings.userSettings.largeCards || dynamicTypeSize >= .accessibility3
+    }
+    private var handCardSize: CGSize {
+        effectiveLargeCards ? Theme.CardSize.regularHand : Theme.CardSize.compactHand
+    }
 
     private var vs: GameViewState { vm.viewState }             // bottom (You) perspective: seats, opponents
     private var avs: GameViewState { vm.activeViewState }      // acting human: centre draw affordance + hand
@@ -25,16 +35,30 @@ struct PassAndPlayTableView: View {
 
     var body: some View {
         ZStack {
-            TableBackground(element: vs.currentColour).ignoresSafeArea()
+            TableBackground(
+                element: vs.currentColour,
+                turnDirection: vs.phase == .playing ? vs.turnDirection : nil,
+                directionAnimationDisabled: settings.userSettings.animationSpeed == .off,
+                style: settings.userSettings.tableBackgroundStyle
+            )
+            .ignoresSafeArea()
 
-            VStack(spacing: Theme.Space.s2) {
-                humanHalf(for: vm.topHumanID, rotated: true)
-                middleRow
-                humanHalf(for: vm.bottomHumanID, rotated: false)
+            VStack(spacing: 0) {
+                edgeHUD(for: vm.topHumanID, rotated: true, isPrimarySemantic: false)
+
+                VStack(spacing: Theme.Space.s2) {
+                    humanHalf(for: vm.topHumanID, rotated: true)
+                    middleRow
+                    humanHalf(for: vm.bottomHumanID, rotated: false)
+                }
+                .padding(.vertical, Theme.Space.s2)
+                .frame(maxHeight: .infinity)
+
+                edgeHUD(for: vm.bottomHumanID, rotated: false, isPrimarySemantic: true)
+                    .accessibilitySortPriority(100)
             }
-            .padding(.vertical, Theme.Space.s2)
             .saturation(tableSaturation)
-            .animation(.easeInOut(duration: 0.4), value: current)
+            .animation(motionDisabled ? nil : .easeInOut(duration: 0.4), value: current)
 
             pauseButton
 
@@ -56,6 +80,38 @@ struct PassAndPlayTableView: View {
         return 0
     }
 
+    private func edgeHUD(
+        for viewerID: UUID?,
+        rotated: Bool,
+        isPrimarySemantic: Bool
+    ) -> some View {
+        let ownsMoveTimer = viewerID == current
+        return GameEdgeHUD(
+            roundNumber: vs.roundNumber,
+            scoreboard: vs.scoreboard,
+            turnLabel: turnLabel(for: viewerID),
+            turnDirection: vs.turnDirection,
+            roundRemaining: vm.roundTimeRemaining,
+            roundTotal: vm.roundTimeLimit,
+            visualMoveRemaining: ownsMoveTimer ? vm.moveTimeRemaining : nil,
+            semanticMoveRemaining: isPrimarySemantic ? vm.moveTimeRemaining : nil,
+            moveTotal: vm.moveTimeLimit,
+            accent: elementGlow,
+            compact: hSize != .regular,
+            isPrimarySemantic: isPrimarySemantic,
+            contentRotation: rotated ? .degrees(180) : .zero
+        )
+    }
+
+    private func turnLabel(for viewerID: UUID?) -> String {
+        guard let viewerID,
+              let viewer = vs.seats.first(where: { $0.id == viewerID }),
+              let active = vs.seats.first(where: { $0.isCurrentPlayer }) else { return "TURN" }
+        if active.id == viewerID { return "YOUR TURN" }
+        if active.teamID == viewer.teamID { return "PARTNER'S TURN" }
+        return "\(active.name.uppercased())'S TURN"
+    }
+
     // MARK: A human end
 
     @ViewBuilder private func humanHalf(for humanID: UUID?, rotated: Bool) -> some View {
@@ -74,7 +130,7 @@ struct PassAndPlayTableView: View {
     private func activeHalf(_ humanID: UUID) -> some View {
         VStack(spacing: Theme.Space.s2) {
             HStack(spacing: Theme.Space.s2) {
-                Text(humanID == vm.bottomHumanID ? "Your turn" : "\(vm.name(for: humanID))'s turn")
+                Text("PLAY NOW")
                     .font(.subheadline).fontWeight(.bold).foregroundStyle(Theme.Palette.accent)
                 Text("\(vm.handCount(for: humanID))")
                     .font(.caption).fontWeight(.heavy).monospacedDigit()
@@ -87,9 +143,9 @@ struct PassAndPlayTableView: View {
                     .buttonStyle(.borderedProminent).tint(Theme.Palette.warning).controlSize(.small)
                 }
             }
-            HandView(hand: avs.localHand, cardSize: Theme.CardSize.compactHand,
+            HandView(hand: avs.localHand, cardSize: handCardSize,
                      showColourName: showColourName, showPattern: showPattern,
-                     reducedMotion: reducedMotion, onPlay: { vm.play($0.card, as: humanID) })
+                     reducedMotion: motionDisabled, onPlay: { vm.play($0.card, as: humanID) })
         }
         .padding(.horizontal, Theme.Space.s3).padding(.vertical, Theme.Space.s2)
         .background(
@@ -99,6 +155,12 @@ struct PassAndPlayTableView: View {
                     .strokeBorder(Theme.Palette.accent.opacity(0.6), lineWidth: 1.5))
                 .shadow(color: reducedMotion ? .clear : Theme.Palette.accent.opacity(0.4), radius: 20)
         )
+        .overlay {
+            ActiveSeatBrackets(tint: elementGlow)
+                .padding(-3)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
         .padding(.horizontal, Theme.Space.s3)
     }
 
@@ -131,7 +193,7 @@ struct PassAndPlayTableView: View {
                 drawPileCount: avs.drawPileCount, pendingDrawCount: avs.pendingDrawCount,
                 turnDirection: avs.turnDirection, canDraw: avs.canDrawNow,
                 mustDraw: avs.mustDrawNow, forcedPickup: avs.forcedPickupCount != nil,
-                showColourName: showColourName, showPattern: showPattern, reducedMotion: reducedMotion,
+                showColourName: showColourName, showPattern: showPattern, reducedMotion: motionDisabled,
                 cardSize: Theme.CardSize.tableFocus, colourChoicePending: avs.colourChoicePending,
                 recentDiscards: avs.recentDiscards,
                 onDraw: { if let c = current { vm.drawCard(as: c) } })
@@ -144,7 +206,7 @@ struct PassAndPlayTableView: View {
         if let seat = vs.seats.first(where: { $0.tablePosition == tablePosition }) {
             PlayerZoneView(
                 seat: seat, cardBackSize: Theme.CardSize.opponentBack, maxFanWidth: 84,
-                reducedMotion: reducedMotion, isThinking: seat.id == vm.thinkingPlayerID,
+                reducedMotion: motionDisabled, isThinking: seat.id == vm.thinkingPlayerID,
                 thinkingDotCount: vm.thinkingDifficulty == .easy ? 2 : 3, accent: elementGlow,
                 onCatchSolo: seat.id == vs.catchableSoloPlayerID ? { vm.callOut(seat.id) } : nil)
             .frame(width: 84)
@@ -156,19 +218,17 @@ struct PassAndPlayTableView: View {
     // MARK: Pause
 
     private var pauseButton: some View {
-        VStack {
-            HStack {
-                Spacer()
-                Button { showPause = true; vm.pause() } label: {
-                    Image(systemName: "pause.fill").font(.footnote)
-                        .frame(width: 28, height: 28).wpGlassCircle()
-                        .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
-                }
-                .accessibilityLabel("Pause").accessibilityIdentifier("game-pause-button")
-            }
+        HStack {
             Spacer()
+            Button { showPause = true; vm.pause() } label: {
+                Image(systemName: "pause.fill").font(.footnote)
+                    .frame(width: 28, height: 28).wpGlassCircle()
+                    .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
+            }
+            .accessibilityLabel("Pause").accessibilityIdentifier("game-pause-button")
         }
-        .padding(.horizontal, Theme.Space.s3)
+        .frame(maxHeight: .infinity)
+        .padding(.trailing, Theme.Space.s2)
     }
 
     // MARK: Decision overlays (either end — rotated when the top human owns it)

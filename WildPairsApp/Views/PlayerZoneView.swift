@@ -394,7 +394,7 @@ struct PlayerZoneView: View {
 
 /// Shape-coded active-turn frame: a low-opacity tint underlay and a white inner stroke make it
 /// readable in greyscale, while the broken corners avoid turning every active seat into a panel.
-private struct ActiveSeatBrackets: View {
+struct ActiveSeatBrackets: View {
     let tint: Color
 
     var body: some View {

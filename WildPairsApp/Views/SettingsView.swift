@@ -10,7 +10,7 @@ struct SettingsView: View {
 
     var body: some View {
         ZStack {
-            TableBackground()
+            TableBackground(style: settings.userSettings.tableBackgroundStyle)
             Form {
                 Section("Gameplay") {
                     Picker("Animation speed", selection: s.animationSpeed) {
@@ -25,6 +25,20 @@ struct SettingsView: View {
                     Toggle("Draw Four challenge", isOn: s.drawFourChallengeEnabled)
                         .accessibilityIdentifier("settings-drawfour-challenge-toggle")
                         .accessibilityHint("When on, a Draw Four may be played as a bluff and its target may challenge it. Applies to new games.")
+                }
+                .listRowBackground(Color.black.opacity(0.25))
+
+                Section("Appearance") {
+                    Picker("Table background", selection: s.tableBackgroundStyle) {
+                        ForEach(TableBackgroundStyle.allCases, id: \.self) { style in
+                            Text(style.displayName).tag(style)
+                        }
+                    }
+                    .accessibilityIdentifier("settings-table-background-picker")
+
+                    Text(settings.userSettings.tableBackgroundStyle.detail)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
                 .listRowBackground(Color.black.opacity(0.25))
 

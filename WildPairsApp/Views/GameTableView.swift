@@ -14,7 +14,7 @@ struct GameTableView: View {
     let onExit: () -> Void
 
     @Environment(\.horizontalSizeClass) private var hSize
-    @Environment(\.colorScheme) private var scheme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @State private var showPause = false
     /// The seat cue (skip / forced draw) currently on screen; the ViewModel emits one and this
@@ -45,17 +45,19 @@ struct GameTableView: View {
         if seat.tablePosition == 2 { return "PARTNER'S TURN" }
         return "\(seat.name.uppercased())'S TURN"
     }
-    private var activeSeatIsThinking: Bool { activeSeat?.id == vm.thinkingPlayerID }
     private var localCaughtPenaltyCount: Int? {
         guard let localID = vs.seats.first(where: { $0.isLocalPlayer })?.id,
               activeSoloPenalty?.seatID == localID else { return nil }
         return activeSoloPenalty?.count
     }
     private var handCardSize: CGSize {
-        let large = settings.userSettings.largeCards
+        let large = effectiveLargeCards
         // iPad hand reads larger so the deck has real presence on the wide canvas (ux-spec §7).
         if hSize == .regular { return large ? Theme.CardSize.padHandLarge : Theme.CardSize.padHand }
         return large ? Theme.CardSize.regularHand : Theme.CardSize.compactHand
+    }
+    private var effectiveLargeCards: Bool {
+        settings.userSettings.largeCards || dynamicTypeSize >= .accessibility3
     }
     private var showColourName: Bool { settings.userSettings.colourBlindMode }
     private var showPattern: Bool { settings.userSettings.colourBlindMode && settings.userSettings.patternFills }
@@ -96,7 +98,7 @@ struct GameTableView: View {
                 let centerSize = isPad ? (isLandscape ? Theme.CardSize.tableFocus : Theme.CardSize.padTableFocus)
                                        : Theme.CardSize.tableFocus
                 let handSize: CGSize = (isPad && isLandscape)
-                    ? (settings.userSettings.largeCards ? Theme.CardSize.padHand : Theme.CardSize.regularHand)
+                    ? (effectiveLargeCards ? Theme.CardSize.padHand : Theme.CardSize.regularHand)
                     : handCardSize
                 // 72pt keeps the crest, five-card fan, and count badge readable while allowing
                 // the 24pt draw/discard gap to fit on a 375pt-wide iPhone without clipping.
@@ -116,10 +118,16 @@ struct GameTableView: View {
                                           availableWidth - Theme.Space.s4 * 2)
 
                 ZStack {
-                    TableBackground(element: vs.currentColour).ignoresSafeArea()
+                    TableBackground(
+                        element: vs.currentColour,
+                        turnDirection: vs.phase == .playing ? vs.turnDirection : nil,
+                        directionAnimationDisabled: settings.userSettings.animationSpeed == .off,
+                        style: settings.userSettings.tableBackgroundStyle
+                    )
+                    .ignoresSafeArea()
 
                     VStack(spacing: 0) {
-                        scoreBar.padding(.top, spacing)
+                        edgeHUD(compact: !isPad)
 
                         ScrollView(.vertical, showsIndicators: false) {
                             // iPhone: zones fill the height with flexible spacers (partner top,
@@ -133,26 +141,14 @@ struct GameTableView: View {
                                     partnerZone(maxWidth: partnerMaxWidth, seatBackSize: seatBackSize,
                                                 openHandCardSize: partnerCardSize)
                                     zoneGap(isPad: isPad, compact: isLandscape)
-                                    tableStateRail(compact: isLandscape)
                                     opponentCenterRow(spacing: spacing, seatBackSize: seatBackSize,
                                                       centerSize: centerSize, sideWidth: resolvedSide, spread: isPad)
                                     zoneGap(isPad: isPad, compact: isLandscape)
 
                                     PromptBanner(prompt: vs.prompt, tint: elementGlow)
                                         .padding(.horizontal, Theme.Space.s4)
-                                    // Per-move countdown over the effective limit (10s, or 5s in
-                                    // the round's final minute — Phase 17 C10). Fills at the limit
-                                    // and drains to zero so the shortened final-minute window reads
-                                    // correctly.
-                                    if let moveRemaining = vm.moveTimeRemaining, moveRemaining <= vm.moveTimeLimit {
-                                        MoveTimerBar(remaining: moveRemaining, total: vm.moveTimeLimit)
-                                            .padding(.horizontal, Theme.Space.s4)
-                                    }
                                     bottomControls
-                                    HandView(hand: vs.localHand, cardSize: handSize,
-                                             showColourName: showColourName, showPattern: showPattern,
-                                             reducedMotion: motionDisabled, onPlay: vm.play)
-                                        .reportTableAnchor(.seat(0), in: tableSpace)
+                                    localHandZone(cardSize: handSize)
                                 }
                                 .frame(maxWidth: contentMaxWidth)
                                 .frame(maxWidth: .infinity)
@@ -293,47 +289,21 @@ struct GameTableView: View {
         .preferredColorScheme(.dark)
     }
 
-    /// Single-row pill — round chip, team scores, pause — that never wraps to a second
-    /// line, replacing the toolbar's two-row layout at small widths (A6/A7).
-    private var scoreBar: some View {
-        HStack(spacing: Theme.Space.s3) {
-            Text("Round \(vs.roundNumber)")
-                .font(.caption).fontWeight(.semibold).foregroundStyle(.secondary)
-                .lineLimit(1).minimumScaleFactor(0.5)
-                .padding(.horizontal, Theme.Space.s2).padding(.vertical, Theme.Space.s1)
-                .wpGlassCapsule()
-
-            Spacer(minLength: Theme.Space.s2)
-
-            HStack(spacing: Theme.Space.s2) {
-                ForEach(Array(vs.scoreboard.enumerated()), id: \.element.id) { index, row in
-                    HStack(spacing: Theme.Space.s1) {
-                        Circle()
-                            .fill(index == 0 ? Theme.Palette.teamA : Theme.Palette.teamB)
-                            .frame(width: 8, height: 8)
-                        Text("\(row.displayName) \(row.score)")
-                            .font(.caption).fontWeight(.semibold)
-                            .lineLimit(1).minimumScaleFactor(0.5)
-                    }
-                }
-            }
-            .padding(.horizontal, Theme.Space.s3).padding(.vertical, Theme.Space.s1)
-            .wpGlassCapsule()
-
-            Spacer(minLength: Theme.Space.s2)
-
-            Button { showPause = true; vm.pause() } label: {
-                Image(systemName: "pause.fill").font(.footnote)
-                    .frame(width: 28, height: 28)
-                    .wpGlassCircle()
-                    .frame(minWidth: 44, minHeight: 44)
-                    .contentShape(Rectangle())
-            }
-            .accessibilityLabel("Pause")
-            .accessibilityIdentifier("game-pause-button")
-        }
-        .lineLimit(1)
-        .padding(.horizontal, Theme.Space.s4)
+    private func edgeHUD(compact: Bool) -> some View {
+        GameEdgeHUD(
+            roundNumber: vs.roundNumber,
+            scoreboard: vs.scoreboard,
+            turnLabel: activeTurnLabel,
+            turnDirection: vs.turnDirection,
+            roundRemaining: vm.roundTimeRemaining,
+            roundTotal: vm.roundTimeLimit,
+            visualMoveRemaining: vm.moveTimeRemaining,
+            semanticMoveRemaining: vm.moveTimeRemaining,
+            moveTotal: vm.moveTimeLimit,
+            accent: elementGlow,
+            compact: compact,
+            onPause: { showPause = true; vm.pause() }
+        )
     }
 
     /// Solo! remains visible so its location is learned, but the urgent legal state becomes a
@@ -357,22 +327,42 @@ struct GameTableView: View {
         .frame(maxWidth: .infinity)
     }
 
-    /// One compact rail replaces separate colour, turn-owner, and round-timer pills. It is the
-    /// dominant state readout, while the physical cards remain the dominant visual objects.
-    private func tableStateRail(compact: Bool) -> some View {
-        TableStateRail(
-            colour: vs.currentColour,
-            ownerLabel: activeTurnLabel,
-            isLocalTurn: vs.isLocalPlayerTurn,
-            isThinking: activeSeatIsThinking,
-            activeTablePosition: activeSeat?.tablePosition,
-            turnDirection: vs.turnDirection,
-            roundRemaining: vm.roundTimeRemaining,
-            roundTotal: vm.roundTimeLimit,
-            accent: elementGlow,
-            compact: compact
+    private func localHandZone(cardSize: CGSize) -> some View {
+        HandView(
+            hand: vs.localHand,
+            cardSize: cardSize,
+            showColourName: showColourName,
+            showPattern: showPattern,
+            reducedMotion: motionDisabled,
+            onPlay: vm.play
         )
-        .padding(.horizontal, Theme.Space.s4)
+        .padding(.horizontal, Theme.Space.s1)
+        .overlay {
+            if vs.isLocalPlayerTurn {
+                ActiveSeatBrackets(tint: elementGlow)
+                    .padding(.horizontal, Theme.Space.s2)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
+        .overlay(alignment: .top) {
+            if vs.isLocalPlayerTurn {
+                Text("PLAY NOW")
+                    .font(.system(size: 9, weight: .black, design: .rounded))
+                    .tracking(0.4)
+                    .foregroundStyle(Color.black)
+                    .padding(.horizontal, Theme.Space.s2)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(.white))
+                    .overlay(Capsule().strokeBorder(elementGlow.opacity(0.72), lineWidth: 1))
+                    .shadow(color: .black.opacity(0.35), radius: 4, y: 2)
+                    .offset(y: -7)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
+        .animation(motionDisabled ? nil : Theme.Motion.fast, value: vs.isLocalPlayerTurn)
+        .reportTableAnchor(.seat(0), in: tableSpace)
     }
 
     /// Gap between table zones: a flexible spacer on iPhone (fills the height), a fixed gap on
@@ -861,241 +851,6 @@ private struct RoundSeatScoreChip: View {
         )
         .shadow(color: .black.opacity(0.44), radius: 8, y: 4)
         .accessibilityLabel("\(score.name) had \(score.remainingPoints) points remaining")
-    }
-}
-
-// MARK: - Project-aware table chrome
-
-/// The single state rail at the centre of the information hierarchy. It combines the three
-/// facts a player checks most often — active element, whose turn, and round time — without
-/// creating three unrelated floating pills. Every fact is encoded with text and shape as well
-/// as colour, and `ViewThatFits` provides a compact Dynamic Type fallback.
-private struct TableStateRail: View {
-    let colour: CardColour
-    let ownerLabel: String
-    let isLocalTurn: Bool
-    let isThinking: Bool
-    let activeTablePosition: Int?
-    let turnDirection: TurnDirection
-    let roundRemaining: TimeInterval?
-    let roundTotal: TimeInterval
-    let accent: Color
-    let compact: Bool
-
-    @Environment(\.colorScheme) private var scheme
-
-    var body: some View {
-        ViewThatFits(in: .horizontal) {
-            horizontalLayout
-            compactLayout
-        }
-        .padding(.horizontal, compact ? Theme.Space.s3 : Theme.Space.s4)
-        .padding(.vertical, compact ? Theme.Space.s1 : Theme.Space.s2)
-        .frame(maxWidth: compact ? 430 : 520)
-        .background(
-            RoundedRectangle(cornerRadius: Theme.Radius.r4, style: .continuous)
-                .fill(Color.black.opacity(0.58))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.Radius.r4, style: .continuous)
-                .strokeBorder(
-                    LinearGradient(
-                        colors: [.white.opacity(0.46), accent.opacity(0.38), .white.opacity(0.10)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
-        )
-        .shadow(color: .black.opacity(0.34), radius: 8, y: 4)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(accessibilitySummary)
-        .accessibilityIdentifier("game-turn-rail")
-    }
-
-    private var horizontalLayout: some View {
-        HStack(spacing: Theme.Space.s3) {
-            elementChip
-            Divider()
-                .overlay(.white.opacity(0.18))
-                .frame(height: 28)
-                .accessibilityHidden(true)
-            turnOwner
-            Spacer(minLength: Theme.Space.s2)
-            if let roundRemaining {
-                RoundClock(
-                    remaining: roundRemaining,
-                    total: roundTotal,
-                    accent: accent
-                )
-            }
-        }
-    }
-
-    private var compactLayout: some View {
-        VStack(spacing: Theme.Space.s1) {
-            HStack(spacing: Theme.Space.s2) {
-                elementChip
-                Spacer(minLength: Theme.Space.s2)
-                if let roundRemaining {
-                    RoundClock(
-                        remaining: roundRemaining,
-                        total: roundTotal,
-                        accent: accent
-                    )
-                }
-            }
-            turnOwner
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    private var elementChip: some View {
-        HStack(spacing: Theme.Space.s1) {
-            SuitSymbol(colour: colour, lineWidth: 1.9)
-                .frame(width: 17, height: 17)
-            Text(colour.displayName.uppercased())
-                .font(.caption.weight(.black))
-                .tracking(0.45)
-                .lineLimit(1)
-        }
-        .foregroundStyle(.white)
-        .padding(.horizontal, Theme.Space.s2)
-        .padding(.vertical, 6)
-        .background(Capsule().fill(colour.fillColor(scheme).opacity(0.92)))
-        .overlay(Capsule().strokeBorder(.white.opacity(0.76), lineWidth: 1))
-        .shadow(color: colour.highlightColor(scheme).opacity(0.24), radius: 5)
-        .accessibilityHidden(true)
-    }
-
-    private var turnOwner: some View {
-        HStack(spacing: Theme.Space.s2) {
-            SeatTurnGlyph(
-                activeTablePosition: activeTablePosition,
-                direction: turnDirection,
-                accent: accent
-            )
-
-            VStack(alignment: .leading, spacing: 0) {
-                Text(ownerLabel)
-                    .font(.subheadline.weight(.black))
-                    .foregroundStyle(.white)
-                    .tracking(0.25)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.64)
-                Text(isThinking ? "THINKING" : (isLocalTurn ? "PLAY NOW" : "UP NOW"))
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.62))
-                    .tracking(0.7)
-            }
-        }
-        .accessibilityHidden(true)
-    }
-
-    private var accessibilitySummary: String {
-        var parts = [
-            "Current element: \(colour.displayName)",
-            ownerLabel,
-            turnDirection == .clockwise ? "clockwise play" : "counter-clockwise play"
-        ]
-        if isThinking { parts.append("thinking") }
-        return parts.joined(separator: ", ")
-    }
-}
-
-/// Miniature seat map inside the state rail. The active seat is a filled cardinal marker, while
-/// the centre arrow states direction. It replaces the old always-downward pointer, which could
-/// falsely imply that every non-local turn belonged to the bottom player.
-private struct SeatTurnGlyph: View {
-    let activeTablePosition: Int?
-    let direction: TurnDirection
-    let accent: Color
-
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(.white.opacity(0.07))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .strokeBorder(.white.opacity(0.24), lineWidth: 1)
-                )
-
-            marker(for: 2).offset(y: -11)
-            marker(for: 0).offset(y: 11)
-            marker(for: 1).offset(x: -11)
-            marker(for: 3).offset(x: 11)
-
-            Image(systemName: direction == .clockwise ? "arrow.clockwise" : "arrow.counterclockwise")
-                .font(.system(size: 10, weight: .black))
-                .foregroundStyle(.white.opacity(0.90))
-        }
-        .frame(width: 34, height: 34)
-        .accessibilityHidden(true)
-    }
-
-    private func marker(for position: Int) -> some View {
-        let isHorizontalSeat = position == 1 || position == 3
-        let isActive = activeTablePosition == position
-        return Capsule()
-            .fill(isActive ? Color.white : Color.clear)
-            .overlay(
-                Capsule().strokeBorder(
-                    isActive ? accent : .white.opacity(0.34),
-                    lineWidth: isActive ? 1.5 : 1
-                )
-            )
-            .frame(
-                width: isHorizontalSeat ? 4 : 10,
-                height: isHorizontalSeat ? 10 : 4
-            )
-            .shadow(color: isActive ? accent.opacity(0.50) : .clear, radius: 3)
-    }
-}
-
-/// A compact timer with a progress ring. The digits carry the exact value; the ring only provides
-/// peripheral urgency, so the state remains understandable in greyscale and with VoiceOver.
-private struct RoundClock: View {
-    let remaining: TimeInterval
-    let total: TimeInterval
-    let accent: Color
-
-    private var progress: Double {
-        guard total > 0 else { return 0 }
-        return max(0, min(1, remaining / total))
-    }
-
-    private var isUrgent: Bool { remaining <= 30 }
-
-    private var label: String {
-        let seconds = max(0, Int(remaining.rounded()))
-        return String(format: "%d:%02d", seconds / 60, seconds % 60)
-    }
-
-    var body: some View {
-        HStack(spacing: Theme.Space.s1) {
-            ZStack {
-                Circle().stroke(.white.opacity(0.16), lineWidth: 2)
-                Circle()
-                    .trim(from: 0, to: progress)
-                    .stroke(
-                        isUrgent ? Theme.Palette.warning : accent,
-                        style: StrokeStyle(lineWidth: 2.5, lineCap: .round)
-                    )
-                    .rotationEffect(.degrees(-90))
-                Image(systemName: "timer")
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.84))
-            }
-            .frame(width: 25, height: 25)
-
-            Text(label)
-                .font(.caption.weight(.bold))
-                .monospacedDigit()
-                .foregroundStyle(isUrgent ? Theme.Palette.warning : .white.opacity(0.88))
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Round time remaining: \(label)")
-        .accessibilityIdentifier("game-round-timer")
     }
 }
 
