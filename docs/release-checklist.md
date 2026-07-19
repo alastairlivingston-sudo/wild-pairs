@@ -569,8 +569,9 @@ the user's requested order).
   removed the `ScrollView` entirely and broke `testDynamicTypeAX3LayoutSurvives` — caught and
   fixed before commit).
 - **D — Elemental card retheme (display-only):** `CardColour` case names/raw values unchanged;
-  `displayName` now reads Fire/Rain/Earth/Wind (was Crimson/Cobalt/Jade/Amber); new
-  Crystal/Gust suit symbols for Earth/Wind; richer elemental gradients; both corner indices
+  `displayName` read Fire/Rain/Earth/Wind here (was Crimson/Cobalt/Jade/Amber; re-titled
+  Lava/Sky/Grass/Sun in the Phase 18 table redesign — ruling R8); new
+  Crystal/Gust suit symbols for the jade/amber suits; richer elemental gradients; both corner indices
   shown at regular card sizes. Docs (`design-system.md`, `game-rules.md`) and `CLAUDE.md`
   updated with the internal↔display alias mapping.
 - **E — Live "points at risk":** `GameEngine.pointValue(for: Card)` exposed publicly;
@@ -608,7 +609,8 @@ the user's requested order).
 ### Documentation
 - [x] `docs/game-rules.md` — Draw Stacking and Opening/Starting Card sections added, House
       Rules Catalogue and `RuleProfile` factory-defaults table updated for stacking's new
-      default, Rule Audit Findings recorded, colour vocabulary updated to Fire/Rain/Earth/Wind
+      default, Rule Audit Findings recorded, colour vocabulary updated to the elemental display
+      names (Fire/Rain/Earth/Wind at the time; now Lava/Sky/Grass/Sun after the Phase 18 redesign)
 - [x] `docs/design-system.md` — colour/symbol vocabulary and suit-symbol shape descriptions
       updated for the elemental retheme
 - [x] `CLAUDE.md` — internal↔display colour-name alias note added to the Canonical Design

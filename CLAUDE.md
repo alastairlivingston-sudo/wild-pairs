@@ -78,18 +78,19 @@ View → GameAction intent → GameViewModel → GameEngine.reduce(state, action
 ### Card colours (original — not UNO colours)
 | Internal name | Display name | Symbol | Colour-blind pattern |
 |---|---|---|---|
-| `crimson` | Fire | Flame | Diagonal hatching |
-| `cobalt` | Rain | Wave | Horizontal lines |
-| `jade` | Earth | Crystal | Vertical lines |
-| `amber` | Wind | Gust | Dots |
+| `crimson` | Lava | Flame | Diagonal hatching |
+| `cobalt` | Sky | Wave | Horizontal lines |
+| `jade` | Grass | Crystal | Vertical lines |
+| `amber` | Sun | Gust | Dots |
 
-Phase 11 display-only retheme: the **internal** vocabulary above (`CardColour` case names,
-Codable raw values, this table's "Internal name" column) is the canonical engine vocabulary and
-never changes — save files, tests, and AI heuristics key off it. Only the **Display name**/
-**Symbol** columns are user-facing and were retitled Fire/Rain/Earth/Wind (was
-Crimson/Cobalt/Jade/Amber) to read as real elemental cards. `CardColour.displayName` is the
-single source of truth for the display name; everywhere else (VoiceOver, UI copy) reads through
-it, so no other code needed to change.
+Display-only retheme (Phase 11, re-titled again in Phase 18): the **internal** vocabulary above
+(`CardColour` case names, Codable raw values, this table's "Internal name" column) is the canonical
+engine vocabulary and never changes — save files, tests, and AI heuristics key off it. Only the
+**Display name** column is user-facing: it read Fire/Rain/Earth/Wind after Phase 11 and is now
+Lava/Sky/Grass/Sun (Phase 18 table redesign, ruling R8). `CardColour.displayName` is the single
+source of truth for the display name; everywhere else (VoiceOver, UI copy) reads through it, so no
+other code needed to change. The Symbol and colour-blind pattern columns are unchanged by the
+rename.
 
 ### One-card-left mechanic
 - **"Solo!"** — player must call "Solo!" *before* playing down to one card (declared while

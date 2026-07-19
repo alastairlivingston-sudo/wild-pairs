@@ -215,15 +215,15 @@ against, not a drop-in asset pack.
 - Real printed/laminated card production look: warm-white laminated rim with bevel shadow,
   saturated colour field with diagonal "hyper sweep" gradient bands, one gloss sheen pass, and
   the existing colour-blind pattern overlay (diagonal hatching / horizontal lines / vertical
-  lines / dot grid for Fire/Rain/Earth/Wind — patterns unchanged from current vocabulary).
+  lines / dot grid for Lava/Sky/Grass/Sun — patterns unchanged from current vocabulary).
 - Single large "hero mark": a raised white-to-silver slab shape with a black keyline and a
   dark drop-extrusion offset down-right, plus a soft cast shadow — replaces whatever the
   current dominant face mark is.
 - Mirrored miniature corner index (mark + suit symbol) in two opposite corners only — no
   caption text anywhere on the face; numerals and symbolic marks only (consistent with the
   existing "no face captions" convention already in the corrections log).
-- Suit symbols per colour unchanged: Fire→Flame, Rain→Wave, Earth→Crystal, Wind→Gust.
-- Wild cards: charcoal/black stock, never a single colour, four-chip Fire/Rain/Earth/Wind
+- Suit symbols per colour unchanged: Lava→Flame, Sky→Wave, Grass→Crystal, Sun→Gust.
+- Wild cards: charcoal/black stock, never a single colour, four-chip Lava/Sky/Grass/Sun
   motif.
 - Per-action iconography fully specified in the JSON's `actions` block (e.g. Skip = a player
   token inside a no-entry strike ring, Reverse = two chunky arrows chasing in a circle,

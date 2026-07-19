@@ -98,8 +98,10 @@ public enum GameEffect: Equatable, Sendable {
 
     // MARK: Solo Call
 
-    /// Display and announce the Solo call for the named player.
-    case announceSolo(playerName: String)
+    /// Display and announce the Solo call for the named player. `playerID` is the authoritative
+    /// seat identity for the presentation shout (the name is retained for VoiceOver copy); the
+    /// UI never has to disambiguate by name, which would be unsafe with duplicate player names.
+    case announceSolo(playerName: String, playerID: UUID)
 
     /// Indicate that the given player failed to call Solo before drawing — penalty cards dealt.
     case soloCallMissed(playerName: String, penaltyCards: Int)

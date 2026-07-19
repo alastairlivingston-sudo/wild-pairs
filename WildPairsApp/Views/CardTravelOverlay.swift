@@ -1,14 +1,11 @@
 import SwiftUI
 import WildPairsCore
 
-// Cross-table played-card travel (Phase 17 Stage 3.1). Every play — the local hand's, the
-// partner's, an opponent's — animates a "ghost" card flying from the acting seat's position
-// to the discard pile, so who-played-what is *seen* rather than inferred from a silent discard
-// swap. Positions are resolved at run time from anchors each seat and the discard report into a
-// shared table coordinate space; the ghost is a plain overlay, skipped entirely under Reduced
-// Motion (the discard just updates, as before).
+// Cross-table card travel. The reducer remains authoritative: these are short-lived visual
+// echoes of effects already emitted by the engine. Played cards follow a readable arc, and
+// drawn cards arrive as a staggered physical sequence instead of fading through the whole path.
 
-/// A logical spot on the table whose on-screen frame is reported for the travel animation.
+/// A logical spot on the table whose on-screen frame is reported for travel animation.
 enum TableAnchor: Hashable {
     case seat(Int)   // tablePosition 0 (you) … 3
     case discard
@@ -49,38 +46,86 @@ struct CardFlight: Identifiable, Equatable {
     let to: CGPoint
 }
 
-/// A single ghost card flying from the acting seat to the discard, removing itself on arrival.
+/// A quadratic path expressed as a geometry effect so the card's position is continuously
+/// interpolated by SwiftUI. The bend is perpendicular to the source→destination vector, which
+/// gives every seat a natural table arc rather than a straight UI translation.
+private struct QuadraticFlightEffect: GeometryEffect {
+    var progress: CGFloat
+    let delta: CGSize
+    let bend: CGFloat
+
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        let distance = max(1, hypot(delta.width, delta.height))
+        let normalX = -delta.height / distance
+        let normalY = delta.width / distance
+        let control = CGPoint(
+            x: delta.width * 0.5 + normalX * bend,
+            y: delta.height * 0.5 + normalY * bend
+        )
+        let inverse = 1 - progress
+        let x = 2 * inverse * progress * control.x + progress * progress * delta.width
+        let y = 2 * inverse * progress * control.y + progress * progress * delta.height
+        return ProjectionTransform(CGAffineTransform(translationX: x, y: y))
+    }
+}
+
+/// A single ghost card flying from the acting seat to the discard. `GameTableView` hides the
+/// newly published top discard until this flight completes, preventing the old duplicate/
+/// teleport frame where the same card was visible both in flight and already on the pile.
 struct FlyingCardView: View {
     let flight: CardFlight
     let cardSize: CGSize
     let reducedMotion: Bool
     let onComplete: () -> Void
 
-    @State private var arrived = false
+    @State private var progress: CGFloat = 0
+
+    private var delta: CGSize {
+        CGSize(width: flight.to.x - flight.from.x, height: flight.to.y - flight.from.y)
+    }
+
+    private var bend: CGFloat {
+        let distance = hypot(delta.width, delta.height)
+        let magnitude = min(96, max(30, distance * 0.18))
+        // Alternate the side of the curve according to horizontal travel, keeping the arc away
+        // from the centre card stack in the common left/right opponent paths.
+        return flight.from.x <= flight.to.x ? -magnitude : magnitude
+    }
 
     var body: some View {
         CardView(card: flight.card, size: cardSize, reducedMotion: reducedMotion)
-            .shadow(color: .black.opacity(0.35), radius: 10, y: 4)
-            .scaleEffect(arrived ? 1.0 : 0.86)
-            .opacity(arrived ? 1 : 0.9)
-            .position(arrived ? flight.to : flight.from)
+            .shadow(color: .black.opacity(0.38), radius: 12, y: 5)
+            .scaleEffect(0.86 + 0.14 * progress)
+            .rotationEffect(.degrees(Double((1 - progress) * (bend < 0 ? -5 : 5))))
+            .position(flight.from)
+            .modifier(QuadraticFlightEffect(progress: progress, delta: delta, bend: bend))
             .allowsHitTesting(false)
             .accessibilityHidden(true)
             .onAppear {
-                withAnimation(Theme.Motion.playArc) { arrived = true }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.42, execute: onComplete)
+                withAnimation(Theme.Motion.playArc) { progress = 1 }
+                DispatchQueue.main.asyncAfter(
+                    deadline: .now() + Theme.Motion.cardFlightDuration,
+                    execute: onComplete
+                )
             }
     }
 }
 
-/// One drawn card-back travelling from the draw pile to a hand (Phase 17 Stage 3.5). A penalty
-/// draw launches several of these with staggered `delay`s, so the pickup reads longer the more
-/// cards it is; each fades as it lands so the real card taking its place in the hand shows.
+/// One drawn card-back travelling from the draw pile to a hand. `destination` already includes
+/// a small lane offset, so multi-card penalties arrive as a sequence rather than eight identical
+/// backs occupying one path.
 struct DrawFlight: Identifiable, Equatable {
     let id = UUID()
     let from: CGPoint
-    let to: CGPoint
+    let destination: CGPoint
     let delay: Double
+    let bend: CGFloat
+    let landingRotation: Double
 }
 
 struct FlyingBackView: View {
@@ -88,54 +133,45 @@ struct FlyingBackView: View {
     let cardSize: CGSize
     let onComplete: () -> Void
 
-    @State private var arrived = false
+    @State private var progress: CGFloat = 0
+    @State private var vanished = false
+
+    private var delta: CGSize {
+        CGSize(
+            width: flight.destination.x - flight.from.x,
+            height: flight.destination.y - flight.from.y
+        )
+    }
 
     var body: some View {
         CardBackView(size: cardSize)
-            .shadow(color: .black.opacity(0.3), radius: 6, y: 3)
-            .scaleEffect(arrived ? 0.92 : 0.72)
-            .opacity(arrived ? 0 : 1)
-            .position(arrived ? flight.to : flight.from)
+            .shadow(color: .black.opacity(0.34), radius: 8, y: 4)
+            .scaleEffect(0.74 + 0.20 * progress)
+            .rotationEffect(.degrees(flight.landingRotation * Double(progress)))
+            .opacity(vanished ? 0 : 1)
+            .position(flight.from)
+            .modifier(
+                QuadraticFlightEffect(
+                    progress: progress,
+                    delta: delta,
+                    bend: flight.bend
+                )
+            )
             .allowsHitTesting(false)
             .accessibilityHidden(true)
             .onAppear {
-                withAnimation(Theme.Motion.draw.delay(flight.delay)) { arrived = true }
-                DispatchQueue.main.asyncAfter(deadline: .now() + flight.delay + 0.5, execute: onComplete)
-            }
-    }
-}
-
-/// The turn hand-off spotlight (Phase 17 Stage 3.3): a glowing orb sweeps from the seat that
-/// just finished to the seat whose turn it now is, so *which way the turn went, and to whom* is
-/// felt rather than only inferred from the destination seat lighting up.
-struct TurnSpotlight: Identifiable, Equatable {
-    let id = UUID()
-    let from: CGPoint
-    let to: CGPoint
-}
-
-struct TurnSpotlightView: View {
-    let spotlight: TurnSpotlight
-    let tint: Color
-    let onComplete: () -> Void
-
-    @State private var arrived = false
-    @State private var faded = false
-
-    var body: some View {
-        Circle()
-            .fill(RadialGradient(colors: [tint.opacity(0.95), tint.opacity(0)],
-                                 center: .center, startRadius: 1, endRadius: 30))
-            .frame(width: 60, height: 60)
-            .scaleEffect(arrived ? 1.0 : 0.55)
-            .opacity(faded ? 0 : 0.9)
-            .position(arrived ? spotlight.to : spotlight.from)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
-            .onAppear {
-                withAnimation(.easeInOut(duration: 0.34)) { arrived = true }
-                withAnimation(.easeOut(duration: 0.14).delay(0.26)) { faded = true }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.44, execute: onComplete)
+                DispatchQueue.main.asyncAfter(deadline: .now() + flight.delay) {
+                    withAnimation(Theme.Motion.draw) { progress = 1 }
+                }
+                DispatchQueue.main.asyncAfter(
+                    deadline: .now() + flight.delay + Theme.Motion.drawFlightDuration
+                ) {
+                    withAnimation(.easeOut(duration: 0.10)) { vanished = true }
+                }
+                DispatchQueue.main.asyncAfter(
+                    deadline: .now() + flight.delay + Theme.Motion.drawFlightDuration + 0.12,
+                    execute: onComplete
+                )
             }
     }
 }

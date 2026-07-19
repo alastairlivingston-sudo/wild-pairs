@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import WildPairsCore
+import os
 
 // Thin SwiftUI binding over the platform-agnostic GamePresenter. It owns no game logic:
 // it forwards intents, republishes the derived GameViewState, schedules AI turns with a
@@ -34,6 +35,22 @@ struct CardFlightEvent: Equatable {
 struct DrawFlightEvent: Equatable {
     let toSeatID: UUID
     let count: Int
+    let token: Int
+}
+
+/// One-shot presentation event for a successful missed-Solo catch. This is deliberately not
+/// game state: the engine remains authoritative for the penalty draw; the UI only needs a stable
+/// seat ID and token so it can place the "+2 caught" stamp on the correct seat once.
+struct SoloPenaltyEvent: Equatable {
+    let seatID: UUID
+    let count: Int
+    let token: Int
+}
+
+/// One-shot presentation event for a successful Solo declaration. The rules engine remains the
+/// source of truth; this only gives the table a seat ID and token for a brief visible shout.
+struct SoloCallEvent: Equatable {
+    let seatID: UUID
     let token: Int
 }
 
@@ -77,6 +94,15 @@ final class GameViewModel: ObservableObject {
     /// from the draw pile to the target seat when this changes.
     @Published private(set) var drawFlight: DrawFlightEvent?
     private var drawFlightToken = 0
+    /// The most recent successful missed-Solo catch, used only for a transient seat stamp.
+    @Published private(set) var soloPenalty: SoloPenaltyEvent?
+    private var soloPenaltyToken = 0
+    /// Most recent successful Solo declaration, used only for the visible table shout.
+    @Published private(set) var soloCall: SoloCallEvent?
+    private var soloCallToken = 0
+    /// `GameEffect.soloCallMissed` carries a display name rather than an ID. Remember the target
+    /// while the synchronous call-out action is handled so the UI never has to match by name.
+    private var pendingSoloCallOutTargetID: UUID?
 
     private let presenter: GamePresenter
     private let settings: AppSettings
@@ -97,6 +123,8 @@ final class GameViewModel: ObservableObject {
     private var tickTask: Task<Void, Never>?
     private var forcedPickupTask: Task<Void, Never>?
     private var roundDeadline: Date?
+    /// Round time left captured at pause, so resuming restores it instead of granting a fresh round.
+    private var pausedRoundRemaining: TimeInterval?
     private var moveDeadline: Date?
     private var turnsThisRound = 0
     private var roundResultRecorded = false
@@ -169,6 +197,8 @@ final class GameViewModel: ObservableObject {
     /// The pending decision owned by a human (either end), for the pass-and-play overlays.
     var activeDecision: ActiveDecision? {
         let s = presenter.state
+        // Suppressed once the round has ended so no overlay lingers over the round-end screen (Tier 0c).
+        guard s.phase == .playing || s.phase == .teamPass else { return nil }
         switch s.pendingDecision {
         case .colourChoice(let pid):
             return isHuman(pid) ? .colour(owner: pid) : nil
@@ -235,7 +265,11 @@ final class GameViewModel: ObservableObject {
     func chooseTarget(_ id: UUID)          { apply { presenter.chooseTarget(id, as: displayedHumanID) } }
     func passTeamCard(_ card: Card?)       { apply { presenter.passTeamCard(card, as: displayedHumanID) } }
     func callSolo()                        { haptics.soloCall(); sound.play(.soloCall); apply { presenter.callSolo(as: displayedHumanID) } }
-    func callOut(_ id: UUID)               { apply { presenter.callOut(id, as: displayedHumanID) } }
+    func callOut(_ id: UUID) {
+        pendingSoloCallOutTargetID = id
+        apply { presenter.callOut(id, as: displayedHumanID) }
+        pendingSoloCallOutTargetID = nil
+    }
     /// Draw Four challenge (Phase 17 B2): challenge the Draw Four, or accept it.
     func resolveDrawFourChallenge(_ challenge: Bool) {
         if challenge { haptics.illegalCard() }
@@ -256,6 +290,9 @@ final class GameViewModel: ObservableObject {
     func beginNextRound() {
         turnsThisRound = 0
         roundResultRecorded = false
+        // Fresh round: drop any stale deadline so the scheduler arms the full limit anew.
+        roundDeadline = nil
+        pausedRoundRemaining = nil
         apply { presenter.beginNewRound() }
     }
 
@@ -269,6 +306,8 @@ final class GameViewModel: ObservableObject {
         forcedPickupTask = nil
         tickTask?.cancel()
         tickTask = nil
+        // Preserve how much round time was left so resume restores it rather than restarting.
+        pausedRoundRemaining = roundDeadline.map { max(0, $0.timeIntervalSinceNow) }
         roundDeadline = nil
         moveDeadline = nil
         roundTimeRemaining = nil
@@ -318,7 +357,8 @@ final class GameViewModel: ObservableObject {
     /// disabled animation (`AnimationSpeed.off`) or enabled Reduced Motion, in which case the
     /// new state is published instantly with no transition.
     private var stateAnimation: Animation? {
-        guard !settings.userSettings.reducedVisualEffects else { return nil }
+        guard !settings.userSettings.reducedVisualEffects,
+              !UIAccessibility.isReduceMotionEnabled else { return nil }
         switch settings.userSettings.animationSpeed {
         case .off:    return nil
         case .fast:   return Theme.Motion.fast
@@ -327,6 +367,7 @@ final class GameViewModel: ObservableObject {
     }
 
     private func publishViewState() {
+        PerfSignpost.event("publishViewState")   // Tier-0d redraw suspect (R7)
         let next = presenter.viewState(for: displayedHumanID)
         guard let animation = stateAnimation else {
             viewState = next
@@ -405,14 +446,25 @@ final class GameViewModel: ObservableObject {
     /// their hand before this fires, the engine decides the round by lowest score.
     private func scheduleRoundTimerIfNeeded() {
         roundTimerTask?.cancel()
-        roundDeadline = nil
-        guard presenter.state.phase == .playing else { return }
-        let seconds = presenter.state.ruleProfile.roundTimeLimitSeconds
-        guard seconds > 0 else { return }
-        roundDeadline = Date().addingTimeInterval(seconds)
+        guard presenter.state.phase == .playing else {
+            roundDeadline = nil
+            pausedRoundRemaining = nil
+            return
+        }
+        // Single per-round countdown (not a per-turn reset): keep an already-armed deadline so it
+        // actually counts down across turns. `beginNextRound`/pause seed the fresh/resume cases.
+        let deadline = RoundTimerScheduler.deadline(
+            now: Date(),
+            existing: roundDeadline,
+            pausedRemaining: pausedRoundRemaining,
+            limit: presenter.state.ruleProfile.roundTimeLimitSeconds)
+        pausedRoundRemaining = nil
+        roundDeadline = deadline
+        guard let deadline else { return }
         startTickingIfNeeded()
+        let remaining = max(0, deadline.timeIntervalSinceNow)
         roundTimerTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
             guard let self, !Task.isCancelled else { return }
             let effects = self.presenter.roundTimerExpired()
             self.roundDeadline = nil
@@ -466,6 +518,7 @@ final class GameViewModel: ObservableObject {
         guard tickTask == nil else { return }
         tickTask = Task { @MainActor [weak self] in
             while let self, !Task.isCancelled {
+                PerfSignpost.event("timerTick")   // Tier-0d redraw suspect: 5 Hz countdown republish (R7)
                 self.roundTimeRemaining = self.roundDeadline.map { max(0, $0.timeIntervalSinceNow) }
                 self.moveTimeRemaining = self.moveDeadline.map { max(0, $0.timeIntervalSinceNow) }
                 if self.roundDeadline == nil && self.moveDeadline == nil {
@@ -521,11 +574,20 @@ final class GameViewModel: ObservableObject {
                 emitSeatCue([first, second], .skipped)
             case .animateCardShuffle:            sound.play(.cardShuffle)
             case .animateHandSwap:               sound.play(.swapHands)
-            case .announceSolo(let name):
+            case .announceSolo(let name, let playerID):
+                emitSoloCall(from: playerID)
                 announce(soloAnnouncement(for: name))
             case .soloCallMissed(let name, let penalty):
                 haptics.drawPenalty()
                 sound.play(.soloMissed)
+                // A local catch supplies the exact ID. AI catches arrive only with the engine's
+                // display name, so fall back to the existing player list to keep the presentation
+                // stamp visible for every successful catch without creating new rules state.
+                let targetID = pendingSoloCallOutTargetID
+                    ?? presenter.state.players.first(where: { $0.name == name })?.id
+                if let targetID {
+                    emitSoloPenalty(to: targetID, count: penalty)
+                }
                 announce(soloMissedAnnouncement(for: name, penaltyCards: penalty))
             case .playRoundEnd(let team):
                 announceRoundEnd(team, sound: .roundWin, isGameEnd: false)
@@ -552,6 +614,16 @@ final class GameViewModel: ObservableObject {
     private func emitDrawFlight(to seatID: UUID, count: Int) {
         drawFlightToken += 1
         drawFlight = DrawFlightEvent(toSeatID: seatID, count: count, token: drawFlightToken)
+    }
+
+    private func emitSoloPenalty(to seatID: UUID, count: Int) {
+        soloPenaltyToken += 1
+        soloPenalty = SoloPenaltyEvent(seatID: seatID, count: count, token: soloPenaltyToken)
+    }
+
+    private func emitSoloCall(from seatID: UUID) {
+        soloCallToken += 1
+        soloCall = SoloCallEvent(seatID: seatID, token: soloCallToken)
     }
 
     /// Posts a VoiceOver live-region announcement without moving the accessibility cursor
@@ -610,5 +682,20 @@ final class GameViewModel: ObservableObject {
             try? await Task.sleep(nanoseconds: 2_500_000_000)
             self?.lastInvalidHint = nil
         }
+    }
+}
+
+/// Tier-0d perf instrumentation (ruling R7): signposts on the redraw/timer suspects so an
+/// Instruments "os_signpost" (Points of Interest) run can quantify view-publish and timer-tick
+/// frequency after the redesign patch lands. DEBUG-only — compiles to nothing in release, and
+/// uses on-device os logging only (no telemetry, no network). See docs/phase-18-perf/.
+enum PerfSignpost {
+    #if DEBUG
+    private static let signposter = OSSignposter(subsystem: "com.wildpairs.perf", category: .pointsOfInterest)
+    #endif
+    @inline(__always) static func event(_ name: StaticString) {
+        #if DEBUG
+        signposter.emitEvent(name)
+        #endif
     }
 }

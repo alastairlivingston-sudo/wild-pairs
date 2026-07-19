@@ -60,6 +60,28 @@ public struct PlayerSeatViewState: Equatable, Sendable, Identifiable {
     }
 }
 
+
+// MARK: Round score settlement
+
+/// Display-only settlement data for the just-finished round. These values are derived from the
+/// authoritative `GameState`; they do not own or mutate score. `tablePosition` lets the SwiftUI
+/// layer place each remaining-hand value beside the seat that contributed it.
+public struct RoundSeatScoreViewState: Equatable, Sendable, Identifiable {
+    public let id: UUID
+    public let name: String
+    public let teamID: TeamID
+    public let tablePosition: Int
+    public let remainingPoints: Int
+
+    public init(id: UUID, name: String, teamID: TeamID, tablePosition: Int, remainingPoints: Int) {
+        self.id = id
+        self.name = name
+        self.teamID = teamID
+        self.tablePosition = tablePosition
+        self.remainingPoints = remainingPoints
+    }
+}
+
 // MARK: ScoreRow
 
 public struct ScoreRow: Equatable, Sendable, Identifiable {
@@ -167,6 +189,15 @@ public struct GameViewState: Equatable, Sendable {
     /// Surfaced so the round-end screen can show the award and scoring reads as legible rather
     /// than an opaque jump in the running total (Phase 17 scoring-display fix).
     public let roundScoreAwarded: Int?
+    /// Authoritative unmultiplied round points from `WinState`.
+    public let roundBaseScore: Int?
+    /// Difficulty multiplier already applied to `roundScoreAwarded`. Surfaced so the score
+    /// settlement can explain why the remaining-hand total and awarded total may differ.
+    public let roundScoreMultiplier: Int?
+    /// Winning team for the just-finished round, used only to stage score presentation.
+    public let roundWinningTeamID: TeamID?
+    /// Per-seat remaining card values for the score-settlement animation. Empty while playing.
+    public let roundSeatScores: [RoundSeatScoreViewState]
 
     /// Live raw card-value sum (game-rules.md scoring table, no difficulty multiplier) across
     /// the local player's own team's hands — "what we'd lose if the round ended now." Only ever
@@ -265,7 +296,7 @@ public struct GameViewState: Equatable, Sendable {
             ? state.pendingDrawCount : nil
         self.soloButtonVisible = {
             guard let local, !local.hasCalledSolo else { return false }
-            if local.hand.count == 2 && isLocalTurn { return true }
+            if local.hand.count == 2 && isLocalTurn && !legalIDs.isEmpty { return true }
             return local.hand.count == 1 && local.soloGraceAtOne == true
         }()
         if case .colourChoice = state.pendingDecision {
@@ -274,23 +305,27 @@ public struct GameViewState: Equatable, Sendable {
             self.colourChoicePending = false
         }
 
-        // Pending decisions that belong to the local player
-        if case .colourChoice(let pid) = state.pendingDecision, pid == localPlayerID {
+        // Pending decisions that belong to the local player. Only live while the round is in
+        // play (or the pre-round team pass) — once it has ended, a decision overlay must never
+        // linger on top of the round-end screen with dead buttons (Tier 0c).
+        let decisionsLive = state.phase == .playing || state.phase == .teamPass
+        if decisionsLive, case .colourChoice(let pid) = state.pendingDecision, pid == localPlayerID {
             self.awaitingLocalColourChoice = true
         } else {
             self.awaitingLocalColourChoice = false
         }
-        if case .targetChoice(let pid, let targets) = state.pendingDecision, pid == localPlayerID {
+        if decisionsLive, case .targetChoice(let pid, let targets) = state.pendingDecision, pid == localPlayerID {
             self.localTargetChoices = targets
         } else {
             self.localTargetChoices = []
         }
-        if case .teamPass(let pid) = state.pendingDecision, pid == localPlayerID {
+        if decisionsLive, case .teamPass(let pid) = state.pendingDecision, pid == localPlayerID {
             self.awaitingLocalTeamPass = true
         } else {
             self.awaitingLocalTeamPass = false
         }
-        if case .drawFourChallenge(let challengerID, let challengedID, let priorColour, _) = state.pendingDecision,
+        if decisionsLive,
+           case .drawFourChallenge(let challengerID, let challengedID, let priorColour, _) = state.pendingDecision,
            challengerID == localPlayerID {
             self.awaitingLocalDrawFourChallenge = true
             self.drawFourChallengedName = state.players.first { $0.id == challengedID }?.name
@@ -311,6 +346,20 @@ public struct GameViewState: Equatable, Sendable {
         self.localTeamWon = state.winState.map { $0.winningTeam == localTeam }
         self.roundScoreAwarded = state.winState.flatMap { win in
             win.roundPoints.map { $0 * (win.scoreMultiplier ?? 1) }
+        }
+        self.roundBaseScore = state.winState?.roundPoints
+        self.roundScoreMultiplier = state.winState?.scoreMultiplier
+        self.roundWinningTeamID = state.winState?.winningTeam
+        self.roundSeatScores = state.winState == nil ? [] : state.players.map { player in
+            RoundSeatScoreViewState(
+                id: player.id,
+                name: player.name,
+                teamID: player.teamID,
+                tablePosition: tablePosition(for: player),
+                remainingPoints: player.hand.reduce(0) {
+                    $0 + GameEngine.pointValue(for: $1)
+                }
+            )
         }
 
         self.localTeamPointsAtRisk = state.players
@@ -409,7 +458,7 @@ public struct GameViewState: Equatable, Sendable {
         return .paused
     }
 
-    /// Builds the "play a Crimson card, a 5, or a wild card" hint from the active colour
+    /// Builds the "play a Lava card, a 5, or a wild card" hint from the active colour
     /// and top discard.
     public static func matchHint(state: GameState) -> String {
         let colour = state.currentColour.displayName
@@ -424,7 +473,7 @@ public struct GameViewState: Equatable, Sendable {
         return "Play \(parts[0]), \(parts[1]), \(parts[2])."
     }
 
-    /// "a"/"an" by sound, for our vocabulary: vowel-initial words (Earth) and the digit 8
+    /// "a"/"an" by sound, for our vocabulary: vowel-initial words and the digit 8
     /// ("eight") take "an"; everything else takes "a".
     private static func article(for word: String) -> String {
         let vowelInitial = "aeiouAEIOU".contains(word.first ?? " ")
@@ -441,15 +490,15 @@ public struct GameViewState: Equatable, Sendable {
 // Display-only retheme (Phase 11 D): the engine's internal vocabulary — case names, Codable
 // raw values, CLAUDE.md "Canonical Design Vocabulary" — stays crimson/cobalt/jade/amber for
 // save/test stability. Only what players see (and VoiceOver reads, since it reads
-// `displayName`) changes to the elemental names: crimson→Fire, cobalt→Rain, jade→Earth,
-// amber→Wind.
+// `displayName`) changes to the player-facing names: crimson→Lava, cobalt→Sky,
+// jade→Grass, amber→Sun.
 extension CardColour {
     public var displayName: String {
         switch self {
-        case .crimson: return "Fire"
-        case .cobalt:  return "Rain"
-        case .jade:    return "Earth"
-        case .amber:   return "Wind"
+        case .crimson: return "Lava"
+        case .cobalt:  return "Sky"
+        case .jade:    return "Grass"
+        case .amber:   return "Sun"
         }
     }
 }

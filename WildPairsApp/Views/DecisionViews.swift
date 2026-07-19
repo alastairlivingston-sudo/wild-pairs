@@ -230,19 +230,26 @@ struct PromptBanner: View {
     /// Element glow for the border (design-plan.md §3.1) so the banner tracks the scene tint.
     var tint: Color? = nil
 
-    var body: some View {
-        Text(text)
-            .font(.body).fontWeight(.medium)
-            .foregroundStyle(.white)
-            .multilineTextAlignment(.center)
-            .padding(.horizontal, Theme.Space.s4).padding(.vertical, Theme.Space.s2)
-            .frame(maxWidth: .infinity)
-            // A capsule's corner radius is height/2, so at large Dynamic Type sizes this
-            // banner wraps to several lines, the capsule grows tall, and its semicircular
-            // ends balloon inward and clip the text. A fixed-radius rounded rect has no
-            // such failure mode regardless of how many lines the text wraps to.
-            .wpGlass(cornerRadius: Theme.Radius.r4, tint: tint)
-            .accessibilityIdentifier("game-prompt")
+    @ViewBuilder var body: some View {
+        switch prompt {
+        case .waitingFor:
+            // The turn rail already names the active seat and says THINKING; repeating the same
+            // sentence in a full-width panel added vertical chrome without adding information.
+            EmptyView()
+        default:
+            Text(text)
+                .font(.body).fontWeight(.medium)
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, Theme.Space.s4).padding(.vertical, Theme.Space.s2)
+                .frame(maxWidth: .infinity)
+                // A capsule's corner radius is height/2, so at large Dynamic Type sizes this
+                // banner wraps to several lines, the capsule grows tall, and its semicircular
+                // ends balloon inward and clip the text. A fixed-radius rounded rect has no
+                // such failure mode regardless of how many lines the text wraps to.
+                .wpGlass(cornerRadius: Theme.Radius.r4, tint: tint)
+                .accessibilityIdentifier("game-prompt")
+        }
     }
 
     private var text: String {
@@ -296,28 +303,9 @@ struct ThinkingDotsView: View {
     }
 }
 
-// Tasteful, unobtrusive countdown for the 3-minute round-wide fallback timer (game-rules.md
-// "Round Timer Fallback") — only shown once a round is actually running with the rule active.
-struct RoundTimerBadge: View {
-    let remaining: TimeInterval
-    let total: TimeInterval
-
-    private var isUrgent: Bool { remaining <= 30 }
-    private var label: String {
-        let seconds = max(0, Int(remaining.rounded()))
-        return String(format: "%d:%02d", seconds / 60, seconds % 60)
-    }
-
-    var body: some View {
-        Label(label, systemImage: "clock")
-            .font(.caption).fontWeight(.semibold).monospacedDigit()
-            .foregroundStyle(isUrgent ? Theme.Palette.warning : .white.opacity(0.8))
-            .padding(.horizontal, Theme.Space.s3).padding(.vertical, 4)
-            .wpGlassCapsule(tint: isUrgent ? Theme.Palette.warning : nil)
-            .accessibilityLabel("Round time remaining: \(label)")
-            .accessibilityIdentifier("game-round-timer")
-    }
-}
+// The round-wide fallback countdown now lives in the unified state rail (GameTableView's
+// TableStateRail, which owns the `game-round-timer` identifier) — the old standalone
+// RoundTimerBadge was removed in the Phase 18 table redesign (ruling R3).
 
 // The local player's 10-second per-move countdown (game-rules.md "Per-Move Timer") — a thin
 // progress bar above the hand, only shown on the local player's turn. Colour shifts from

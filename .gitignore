@@ -28,3 +28,12 @@ WildPairs.xcodeproj/
 # Phase 17 raw card-art source pack (192 MB) — kept on disk for Stage 5 extraction,
 # too large for git history. Downscaled @3x assets are added to the app target instead.
 docs/solo_swiftui_asset_pack.zip
+
+# Phase 18 gameplay recordings + source snapshot for the ChatGPT redesign review —
+# review artifacts kept on disk (shared to ChatGPT), not in git history. The
+# source zip is just a redundant snapshot of already-tracked .swift files. Prompts are tracked.
+docs/video-ux-benchmarks/uno-mobile-gowild/redesign-review/*.mp4
+docs/video-ux-benchmarks/uno-mobile-gowild/redesign-review/*.zip
+
+# v4 gameplay-UX handoff (working material, like WORKING_FILES) — not product
+handoff-v4/

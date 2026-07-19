@@ -38,12 +38,12 @@ Until a name decision is made, use **Wild Pairs** throughout.
 
 **Clear and direct.** Action prompts tell the player exactly what to do. No passive constructions, no hedging language.
 
-- Do: `"Play a Rain card, a 7, or a wild card."`
+- Do: `"Play a Sky card, a 7, or a wild card."`
 - Don't: `"Please select an eligible card from your hand to play."`
 
 **Friendly, never condescending.** The app assumes the player is intelligent. It explains rules when needed but does not over-explain things the player already knows.
 
-- Do: `"That card doesn't match — needs Earth, a 5, or a wild card."`
+- Do: `"That card doesn't match — needs Grass, a 5, or a wild card."`
 - Don't: `"Invalid selection. The rules require colour or number matching."`
 
 **Celebratory on wins.** Win moments are enthusiastic but proportionate. Reserve the biggest celebrations for the biggest moments.
@@ -69,10 +69,10 @@ Until a name decision is made, use **Wild Pairs** throughout.
 | "Solo!" | "UNO" (never — legally distinct) |
 | "Your turn is skipped" | "Skip applied" |
 | "That card doesn't match" | "Invalid move" |
-| "Rain" | "Blue" |
-| "Fire" | "Red" |
-| "Earth" | "Green" |
-| "Wind" | "Yellow" |
+| "Sky" | "Blue" |
+| "Lava" | "Red" |
+| "Grass" | "Green" |
+| "Sun" | "Yellow" |
 | "Partner" | "Ally" / "Teammate" |
 | "Left Opponent" / "Right Opponent" | "AI 1" / "AI 2" |
 | "Round ends" | "Game over" (unless it genuinely is) |
@@ -190,7 +190,7 @@ Each card is a rounded rectangle (`radius3`) with:
 └─────────────────┘
 ```
 
-- **Background:** Game colour fill (Fire, Rain, Earth, Wind) for coloured cards; charcoal stock for unresolved wilds (a resolved wild re-prints in the chosen colour).
+- **Background:** Game colour fill (Lava, Sky, Grass, Sun) for coloured cards; charcoal stock for unresolved wilds (a resolved wild re-prints in the chosen colour).
 - **Number:** Large, bold, centred — `.display` font style.
 - **Suit symbol:** Appears under each corner index (small) and large behind the centre mark as a reduced-opacity watermark.
 - **Corner index (Phase 14):** the centre mark in miniature — the digit for numbers, "+2"/"+4" for draw cards, the action glyph for other actions, a four-chip mini diamond for wilds. Never a text abbreviation ("SKIP"/"REV"/"D2" piled into word soup wherever fanned cards overlapped) and no caption text anywhere on the face — one dominant centre mark per card, production-card style. Mirrored bottom-right corner appears at ≥46pt width.
@@ -231,26 +231,26 @@ These four colours define the game's visual identity. They are original, legally
 
 | Game Colour | Token | Hex (light mode) | Symbol | Colour-blind pattern |
 |---|---|---|---|---|
-| Fire | `color.crimson` | `#C0392B` | Flame (🔥) | Diagonal hatching, 45° |
-| Rain | `color.cobalt` | `#2471A3` | Wave (〰) | Horizontal lines |
-| Earth | `color.jade` | `#1E8449` | Crystal (🔮) | Vertical lines |
-| Wind | `color.amber` | `#D4AC0D` | Gust (🌬) | Dots / circles |
+| Lava | `color.crimson` | `#C0392B` | Flame (🔥) | Diagonal hatching, 45° |
+| Sky | `color.cobalt` | `#2471A3` | Wave (〰) | Horizontal lines |
+| Grass | `color.jade` | `#1E8449` | Crystal (🔮) | Vertical lines |
+| Sun | `color.amber` | `#D4AC0D` | Gust (🌬) | Dots / circles |
 
 **Dark mode adjustments for game colours:**
 Game colours represent a physical card — they should remain vivid against both light and dark backgrounds. Lighten each game colour by 10% in dark mode to maintain contrast against dark backgrounds.
 
 | Game Colour | Hex (dark mode) |
 |---|---|
-| Fire | `#E74C3C` |
-| Rain | `#2E86C1` |
-| Earth | `#27AE60` |
-| Wind | `#F1C40F` |
+| Lava | `#E74C3C` |
+| Sky | `#2E86C1` |
+| Grass | `#27AE60` |
+| Sun | `#F1C40F` |
 
 **Contrast verification (light mode, game colours on white `#FFFFFF`):**
-- Fire `#C0392B` on white: ~5.0:1 ✓ WCAG AA
-- Rain `#2471A3` on white: ~5.1:1 ✓ WCAG AA
-- Earth `#1E8449` on white: ~5.3:1 ✓ WCAG AA
-- Wind `#D4AC0D` on white: ~2.8:1 ✗ — Wind requires white or near-white text on card backgrounds, not dark text. Use `.white` for text on Wind cards. Verify contrast of white on Wind: #FFFFFF on #D4AC0D = ~4.6:1 ✓
+- Lava `#C0392B` on white: ~5.0:1 ✓ WCAG AA
+- Sky `#2471A3` on white: ~5.1:1 ✓ WCAG AA
+- Grass `#1E8449` on white: ~5.3:1 ✓ WCAG AA
+- Sun `#D4AC0D` on white: ~2.8:1 ✗ — Sun requires white or near-white text on card backgrounds, not dark text. Use `.white` for text on Sun cards. Verify contrast of white on Sun: #FFFFFF on #D4AC0D = ~4.6:1 ✓
 
 ### UI colours
 
@@ -321,21 +321,21 @@ When enabled, adds additional redundancy:
 
 ### Deuteranopia (red-green) considerations
 
-Fire (red) and Earth (green) are the most problematic pair for deuteranopic players. Mitigation:
-- Fire symbol is Flame (diagonal organic shape); Earth symbol is Crystal (distinct faceted-gem shape). These are visually distinct even without colour.
-- Colour-blind mode adds pattern fills: Fire = diagonal hatching (45°), Earth = vertical lines. These are never the same pattern.
+Lava (red) and Grass (green) are the most problematic pair for deuteranopic players. Mitigation:
+- Lava symbol is Flame (diagonal organic shape); Grass symbol is Crystal (distinct faceted-gem shape). These are visually distinct even without colour.
+- Colour-blind mode adds pattern fills: Lava = diagonal hatching (45°), Grass = vertical lines. These are never the same pattern.
 - Colour names always present in colour-blind mode.
-- Wind (yellow) is distinct from both red and green even with deuteranopia.
-- Rain (blue) is fully distinct under all common colour blindness types.
+- Sun (yellow) is distinct from both red and green even with deuteranopia.
+- Sky (blue) is fully distinct under all common colour blindness types.
 
 ### Pattern fill specifications
 
 | Game colour | Pattern | SVG/SwiftUI approach |
 |---|---|---|
-| Fire | Diagonal hatching 45°, 4pt spacing | `Path` with diagonal lines, clipped to card shape |
-| Rain | Horizontal lines, 4pt spacing | `Path` with horizontal lines |
-| Earth | Vertical lines, 4pt spacing | `Path` with vertical lines |
-| Wind | Dot grid, 6pt spacing | `Circle` shapes at grid positions |
+| Lava | Diagonal hatching 45°, 4pt spacing | `Path` with diagonal lines, clipped to card shape |
+| Sky | Horizontal lines, 4pt spacing | `Path` with horizontal lines |
+| Grass | Vertical lines, 4pt spacing | `Path` with vertical lines |
+| Sun | Dot grid, 6pt spacing | `Circle` shapes at grid positions |
 
 Pattern fills are rendered at 30% opacity over the solid colour background, so they add texture without obscuring the card content.
 
@@ -429,10 +429,10 @@ exposes for VoiceOver/legacy reference only — visuals never use them anymore.
 
 | Symbol | Shape description |
 |---|---|
-| Flame (Fire) | Teardrop flame shape, slightly tilted, with a small inner flame curl |
-| Wave (Rain) | Two overlapping sine-wave arcs, flowing left to right |
-| Crystal (Earth) | Faceted hexagonal gem/mountain outline with internal facet lines |
-| Gust (Wind) | Three concentric sweeping arcs curling outward, like a breeze |
+| Flame (Lava) | Teardrop flame shape, slightly tilted, with a small inner flame curl |
+| Wave (Sky) | Two overlapping sine-wave arcs, flowing left to right |
+| Crystal (Grass) | Faceted hexagonal gem/mountain outline with internal facet lines |
+| Gust (Sun) | Three concentric sweeping arcs curling outward, like a breeze |
 
 ---
 
@@ -563,10 +563,10 @@ All haptics use `UIImpactFeedbackGenerator`, `UINotificationFeedbackGenerator`, 
 ### Strategy
 
 - All app chrome uses system semantic colours (`.background`, `.label`, etc.) which adapt automatically to dark mode.
-- Game colours (Fire, Rain, Earth, Wind) use slightly lightened values in dark mode (see §7) to maintain contrast against dark backgrounds.
+- Game colours (Lava, Sky, Grass, Sun) use slightly lightened values in dark mode (see §7) to maintain contrast against dark backgrounds.
 - The game table background uses custom colours (`#F5F0E8` light / `#1C2526` dark) defined as named `Color` assets in the asset catalogue with separate light and dark values.
 - Card faces: colour cards retain their saturated game colour in both modes. Wild cards use `.systemBackground` as their face colour, adapting automatically.
-- Text on game-coloured cards: use `.white` for Fire, Rain, and Earth cards (contrast ✓). Use `.white` for Wind cards (see §7 contrast note). Do not invert text colour in dark mode for game cards — the card face colour changes slightly; text always stays white.
+- Text on game-coloured cards: use `.white` for Lava, Sky, and Grass cards (contrast ✓). Use `.white` for Sun cards (see §7 contrast note). Do not invert text colour in dark mode for game cards — the card face colour changes slightly; text always stays white.
 
 ### Testing checklist for dark mode
 
