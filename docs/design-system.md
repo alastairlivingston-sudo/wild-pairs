@@ -5,7 +5,7 @@
 **Version:** 1.0  
 **Status:** Draft  
 **Audience:** iOS engineers, designers  
-**Platform:** iOS 17+, SwiftUI, Universal (iPhone + iPad)  
+**Platform:** iOS 26+, SwiftUI, Universal (iPhone + iPad)  
 **Last updated:** 2026-06-21
 
 ---

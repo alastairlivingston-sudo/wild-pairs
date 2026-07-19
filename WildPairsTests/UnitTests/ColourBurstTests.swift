@@ -162,7 +162,7 @@ struct ColourBurstTests {
 
     // MARK: Deck composition & value
 
-    @Test("Advanced deck contains exactly one Colour Burst per colour and totals 104")
+    @Test("Advanced deck contains exactly one Colour Burst per colour and totals 108")
     func testAdvancedDeckComposition() {
         var rng = SeededRNG(seed: 1)
         let deck = Deck.standard(cardSet: .advanced, rng: &rng)
@@ -172,7 +172,7 @@ struct ColourBurstTests {
         for colour in CardColour.allCases {
             #expect(bursts.filter { $0.colour == colour }.count == 1)
         }
-        #expect(all.count == 104)   // +4 Draw Eight vs the pre-Phase-17 100
+        #expect(all.count == 108)   // +4 Draw Eight (Phase 17), +4 Discard All (Phase 19)
     }
 
     @Test("Standard deck contains one Colour Burst per colour; Beginner has none (Phase 17 B4a)")

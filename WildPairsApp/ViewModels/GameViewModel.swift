@@ -531,6 +531,9 @@ final class GameViewModel: ObservableObject {
     }
 
     private func thinkDelay() -> TimeInterval {
+        // Keeps AI turns cycling quickly under UI test so a draw-driven test reaches the human's
+        // turn inside its budget, independent of production pacing.
+        if fastTimers { return 0.05 }
         switch settings.userSettings.animationSpeed {
         case .off:  return 0
         case .fast: return 0.1

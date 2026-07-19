@@ -22,13 +22,13 @@ struct DeckTests {
         #expect(deck.drawPile.count == 76)
     }
 
-    @Test("Advanced deck has 104 cards")
+    @Test("Advanced deck has 108 cards")
     func testAdvancedCount() {
-        // 76 Standard base (incl. 4 Colour Burst) + 28 Advanced-only (incl. 4 Draw Eight,
-        // Phase 17 B4b) = 104.
+        // 76 Standard base (incl. 4 Colour Burst) + 32 Advanced-only (incl. 4 Draw Eight,
+        // Phase 17 B4b, and 8 Discard All raised from 4 in Phase 19) = 108.
         var rng = SeededRNG(seed: 1)
         let deck = Deck.standard(cardSet: .advanced, rng: &rng)
-        #expect(deck.drawPile.count == 104)
+        #expect(deck.drawPile.count == 108)
     }
 
     @Test("Advanced deck has 4 Draw Eight cards (1 per colour, Phase 17 B4b)")
@@ -144,11 +144,11 @@ struct DeckTests {
 
     // MARK: Advanced card composition
 
-    @Test("Advanced deck has 4 Discard All wilds")
+    @Test("Advanced deck has 8 Discard All wilds")
     func testAdvancedDiscardAllCount() {
         var rng = SeededRNG(seed: 1)
         let deck = Deck.standard(cardSet: .advanced, rng: &rng)
-        #expect(deck.drawPile.filter { $0.type == .discardAll }.count == 4)
+        #expect(deck.drawPile.filter { $0.type == .discardAll }.count == 8)
     }
 
     @Test("Advanced deck has 8 Targeted Draw cards (2 per colour)")

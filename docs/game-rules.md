@@ -78,24 +78,26 @@ The following table gives the **canonical card count** for each set. `CardFactor
 
 Colour Burst moved from Advanced to Standard in Phase 17 (B4a).
 
-#### Advanced Deck — 104 cards (Standard + 28)
+#### Advanced Deck — 108 cards (Standard + 32)
 
 | Card type | Count per colour | Colours | Total added |
 |---|---|---|---|
-| Discard All | — (wild, no colour) | — | 4 |
+| Discard All | — (wild, no colour) | — | 8 |
 | Targeted Draw | 2 | 4 | 8 |
 | Forced Swap | 1 | 4 | 4 |
 | Skip Two | 1 | 4 | 4 |
 | Team Play | 1 | 4 | 4 |
 | Draw Eight | 1 | 4 | 4 |
-| **Advanced total** | | | **104** |
+| **Advanced total** | | | **108** |
 
-Draw Eight added in Phase 17 (B4b).
+Draw Eight added in Phase 17 (B4b). Discard All raised from 4 to 8 in Phase 19: it is the
+main way a long round actually closes out, and at 4 copies in a 104-card deck it turned up
+too rarely to serve that purpose.
 
 **Draw pile after dealing** (4 players × 7 cards = 28 dealt):
 - Beginner: 60 − 28 = 32 cards in draw pile
 - Standard: 76 − 28 = 48 cards in draw pile
-- Advanced: 104 − 28 = 76 cards in draw pile
+- Advanced: 108 − 28 = 80 cards in draw pile
 
 > **Gate:** `DeckTests` must assert these exact counts per set and confirm that Advanced-only card types are absent from Beginner and Standard decks.
 

@@ -85,7 +85,7 @@ The `Info.plist` contains only the minimum keys required for a Universal iOS app
 | `UISupportedInterfaceOrientations~ipad` | All orientations | Full rotation support on iPad |
 | `UILaunchScreen` | Standard storyboard or SwiftUI | Required by App Store |
 | `UIDeviceFamily` | `[1, 2]` | iPhone (1) + iPad (2) — Universal |
-| `MinimumOSVersion` | `17.0` | iOS 17.0 deployment target |
+| `MinimumOSVersion` | `26.0` | iOS 26.0 deployment target (raised from 17.0 in Phase 19) |
 | `LSRequiresIPhoneOS` | `true` | iOS-only (not macOS Catalyst) |
 
 ### Explicitly absent keys (and why)
