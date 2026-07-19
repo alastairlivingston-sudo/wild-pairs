@@ -154,7 +154,7 @@ private struct DirectionalTablePulse: View {
                         .rotationEffect(.degrees(direction == .clockwise ? 18 : 198))
                         .opacity(0.10)
                 } else {
-                    TimelineView(.animation(minimumInterval: 1.0 / 15.0)) { context in
+                    TimelineView(.periodic(from: .now, by: 1.0 / 15.0)) { context in
                         let elapsed = context.date.timeIntervalSinceReferenceDate
                         let orbit = elapsed.truncatingRemainder(dividingBy: 14) / 14
                         let sign = direction == .clockwise ? 1.0 : -1.0

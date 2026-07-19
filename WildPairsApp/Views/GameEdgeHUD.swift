@@ -81,9 +81,12 @@ struct GameEdgeHUD: View {
         if isPrimarySemantic, let roundRemaining {
             roundSummaryContent
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel(
-                    "Round \(roundNumber), time remaining \(clockLabel(roundRemaining))"
-                )
+                // Label carries the stable identity, value the ticking clock, so the element's
+                // label does not change on every tick.
+                .accessibilityLabel("Round \(roundNumber)")
+                .accessibilityValue("time remaining \(clockLabel(roundRemaining))")
+                // Keeps the collapsed clock classified as text rather than an opaque group.
+                .accessibilityAddTraits(.isStaticText)
                 .accessibilityIdentifier("game-round-timer")
         } else {
             roundSummaryContent
