@@ -13,13 +13,13 @@ struct DeckTests {
         #expect(deck.drawPile.count == 60)
     }
 
-    @Test("Standard deck has 76 cards")
+    @Test("Standard deck has 84 cards")
     func testStandardCount() {
-        // 60 base + 8 Draw Two + 4 Colour Burst + 4 Draw Four (Colour Burst moved to
-        // Standard in Phase 17 B4a, +4 vs the previous 72).
+        // 60 base + 8 Draw Two + 4 Colour Burst + 4 Draw Four + 8 Discard All (Colour Burst
+        // moved to Standard in Phase 17 B4a; Discard All followed in Phase 19, +8 vs 76).
         var rng = SeededRNG(seed: 1)
         let deck = Deck.standard(cardSet: .standard, rng: &rng)
-        #expect(deck.drawPile.count == 76)
+        #expect(deck.drawPile.count == 84)
     }
 
     @Test("Advanced deck has 108 cards")
@@ -135,8 +135,9 @@ struct DeckTests {
     func testStandardNoAdvancedCards() {
         var rng = SeededRNG(seed: 1)
         let deck = Deck.standard(cardSet: .standard, rng: &rng)
-        // Colour Burst (`discardColour`) is a Standard card since Phase 17 B4a — no longer here.
-        let advancedTypes: [CardType] = [.discardAll, .targetedDraw, .forcedSwap, .skipTwo, .teamPlay]
+        // Colour Burst (`discardColour`) is a Standard card since Phase 17 B4a, and Discard All
+        // (`discardAll`) since Phase 19 — neither is Advanced-only any more.
+        let advancedTypes: [CardType] = [.targetedDraw, .forcedSwap, .skipTwo, .teamPlay]
         for type_ in advancedTypes {
             #expect(!deck.drawPile.contains { $0.type == type_ })
         }
@@ -144,11 +145,20 @@ struct DeckTests {
 
     // MARK: Advanced card composition
 
-    @Test("Advanced deck has 8 Discard All wilds")
+    @Test("Standard and Advanced decks both have 8 Discard All wilds (Phase 19)")
     func testAdvancedDiscardAllCount() {
         var rng = SeededRNG(seed: 1)
-        let deck = Deck.standard(cardSet: .advanced, rng: &rng)
-        #expect(deck.drawPile.filter { $0.type == .discardAll }.count == 8)
+        let advanced = Deck.standard(cardSet: .advanced, rng: &rng)
+        #expect(advanced.drawPile.filter { $0.type == .discardAll }.count == 8)
+
+        var standardRNG = SeededRNG(seed: 1)
+        let standard = Deck.standard(cardSet: .standard, rng: &standardRNG)
+        #expect(standard.drawPile.filter { $0.type == .discardAll }.count == 8)
+
+        // Beginner stays clear of it.
+        var beginnerRNG = SeededRNG(seed: 1)
+        let beginner = Deck.standard(cardSet: .beginner, rng: &beginnerRNG)
+        #expect(!beginner.drawPile.contains { $0.type == .discardAll })
     }
 
     @Test("Advanced deck has 8 Targeted Draw cards (2 per colour)")
@@ -241,18 +251,23 @@ struct DeckTests {
     func testDeal() {
         var rng = SeededRNG(seed: 1)
         var deck = Deck.standard(cardSet: .standard, rng: &rng)
+        // Derived from the deck's own size so this asserts the dealing invariant rather than
+        // duplicating the total, which `testStandardCount` already pins.
+        let before = deck.drawPile.count
         let dealt = deck.deal(count: 7, rng: &rng)
         #expect(dealt.count == 7)
-        #expect(deck.drawPile.count == 76 - 7)
+        #expect(deck.drawPile.count == before - 7)
     }
 
-    @Test("After dealing 28 cards (4×7) standard draw pile has 48 cards")
+    @Test("After dealing 28 cards (4×7) the standard draw pile drops by exactly 28")
     func testDrawPileAfterDealing() {
         var rng = SeededRNG(seed: 1)
         var deck = Deck.standard(cardSet: .standard, rng: &rng)
+        let before = deck.drawPile.count
         for _ in 0..<4 {
             _ = deck.deal(count: 7, rng: &rng)
         }
-        #expect(deck.drawPile.count == 48)
+        #expect(deck.drawPile.count == before - 28)
+        #expect(deck.drawPile.count == 56)   // 84 - 28 (Phase 19: Discard All moved to Standard)
     }
 }

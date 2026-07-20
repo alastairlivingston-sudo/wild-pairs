@@ -84,10 +84,16 @@ public enum GameSimulator {
                 return SimulationResult(winner: nil, turns: turns, illegalMoveAttempts: illegalAttempts, stuck: true)
             }
 
-            // Resolve pending decision first
+            // Resolve pending decision first. Resolving one can itself end the round — a wild
+            // Discard All empties the hand only once its colour is chosen — so the winner must
+            // be captured here too, not just after a normal move.
             if let pending = state.pendingDecision {
                 (state, _) = resolvePending(pending: pending, state: state, rng: &rng)
                 turns += 1
+                if state.phase == .roundEnded || state.phase == .gameEnded {
+                    roundWinner = state.winState?.winningTeam
+                    break
+                }
                 continue
             }
 

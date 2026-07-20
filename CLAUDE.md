@@ -120,6 +120,10 @@ colour prompt and scores 60 points.
 action card that, on play, discards every card of its own colour from the hand — no colour
 prompt. Standard set (moved down from Advanced in Phase 17 B4a), 1 per colour.
 
+`discardAll` (Discard All) is the wild sweep: on play it prompts for a colour, then discards
+every card of that colour from the hand. Standard set (moved down from Advanced in Phase 19,
+count raised 4 → 8 at the same time), 8 copies — it is the main way a long round closes out.
+
 ### Difficulty levels
 | ID | Strategy | Score multiplier |
 |---|---|---|
@@ -135,8 +139,8 @@ Round-win points are multiplied by the toughest AI opponent's score multiplier.
 | ID | Includes |
 |---|---|
 | `beginner` | Numbers + skip + reverse + changeColour |
-| `standard` | Beginner + drawTwo + drawFour + discardColour |
-| `advanced` | Standard + discardAll + targetedDraw + forcedSwap + skipTwo + teamPlay + drawEight |
+| `standard` | Beginner + drawTwo + drawFour + discardColour + discardAll |
+| `advanced` | Standard + targetedDraw + forcedSwap + skipTwo + teamPlay + drawEight |
 
 ## Coding Style
 - No comments unless the WHY is non-obvious (hidden constraint, subtle invariant, workaround)

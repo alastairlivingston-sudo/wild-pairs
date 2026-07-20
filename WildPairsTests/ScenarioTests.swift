@@ -145,7 +145,7 @@ struct ScenarioTests {
 
     // MARK: Deck conservation
 
-    @Test("No card leaks out of the deck when a new game is dealt (standard = 76 cards)")
+    @Test("No card leaks out of the deck when a new game is dealt (standard = 84 cards)")
     func testNewGameConservesAllCards() {
         let config = GameConfig(
             mode: .standardTeams,
@@ -161,8 +161,11 @@ struct ScenarioTests {
         let (state, _) = GameEngine.reduce(state: GameState(players: []), action: .newGame(config: config))
         let inHands = state.players.reduce(0) { $0 + $1.hand.count }
         let total = inHands + state.deck.drawPile.count + state.deck.discardPile.count
-        #expect(total == 76)
-        #expect(inHands == 28)  // 4 players × 7
+        #expect(total == 84)
+        // 4 players × 7 dealt. An action start card can legally force the first player to draw
+        // before anyone acts, so hands may hold more than the dealt 28 — conservation above is
+        // what this test exists to prove.
+        #expect(inHands >= 28)
         #expect(state.deck.discardPile.count == 1)  // exactly one start card
     }
 
@@ -178,7 +181,7 @@ struct ScenarioTests {
         let (next, _) = GameEngine.reduce(state: state, action: .beginNewRound)
         let inHands = next.players.reduce(0) { $0 + $1.hand.count }
         let total = inHands + next.deck.drawPile.count + next.deck.discardPile.count
-        #expect(total == 76)
+        #expect(total == 84)
         #expect(next.deck.discardPile.count == 1)
     }
 

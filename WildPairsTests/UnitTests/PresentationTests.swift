@@ -285,7 +285,11 @@ struct GamePresenterTests {
     @Test("nextAutomaticAction returns nil on the local player's turn")
     func testNoAutomaticOnLocalTurn() {
         let presenter = GamePresenter(config: standardConfig(seed: 1))
-        // Game starts with seat 0 (human) to act
+        // An action start card can hand the first move to an AI, so drive the automatic turns
+        // round to seat 0 rather than assuming the deal starts there.
+        while presenter.state.currentPlayerIndex != 0, presenter.nextAutomaticAction() != nil {
+            _ = presenter.advanceAutomatic()
+        }
         #expect(presenter.state.currentPlayerIndex == 0)
         #expect(presenter.nextAutomaticAction() == nil)
     }

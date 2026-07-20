@@ -173,7 +173,10 @@ struct TimedRoundTests {
         )
         let presenter = GamePresenter(config: config)
         let beforeCount = presenter.state.currentPlayer?.hand.count
-        let effects = presenter.forceTimedOutMove(for: presenter.localPlayerID)
+        // Time out whoever is actually on the clock — an action start card means the deal does
+        // not always open on the local player.
+        let timedOutID = presenter.state.currentPlayer?.id ?? presenter.localPlayerID
+        let effects = presenter.forceTimedOutMove(for: timedOutID)
         #expect(beforeCount != nil)
         // Either a card was played (hand shrank) or a card was drawn (hand grew) — either way
         // an action was actually dispatched, i.e. effects is non-empty and the turn progressed.
@@ -194,7 +197,10 @@ struct TimedRoundTests {
             seed: 11
         )
         let presenter = GamePresenter(config: config)
-        let notCurrentPlayerID = presenter.state.players.first { $0.id != presenter.localPlayerID }!.id
+        // Pick someone who genuinely is not the acting player — the deal does not always open
+        // on seat 0, so keying off the local player could accidentally pick the current one.
+        let notCurrentPlayerID = presenter.state.players
+            .first { $0.id != presenter.state.currentPlayer?.id }!.id
         let effects = presenter.forceTimedOutMove(for: notCurrentPlayerID)
         #expect(effects.isEmpty)
     }

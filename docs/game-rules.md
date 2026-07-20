@@ -67,22 +67,25 @@ The following table gives the **canonical card count** for each set. `CardFactor
 | Change Colour | — (wild, no colour) | — | 4 |
 | **Beginner total** | | | **60** |
 
-#### Standard Deck — 76 cards (Beginner + 16)
+#### Standard Deck — 84 cards (Beginner + 24)
 
 | Card type | Count per colour | Colours | Total added |
 |---|---|---|---|
 | Draw Two | 2 | 4 | 8 |
 | Colour Burst | 1 | 4 | 4 |
 | Draw Four | — (wild, no colour) | — | 4 |
-| **Standard total** | | | **76** |
+| Discard All | — (wild, no colour) | — | 8 |
+| **Standard total** | | | **84** |
 
-Colour Burst moved from Advanced to Standard in Phase 17 (B4a).
+Colour Burst moved from Advanced to Standard in Phase 17 (B4a). Discard All followed in
+Phase 19, at the same time as its count rose from 4 to 8: it is the main way a long round
+actually closes out, and confined to Advanced at 4 copies it turned up too rarely to serve
+that purpose.
 
-#### Advanced Deck — 108 cards (Standard + 32)
+#### Advanced Deck — 108 cards (Standard + 24)
 
 | Card type | Count per colour | Colours | Total added |
 |---|---|---|---|
-| Discard All | — (wild, no colour) | — | 8 |
 | Targeted Draw | 2 | 4 | 8 |
 | Forced Swap | 1 | 4 | 4 |
 | Skip Two | 1 | 4 | 4 |
@@ -90,13 +93,11 @@ Colour Burst moved from Advanced to Standard in Phase 17 (B4a).
 | Draw Eight | 1 | 4 | 4 |
 | **Advanced total** | | | **108** |
 
-Draw Eight added in Phase 17 (B4b). Discard All raised from 4 to 8 in Phase 19: it is the
-main way a long round actually closes out, and at 4 copies in a 104-card deck it turned up
-too rarely to serve that purpose.
+Draw Eight added in Phase 17 (B4b).
 
 **Draw pile after dealing** (4 players × 7 cards = 28 dealt):
 - Beginner: 60 − 28 = 32 cards in draw pile
-- Standard: 76 − 28 = 48 cards in draw pile
+- Standard: 84 − 28 = 56 cards in draw pile
 - Advanced: 108 − 28 = 80 cards in draw pile
 
 > **Gate:** `DeckTests` must assert these exact counts per set and confirm that Advanced-only card types are absent from Beginner and Standard decks.

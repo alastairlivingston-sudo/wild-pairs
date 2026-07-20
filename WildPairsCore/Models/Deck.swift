@@ -45,8 +45,10 @@ public struct Deck: Codable, Equatable, Sendable {
             cards.append(Card(type: .changeColour, colour: nil))
         }
 
-        // Standard additions: Draw Two (8) + Colour Burst (4) + Draw Four wild (4) = 16 cards.
-        // Colour Burst (`discardColour`) moved from Advanced to Standard in Phase 17 (B4a).
+        // Standard additions: Draw Two (8) + Colour Burst (4) + Draw Four wild (4) +
+        // Discard All (8) = 24 cards. Colour Burst (`discardColour`) moved from Advanced to
+        // Standard in Phase 17 (B4a); Discard All followed in Phase 19 — it is the main way a
+        // long round closes out, so it belongs below the Advanced tier.
         if cardSet == .standard || cardSet == .advanced {
             for colour in CardColour.allCases {
                 for _ in 0..<2 {
@@ -57,14 +59,14 @@ public struct Deck: Codable, Equatable, Sendable {
             for _ in 0..<4 {
                 cards.append(Card(type: .drawFour, colour: nil))
             }
-        }
-
-        // Advanced additions: 28 cards (Colour Burst now ships with Standard, above; Draw Eight
-        // added in Phase 17 B4b, 1 per colour)
-        if cardSet == .advanced {
             for _ in 0..<8 {
                 cards.append(Card(type: .discardAll, colour: nil))
             }
+        }
+
+        // Advanced additions: 24 cards (Colour Burst and Discard All now ship with Standard,
+        // above; Draw Eight added in Phase 17 B4b, 1 per colour)
+        if cardSet == .advanced {
             for colour in CardColour.allCases {
                 for _ in 0..<2 {
                     cards.append(Card(type: .targetedDraw, colour: colour))
