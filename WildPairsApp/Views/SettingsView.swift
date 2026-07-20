@@ -13,6 +13,17 @@ struct SettingsView: View {
             TableBackground(style: settings.userSettings.tableBackgroundStyle)
             Form {
                 Section("Gameplay") {
+                    Picker("AI turn length", selection: s.aiTurnPace) {
+                        ForEach(AITurnPace.allCases, id: \.self) { pace in
+                            Text(pace.displayName).tag(pace)
+                        }
+                    }
+                    .accessibilityIdentifier("settings-ai-turn-pace-picker")
+                    .accessibilityHint(
+                        "How long each AI turn is held so you can read the card played. "
+                        + settings.userSettings.aiTurnPace.detail
+                    )
+
                     Picker("Animation speed", selection: s.animationSpeed) {
                         Text("Normal").tag(AnimationSpeed.normal)
                         Text("Fast").tag(AnimationSpeed.fast)

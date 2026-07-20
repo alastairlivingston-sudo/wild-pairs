@@ -14,6 +14,24 @@ public enum TableBackgroundStyle: String, Codable, Equatable, Sendable, CaseIter
     case contours
 }
 
+/// How long each AI turn is held before the move lands, so a human can read the played card.
+/// Scales the per-difficulty base delay in `AIPlayer.thinkDelay(for:)`.
+public enum AITurnPace: String, Codable, Equatable, Sendable, CaseIterable {
+    case brisk
+    case steady
+    case relaxed
+    case slow
+
+    public var delayMultiplier: Double {
+        switch self {
+        case .brisk:   return 0.55
+        case .steady:  return 1.0
+        case .relaxed: return 1.7
+        case .slow:    return 2.6
+        }
+    }
+}
+
 // MARK: - UserSettings
 
 public struct UserSettings: Codable, Equatable, Sendable {
@@ -32,6 +50,9 @@ public struct UserSettings: Codable, Equatable, Sendable {
 
     // Appearance
     public var tableBackgroundStyle: TableBackgroundStyle
+
+    // Pace
+    public var aiTurnPace: AITurnPace
 
     // Accessibility
     public var hapticsEnabled: Bool
@@ -54,6 +75,7 @@ public struct UserSettings: Codable, Equatable, Sendable {
         animationSpeed: AnimationSpeed = .normal,
         confirmEndGame: Bool = true,
         tableBackgroundStyle: TableBackgroundStyle = .felt,
+        aiTurnPace: AITurnPace = .relaxed,
         hapticsEnabled: Bool = true,
         soundEnabled: Bool = true,
         reducedVisualEffects: Bool = false,
@@ -68,6 +90,7 @@ public struct UserSettings: Codable, Equatable, Sendable {
         self.animationSpeed = animationSpeed
         self.confirmEndGame = confirmEndGame
         self.tableBackgroundStyle = tableBackgroundStyle
+        self.aiTurnPace = aiTurnPace
         self.hapticsEnabled = hapticsEnabled
         self.soundEnabled = soundEnabled
         self.reducedVisualEffects = reducedVisualEffects
@@ -101,6 +124,7 @@ public struct UserSettings: Codable, Equatable, Sendable {
         animationSpeed = try c.decodeIfPresent(AnimationSpeed.self, forKey: .animationSpeed) ?? .normal
         confirmEndGame = try c.decodeIfPresent(Bool.self, forKey: .confirmEndGame) ?? true
         tableBackgroundStyle = try c.decodeIfPresent(TableBackgroundStyle.self, forKey: .tableBackgroundStyle) ?? .felt
+        aiTurnPace = try c.decodeIfPresent(AITurnPace.self, forKey: .aiTurnPace) ?? .relaxed
         hapticsEnabled = try c.decodeIfPresent(Bool.self, forKey: .hapticsEnabled) ?? true
         soundEnabled = try c.decodeIfPresent(Bool.self, forKey: .soundEnabled) ?? true
         reducedVisualEffects = try c.decodeIfPresent(Bool.self, forKey: .reducedVisualEffects) ?? false

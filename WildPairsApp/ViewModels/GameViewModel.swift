@@ -530,17 +530,15 @@ final class GameViewModel: ObservableObject {
         }
     }
 
+    /// AI turn length is governed by `aiTurnPace` alone — `animationSpeed` covers card
+    /// animation, not how long a move is held for the human to read.
     private func thinkDelay() -> TimeInterval {
         // Keeps AI turns cycling quickly under UI test so a draw-driven test reaches the human's
         // turn inside its budget, independent of production pacing.
         if fastTimers { return 0.05 }
-        switch settings.userSettings.animationSpeed {
-        case .off:  return 0
-        case .fast: return 0.1
-        case .normal:
-            let difficulty = presenter.state.currentPlayer?.difficulty ?? .easy
-            return AIPlayer.thinkDelay(for: difficulty)
-        }
+        let difficulty = presenter.state.currentPlayer?.difficulty ?? .easy
+        return AIPlayer.thinkDelay(for: difficulty)
+            * settings.userSettings.aiTurnPace.delayMultiplier
     }
 
     private func checkRoundEnd() {

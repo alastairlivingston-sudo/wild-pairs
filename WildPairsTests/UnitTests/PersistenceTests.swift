@@ -145,6 +145,36 @@ struct UserSettingsTests {
         #expect(TableBackgroundStyle.contours.rawValue == "contours")
     }
 
+    @Test("AITurnPace raw values are stable and ordered slowest-last")
+    func testAITurnPaceRawValues() {
+        #expect(AITurnPace.brisk.rawValue == "brisk")
+        #expect(AITurnPace.steady.rawValue == "steady")
+        #expect(AITurnPace.relaxed.rawValue == "relaxed")
+        #expect(AITurnPace.slow.rawValue == "slow")
+
+        // Each step must actually be slower than the last, or the setting is cosmetic.
+        let multipliers = AITurnPace.allCases.map(\.delayMultiplier)
+        #expect(multipliers == multipliers.sorted())
+        #expect(AITurnPace.steady.delayMultiplier == 1.0)
+    }
+
+    @Test("aiTurnPace round-trips and defaults to relaxed when the key is absent")
+    func testAITurnPacePersistence() throws {
+        var settings = UserSettings()
+        #expect(settings.aiTurnPace == .relaxed)
+
+        settings.aiTurnPace = .slow
+        let data = try JSONEncoder().encode(settings)
+        #expect(try JSONDecoder().decode(UserSettings.self, from: data).aiTurnPace == .slow)
+
+        // A settings file written before the setting existed must still load.
+        let legacyJSON = """
+        {"animationSpeed":"normal","confirmEndGame":true,"hapticsEnabled":true}
+        """
+        let decoded = try JSONDecoder().decode(UserSettings.self, from: Data(legacyJSON.utf8))
+        #expect(decoded.aiTurnPace == .relaxed)
+    }
+
     @Test("Settings JSON missing a newer key (e.g. hasSeenOnboarding) decodes with its default rather than failing")
     func testForwardCompatibleDecodeMissingKey() throws {
         let legacyJSON = """

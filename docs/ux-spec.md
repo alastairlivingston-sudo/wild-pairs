@@ -68,6 +68,14 @@ On iPad, additional space is used to increase card size, add a live events side 
 ### 8. Make AI turns understandable, not instant and mysterious
 When an AI player acts, the result is always announced in plain English: "Opponent played Jade Skip. Your turn is skipped." A brief thinking indicator establishes that the AI is deliberating, not just executing instantly. Players should understand what happened and why after every AI turn.
 
+How long that pause lasts is the player's call, not a fixed number: **Settings › Gameplay › AI
+turn length** (`UserSettings.aiTurnPace`, default **Relaxed**) scales the per-difficulty base delay
+in `AIPlayer.thinkDelay(for:)` — Brisk ×0.55, Steady ×1.0, Relaxed ×1.7, Slow ×2.6, giving
+roughly 0.6–5.2 seconds per AI turn across Easy…Master. Reading speed varies enormously between
+players, so this is a preference rather than a tuned constant. Note that AI turn length is
+governed by this setting alone — **Animation speed** covers card animation, not how long a move
+is held for the human to read.
+
 ### 9. Reward progress with subtle delight
 Correctly playing a complex action card earns a satisfying medium haptic. Calling Solo! at the right moment earns a pop animation. Winning a round earns a brief celebration. These moments are proportionate — they feel earned, not patronising.
 

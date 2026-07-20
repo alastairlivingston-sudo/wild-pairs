@@ -348,3 +348,24 @@ extension TableBackgroundStyle {
         }
     }
 }
+
+extension AITurnPace {
+    var displayName: String {
+        switch self {
+        case .brisk: return "Brisk"
+        case .steady: return "Steady"
+        case .relaxed: return "Relaxed"
+        case .slow: return "Slow"
+        }
+    }
+
+    /// Range across Easy…Master, so the pace reads as real time rather than a vague label.
+    var detail: String {
+        switch self {
+        case .brisk: return "About 0.6–1.1 seconds per AI turn."
+        case .steady: return "About 1.1–2.0 seconds per AI turn."
+        case .relaxed: return "About 1.9–3.4 seconds per AI turn."
+        case .slow: return "About 2.9–5.2 seconds per AI turn — most time to read each card."
+        }
+    }
+}
