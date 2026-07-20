@@ -67,6 +67,16 @@ struct RoundEndView: View {
         return false
     }
     private var didWin: Bool { vs.localTeamWon ?? false }
+
+    /// "Ann 45 + Bob 55 = 100 × 2" — the same arithmetic the award card animates, kept on the
+    /// summary so it survives past the sequence.
+    private var roundScoreWorkings: String? {
+        let contributors = vs.roundSeatScores.filter { $0.remainingPoints > 0 }
+        guard !contributors.isEmpty, let base = vs.roundBaseScore else { return nil }
+        let sum = contributors.map { "\($0.name) \($0.remainingPoints)" }.joined(separator: " + ")
+        let multiplier = max(1, vs.roundScoreMultiplier ?? 1)
+        return multiplier > 1 ? "\(sum) = \(base) × \(multiplier)" : "\(sum) = \(base)"
+    }
     private var winningTeamName: String? {
         switch vs.prompt {
         case .roundOver(let name), .roundOverByTimeout(let name), .gameOver(let name): return name
@@ -113,12 +123,23 @@ struct RoundEndView: View {
                         .multilineTextAlignment(.center)
                 }
                 if let award = vs.roundScoreAwarded, award > 0 {
-                    Text(didWin ? "Your team scored +\(award) this round"
-                                : "Opponents scored +\(award) this round")
-                        .font(.headline)
-                        .foregroundStyle(didWin ? Theme.Palette.accent : .secondary)
-                        .monospacedDigit()
-                        .multilineTextAlignment(.center)
+                    VStack(spacing: 2) {
+                        Text(didWin ? "Your team scored +\(award) this round"
+                                    : "Opponents scored +\(award) this round")
+                            .font(.headline)
+                            .foregroundStyle(didWin ? Theme.Palette.accent : .secondary)
+                            .monospacedDigit()
+                            .multilineTextAlignment(.center)
+
+                        // Keeps the arithmetic visible after the animated award card has gone.
+                        if let workings = roundScoreWorkings {
+                            Text(workings)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                                .multilineTextAlignment(.center)
+                        }
+                    }
                 }
 
                 VStack(spacing: Theme.Space.s2) {

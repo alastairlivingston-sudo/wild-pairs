@@ -39,7 +39,10 @@ struct PassAndPlayTableView: View {
                 element: vs.currentColour,
                 turnDirection: vs.phase == .playing ? vs.turnDirection : nil,
                 directionAnimationDisabled: settings.userSettings.animationSpeed == .off,
-                style: settings.userSettings.tableBackgroundStyle
+                style: settings.userSettings.tableBackgroundStyle,
+                activeTablePosition: vs.phase == .playing
+                    ? vs.seats.first { $0.isCurrentPlayer }?.tablePosition
+                    : nil
             )
             .ignoresSafeArea()
 
@@ -114,73 +117,87 @@ struct PassAndPlayTableView: View {
 
     // MARK: A human end
 
+    /// Both ends always render their full hand — a teammate must never lose sight of their
+    /// cards just because it is not their turn. Turn ownership is carried by the brackets,
+    /// the accent border and the PLAY NOW cue, never by hiding cards.
     @ViewBuilder private func humanHalf(for humanID: UUID?, rotated: Bool) -> some View {
         if let humanID {
             let isActive = current == humanID
-            Group {
-                if isActive { activeHalf(humanID) } else { collapsedStrip(humanID) }
-            }
-            .rotationEffect(.degrees(rotated ? 180 : 0))
-            .frame(maxWidth: .infinity)
-            .frame(maxHeight: isActive ? .infinity : nil)
+            half(humanID, isActive: isActive)
+                .rotationEffect(.degrees(rotated ? 180 : 0))
+                .frame(maxWidth: .infinity)
+                .frame(maxHeight: .infinity)
         }
     }
 
-    /// The acting teammate's expanded, lit half: name + count + Solo!, then their playable hand.
-    private func activeHalf(_ humanID: UUID) -> some View {
+    /// The waiting teammate's cards, all marked unplayable — it is not their turn, so nothing
+    /// should read as actionable even though every card stays visible.
+    private func waitingHand(_ humanID: UUID) -> [CardViewModel] {
+        vm.hand(for: humanID).map { CardViewModel(card: $0, isPlayable: false) }
+    }
+
+    /// One teammate's end. The hand is always fully rendered; `isActive` only changes the
+    /// chrome and whether cards respond to taps.
+    private func half(_ humanID: UUID, isActive: Bool) -> some View {
         VStack(spacing: Theme.Space.s2) {
             HStack(spacing: Theme.Space.s2) {
-                Text("PLAY NOW")
-                    .font(.subheadline).fontWeight(.bold).foregroundStyle(Theme.Palette.accent)
+                if isActive {
+                    Text("PLAY NOW")
+                        .font(.subheadline).fontWeight(.bold).foregroundStyle(Theme.Palette.accent)
+                } else {
+                    Text(vm.name(for: humanID))
+                        .font(.subheadline).fontWeight(.semibold).foregroundStyle(.secondary)
+                }
                 Text("\(vm.handCount(for: humanID))")
                     .font(.caption).fontWeight(.heavy).monospacedDigit()
                     .padding(.horizontal, Theme.Space.s2).padding(.vertical, 2)
-                    .background(Capsule().fill(Theme.Palette.accent)).foregroundStyle(Theme.Palette.onAccent)
-                if avs.soloButtonVisible {
+                    .background(Capsule().fill(
+                        isActive ? Theme.Palette.accent : Theme.Palette.accent.opacity(0.55)
+                    ))
+                    .foregroundStyle(Theme.Palette.onAccent)
+                if isActive, avs.soloButtonVisible {
                     Button { vm.callSolo(as: humanID) } label: {
                         Label("Solo!", systemImage: "exclamationmark.circle.fill").font(.caption).fontWeight(.bold)
                     }
                     .buttonStyle(.borderedProminent).tint(Theme.Palette.warning).controlSize(.small)
                 }
+                if !isActive {
+                    Text("waiting").font(.caption2).foregroundStyle(.tertiary).textCase(.uppercase)
+                }
             }
-            HandView(hand: avs.localHand, cardSize: handCardSize,
+            // The waiting end still sees every card; nothing is playable there, and hit-testing
+            // is off so it cannot act early.
+            HandView(hand: isActive ? avs.localHand : waitingHand(humanID),
+                     cardSize: handCardSize,
                      showColourName: showColourName, showPattern: showPattern,
-                     reducedMotion: motionDisabled, onPlay: { vm.play($0.card, as: humanID) })
+                     reducedMotion: motionDisabled,
+                     onPlay: { card in if isActive { vm.play(card.card, as: humanID) } })
+                .allowsHitTesting(isActive)
         }
         .padding(.horizontal, Theme.Space.s3).padding(.vertical, Theme.Space.s2)
         .background(
             RoundedRectangle(cornerRadius: Theme.Radius.r4)
-                .fill(Color.white.opacity(0.03))
+                .fill(Color.white.opacity(isActive ? 0.03 : 0.015))
                 .overlay(RoundedRectangle(cornerRadius: Theme.Radius.r4)
-                    .strokeBorder(Theme.Palette.accent.opacity(0.6), lineWidth: 1.5))
-                .shadow(color: reducedMotion ? .clear : Theme.Palette.accent.opacity(0.4), radius: 20)
+                    .strokeBorder(
+                        Theme.Palette.accent.opacity(isActive ? 0.6 : 0.16),
+                        lineWidth: isActive ? 1.5 : 1
+                    ))
+                .shadow(
+                    color: (reducedMotion || !isActive) ? .clear : Theme.Palette.accent.opacity(0.4),
+                    radius: 20
+                )
         )
         .overlay {
-            ActiveSeatBrackets(tint: elementGlow)
-                .padding(-3)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-        }
-        .padding(.horizontal, Theme.Space.s3)
-    }
-
-    /// The waiting teammate's collapsed strip: name, count, a few card-backs.
-    private func collapsedStrip(_ humanID: UUID) -> some View {
-        HStack(spacing: Theme.Space.s2) {
-            Text(vm.name(for: humanID)).font(.caption).fontWeight(.semibold).foregroundStyle(.secondary)
-            Text("\(vm.handCount(for: humanID))")
-                .font(.caption2).fontWeight(.heavy).monospacedDigit()
-                .padding(.horizontal, Theme.Space.s2).padding(.vertical, 1)
-                .background(Capsule().fill(Theme.Palette.accent.opacity(0.85))).foregroundStyle(Theme.Palette.onAccent)
-            HStack(spacing: -14) {
-                ForEach(0..<min(vm.handCount(for: humanID), 5), id: \.self) { _ in
-                    CardBackView(size: CGSize(width: 26, height: 38))
-                }
+            if isActive {
+                ActiveSeatBrackets(tint: elementGlow)
+                    .padding(-3)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
             }
-            Text("waiting").font(.caption2).foregroundStyle(.tertiary).textCase(.uppercase)
         }
-        .padding(.horizontal, Theme.Space.s3).padding(.vertical, Theme.Space.s2)
-        .opacity(0.75)
+        .opacity(isActive ? 1 : 0.88)
+        .padding(.horizontal, Theme.Space.s3)
     }
 
     // MARK: Middle — opponents + shared centre

@@ -92,11 +92,8 @@ struct GameTableView: View {
                 // presence: bigger on iPhone, bigger still on iPad's wider canvas.
                 let isPad = hSize == .regular
                 let isLandscape = isPad && geo.size.width > geo.size.height
-                // Landscape height is the scarce axis on iPad — shrink the focal cards, partner
-                // fan, and hand so the whole table fits without vertical scrolling on smaller
-                // iPads (Phase 17 C9).
-                let centerSize = isPad ? (isLandscape ? Theme.CardSize.tableFocus : Theme.CardSize.padTableFocus)
-                                       : Theme.CardSize.tableFocus
+                // Landscape has width to spare, so it no longer drops to the iPhone focal size.
+                let centerSize = isPad ? Theme.CardSize.padTableFocus : Theme.CardSize.tableFocus
                 let handSize: CGSize = (isPad && isLandscape)
                     ? (effectiveLargeCards ? Theme.CardSize.padHand : Theme.CardSize.regularHand)
                     : handCardSize
@@ -111,51 +108,74 @@ struct GameTableView: View {
                     ? (isLandscape ? min(geo.size.width - Theme.Space.s6 * 2, 1120) : 820)
                     : .infinity
                 let availableWidth = contentMaxWidth.isFinite ? contentMaxWidth : geo.size.width
-                let partnerCardSize = (isPad && !isLandscape) ? Theme.CardSize.padPartnerHand : Theme.CardSize.partnerHand
-                // Clamp the partner's open-hand fan to the real on-screen width so it never
-                // clips off the right edge (A6).
-                let partnerMaxWidth = min(resolvedSide * 2 + centerSize.width * 2 + Theme.Space.s3,
-                                          availableWidth - Theme.Space.s4 * 2)
+                // You must always be able to read your partner's open hand, so every iPad
+                // orientation gets the large fan — landscape used to fall back to the 38pt
+                // iPhone size, which was unreadable next to a 96pt discard.
+                let partnerCardSize = isPad ? Theme.CardSize.padPartnerHand : Theme.CardSize.partnerHand
+                // Clamp the fan to the real on-screen width so it never clips off the right edge
+                // (A6) — but on a wide canvas let it use that width instead of the old fixed
+                // ~388pt box, which left the partner marooned in the middle of the table.
+                let partnerMaxWidth = min(
+                    max(resolvedSide * 2 + centerSize.width * 2 + Theme.Space.s3,
+                        isPad ? availableWidth - Theme.Space.s6 * 2 : 0),
+                    availableWidth - Theme.Space.s4 * 2
+                )
 
                 ZStack {
                     TableBackground(
                         element: vs.currentColour,
                         turnDirection: vs.phase == .playing ? vs.turnDirection : nil,
                         directionAnimationDisabled: settings.userSettings.animationSpeed == .off,
-                        style: settings.userSettings.tableBackgroundStyle
+                        style: settings.userSettings.tableBackgroundStyle,
+                        activeTablePosition: vs.phase == .playing ? activeSeat?.tablePosition : nil
                     )
                     .ignoresSafeArea()
 
                     VStack(spacing: 0) {
                         edgeHUD(compact: !isPad)
 
-                        ScrollView(.vertical, showsIndicators: false) {
-                            // iPhone: zones fill the height with flexible spacers (partner top,
-                            // table middle, hand bottom). iPad: the same zones form a fixed-gap
-                            // block centred vertically, so the elements sit close together and the
-                            // unavoidable felt on the very tall canvas reads as a margin at the
-                            // screen edges rather than dead bands between the zones.
-                            VStack(spacing: 0) {
-                                if isPad { Spacer(minLength: spacing) }
-                                VStack(spacing: spacing) {
-                                    partnerZone(maxWidth: partnerMaxWidth, seatBackSize: seatBackSize,
-                                                openHandCardSize: partnerCardSize)
-                                    zoneGap(isPad: isPad, compact: isLandscape)
-                                    opponentCenterRow(spacing: spacing, seatBackSize: seatBackSize,
-                                                      centerSize: centerSize, sideWidth: resolvedSide, spread: isPad)
-                                    zoneGap(isPad: isPad, compact: isLandscape)
+                        Group {
+                            if isLandscape {
+                                // Landscape fits by construction, so it must not scroll — scrolling
+                                // is what used to let the partner shelf leave the screen. The zones
+                                // share the height instead of stacking to an intrinsic column.
+                                landscapeTable(
+                                    spacing: spacing, seatBackSize: seatBackSize,
+                                    centerSize: centerSize, sideWidth: resolvedSide,
+                                    partnerMaxWidth: partnerMaxWidth,
+                                    partnerCardSize: partnerCardSize, handSize: handSize,
+                                    contentMaxWidth: contentMaxWidth
+                                )
+                            } else {
+                                ScrollView(.vertical, showsIndicators: false) {
+                                    // iPhone: zones fill the height with flexible spacers (partner
+                                    // top, table middle, hand bottom). iPad portrait: the same zones
+                                    // form a fixed-gap block centred vertically, so the unavoidable
+                                    // felt on a very tall canvas reads as a margin at the screen
+                                    // edges rather than dead bands between the zones.
+                                    VStack(spacing: 0) {
+                                        if isPad { Spacer(minLength: spacing) }
+                                        VStack(spacing: spacing) {
+                                            partnerZone(maxWidth: partnerMaxWidth, seatBackSize: seatBackSize,
+                                                        openHandCardSize: partnerCardSize)
+                                            zoneGap(isPad: isPad, compact: isLandscape)
+                                            opponentCenterRow(spacing: spacing, seatBackSize: seatBackSize,
+                                                              centerSize: centerSize, sideWidth: resolvedSide, spread: isPad)
+                                            zoneGap(isPad: isPad, compact: isLandscape)
 
-                                    PromptBanner(prompt: vs.prompt, tint: elementGlow)
-                                        .padding(.horizontal, Theme.Space.s4)
-                                    bottomControls
-                                    localHandZone(cardSize: handSize)
+                                            PromptBanner(prompt: vs.prompt, tint: elementGlow)
+                                                .padding(.horizontal, Theme.Space.s4)
+                                            bottomControls
+                                            localHandZone(cardSize: handSize)
+                                        }
+                                        .frame(maxWidth: contentMaxWidth)
+                                        .frame(maxWidth: .infinity)
+                                        if isPad { Spacer(minLength: spacing) }
+                                    }
+                                    .padding(.vertical, spacing)
+                                    .frame(minHeight: geo.size.height - Theme.Table.edgeHUDHeight)
                                 }
-                                .frame(maxWidth: contentMaxWidth)
-                                .frame(maxWidth: .infinity)
-                                if isPad { Spacer(minLength: spacing) }
                             }
-                            .padding(.vertical, spacing)
-                            .frame(minHeight: geo.size.height - 60)
                         }
                         // Loss desaturates the table gently underneath the overlay (ux-spec.md
                         // §10 "Round loss feedback"); skipped under Reduced visual effects.
@@ -395,6 +415,35 @@ struct GameTableView: View {
                            caughtPenaltyCount: penaltyCount(for: partner))
                 .reportTableAnchor(.seat(2), in: tableSpace)
         }
+    }
+
+    /// iPad landscape: a real wide table rather than the portrait column. The partner shelf
+    /// spans the top, the opponents sit out at the edges flanking the centre, and the prompt and
+    /// hand share the bottom — so the canvas width is used instead of leaving dead felt either
+    /// side. Nothing scrolls; the zones divide the height between them.
+    private func landscapeTable(
+        spacing: CGFloat, seatBackSize: CGSize, centerSize: CGSize, sideWidth: CGFloat,
+        partnerMaxWidth: CGFloat, partnerCardSize: CGSize, handSize: CGSize,
+        contentMaxWidth: CGFloat
+    ) -> some View {
+        VStack(spacing: spacing) {
+            partnerZone(maxWidth: partnerMaxWidth, seatBackSize: seatBackSize,
+                        openHandCardSize: partnerCardSize)
+
+            opponentCenterRow(spacing: spacing, seatBackSize: seatBackSize,
+                              centerSize: centerSize, sideWidth: sideWidth, spread: true)
+                .frame(maxHeight: .infinity)
+
+            VStack(spacing: spacing) {
+                PromptBanner(prompt: vs.prompt, tint: elementGlow)
+                    .padding(.horizontal, Theme.Space.s4)
+                bottomControls
+                localHandZone(cardSize: handSize)
+            }
+        }
+        .frame(maxWidth: contentMaxWidth)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.vertical, spacing)
     }
 
     /// The middle row: left opponent · table centre (draw + discard) · right opponent. Each
@@ -751,12 +800,9 @@ private struct RoundEndSequenceOverlay: View {
             Text(vs.localTeamWon == true ? "YOUR TEAM BANKS" : "OPPONENTS BANK")
                 .font(.caption2.weight(.black))
                 .tracking(0.85)
-            if multiplier > 1 {
-                Text("\(baseScore) × \(multiplier)")
-                    .font(.caption.weight(.black))
-                    .monospacedDigit()
-                    .foregroundStyle(.white.opacity(0.72))
-            }
+
+            scoreBreakdown
+
             Text("+\(displayedAward)")
                 .font(.system(size: 52, weight: .black, design: .rounded))
                 .monospacedDigit()
@@ -778,11 +824,53 @@ private struct RoundEndSequenceOverlay: View {
         )
         .shadow(color: winnerTint.opacity(0.34), radius: 18)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(
-            multiplier > 1
-                ? "Round score awarded: \(baseScore) points times \(multiplier), \(award) points total"
-                : "Round score awarded: \(award) points"
-        )
+        .accessibilityLabel(breakdownAccessibilityLabel)
+    }
+
+    /// Shows the arithmetic behind the award: who contributed what, then the multiplier.
+    private var scoreBreakdown: some View {
+        VStack(spacing: 2) {
+            ForEach(contributorScores) { row in
+                HStack(spacing: Theme.Space.s2) {
+                    Text(row.name)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    Spacer(minLength: Theme.Space.s2)
+                    Text("\(row.remainingPoints)")
+                        .monospacedDigit()
+                }
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.72))
+            }
+
+            if contributorScores.count > 1 || multiplier > 1 {
+                Rectangle()
+                    .fill(.white.opacity(0.16))
+                    .frame(height: 1)
+                    .padding(.vertical, 1)
+
+                HStack(spacing: Theme.Space.s2) {
+                    Text(multiplier > 1 ? "\(baseScore) × \(multiplier)" : "\(baseScore)")
+                        .monospacedDigit()
+                    Spacer(minLength: Theme.Space.s2)
+                    Text("= \(award)")
+                        .monospacedDigit()
+                }
+                .font(.caption.weight(.black))
+                .foregroundStyle(.white.opacity(0.86))
+            }
+        }
+        .frame(maxWidth: 190)
+    }
+
+    private var breakdownAccessibilityLabel: String {
+        let parts = contributorScores
+            .map { "\($0.name) \($0.remainingPoints) points" }
+            .joined(separator: ", ")
+        let sum = parts.isEmpty ? "" : "\(parts). "
+        return multiplier > 1
+            ? "Round score awarded. \(sum)\(baseScore) points times \(multiplier), \(award) points total"
+            : "Round score awarded. \(sum)\(award) points total"
     }
 
     private var winnerTint: Color {

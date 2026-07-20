@@ -9,6 +9,9 @@ struct TableBackground: View {
     var turnDirection: TurnDirection? = nil
     var directionAnimationDisabled = false
     var style: TableBackgroundStyle? = nil
+    /// Table position of the acting seat (0 bottom, 1 left, 2 top, 3 right), so the ambient
+    /// rings can say *whose* turn it is as well as which way play travels.
+    var activeTablePosition: Int? = nil
 
     @Environment(\.reducedVisualEffects) private var reducedVisualEffects
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -36,7 +39,8 @@ struct TableBackground: View {
                     DirectionalTablePulse(
                         direction: turnDirection,
                         accent: palette.glow,
-                        motionDisabled: motionDisabled
+                        motionDisabled: motionDisabled,
+                        activeTablePosition: activeTablePosition
                     )
                 }
 
@@ -134,6 +138,26 @@ private struct DirectionalTablePulse: View {
     let direction: TurnDirection
     let accent: Color
     let motionDisabled: Bool
+    var activeTablePosition: Int? = nil
+
+    /// Concentric ring scales. Depth comes from tone, not from stroke weight or count.
+    private static let ringScales: [CGFloat] = [1.0, 0.87, 0.74, 0.61]
+
+    /// Degrees clockwise from 12 o'clock for each table position.
+    private func seatAngle(_ position: Int) -> Double {
+        switch position {
+        case 0: return 180   // bottom — the local player
+        case 1: return 270   // left
+        case 2: return 0     // top — partner
+        case 3: return 90    // right
+        default: return 0
+        }
+    }
+
+    /// `pulseArc` is trimmed 0.02-0.23, so its midpoint already sits ~45 degrees round.
+    private var anchorRotation: Double? {
+        activeTablePosition.map { seatAngle($0) - 45 }
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -143,16 +167,23 @@ private struct DirectionalTablePulse: View {
             let lineWidth = max(2, min(4, min(geo.size.width, geo.size.height) * 0.006))
 
             ZStack {
-                Ellipse()
-                    .stroke(
-                        accent.opacity(0.055),
-                        style: StrokeStyle(lineWidth: 1, dash: [2, 13])
-                    )
+                ForEach(Array(Self.ringScales.enumerated()), id: \.offset) { index, scale in
+                    Ellipse()
+                        .stroke(
+                            accent.opacity(0.055 - Double(index) * 0.010),
+                            style: StrokeStyle(lineWidth: 1, dash: [2, 13])
+                        )
+                        .scaleEffect(scale)
+                }
 
                 if motionDisabled {
+                    // Still frame must keep BOTH cues: the arc sits on the acting seat, and the
+                    // lean shows which way play is travelling.
                     pulseArc(lineWidth: lineWidth)
-                        .rotationEffect(.degrees(direction == .clockwise ? 18 : 198))
-                        .opacity(0.10)
+                        .rotationEffect(.degrees(
+                            (anchorRotation ?? 0) + (direction == .clockwise ? 18 : -18)
+                        ))
+                        .opacity(0.13)
                 } else {
                     TimelineView(.periodic(from: .now, by: 1.0 / 15.0)) { context in
                         let elapsed = context.date.timeIntervalSinceReferenceDate
@@ -160,10 +191,16 @@ private struct DirectionalTablePulse: View {
                         let sign = direction == .clockwise ? 1.0 : -1.0
                         let pulse = (sin(elapsed * .pi / 2) + 1) / 2
 
+                        // With a known seat the arc rests on it and drifts the way play moves;
+                        // without one it falls back to a free orbit.
+                        let rotation = anchorRotation.map { $0 + sign * (orbit * 2 - 1) * 22 }
+                            ?? (orbit * 360 * sign)
+
                         pulseArc(lineWidth: lineWidth)
-                            .rotationEffect(.degrees(orbit * 360 * sign))
+                            .rotationEffect(.degrees(rotation))
                             .opacity(0.10 + pulse * 0.08)
                     }
+                    .animation(.easeInOut(duration: 0.6), value: activeTablePosition)
                 }
             }
             .frame(width: width, height: height)
