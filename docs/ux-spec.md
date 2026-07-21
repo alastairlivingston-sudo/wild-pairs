@@ -68,13 +68,22 @@ On iPad, additional space is used to increase card size, add a live events side 
 ### 8. Make AI turns understandable, not instant and mysterious
 When an AI player acts, the result is always announced in plain English: "Opponent played Jade Skip. Your turn is skipped." A brief thinking indicator establishes that the AI is deliberating, not just executing instantly. Players should understand what happened and why after every AI turn.
 
-How long that pause lasts is the player's call, not a fixed number: **Settings › Gameplay › AI
-turn length** (`UserSettings.aiTurnPace`, default **Relaxed**) scales the per-difficulty base delay
-in `AIPlayer.thinkDelay(for:)` — Brisk ×0.55, Steady ×1.0, Relaxed ×1.7, Slow ×2.6, giving
-roughly 0.6–5.2 seconds per AI turn across Easy…Master. Reading speed varies enormously between
-players, so this is a preference rather than a tuned constant. Note that AI turn length is
-governed by this setting alone — **Animation speed** covers card animation, not how long a move
-is held for the human to read.
+An AI is a player at the table, so its turn takes about as long as a human's and costs the
+round clock accordingly: `RuleProfile.aiFairTurnSeconds` is **half the move allowance**
+(≈5s of a 10s budget), halving in the final minute exactly as a human's own allowance does.
+A human rarely burns their full allowance, which is why it is half rather than the whole.
+
+How long you *watch* that turn for is editable — **Settings › Gameplay › AI turn length**
+(`UserSettings.aiTurnPace`, default **Steady**): Brisk ×0.5, Steady ×1.0, Relaxed ×1.5,
+Slow ×2.0, i.e. roughly 2.5s to 10s.
+
+**The pace setting cannot influence the result.** Whatever you pick, the round clock is charged
+the fair time — `GameViewModel` adjusts the round deadline by the difference between what you
+watched and what the turn costs. Watching slowly does not shorten the round, and watching
+quickly does not buy extra turns before the timer expires, so it cannot change who goes out
+first or what the round scores. Turn length is also uniform across difficulties: a
+difficulty-varying delay both broke this fairness and leaked an opponent's strength before it
+played. Note **Animation speed** covers card animation only, not how long a move is held.
 
 ### 9. Reward progress with subtle delight
 Correctly playing a complex action card earns a satisfying medium haptic. Calling Solo! at the right moment earns a pop animation. Winning a round earns a brief celebration. These moments are proportionate — they feel earned, not patronising.

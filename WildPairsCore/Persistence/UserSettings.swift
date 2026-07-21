@@ -14,8 +14,11 @@ public enum TableBackgroundStyle: String, Codable, Equatable, Sendable, CaseIter
     case contours
 }
 
-/// How long each AI turn is held before the move lands, so a human can read the played card.
-/// Scales the per-difficulty base delay in `AIPlayer.thinkDelay(for:)`.
+/// How long each AI turn is *shown* for, as a multiple of the fair human-equivalent turn time
+/// (`RuleProfile.aiFairTurnSeconds`). `steady` is exactly that fair time.
+///
+/// This is a viewing preference only. The round clock is always charged the fair time whatever
+/// is selected here, so changing pace cannot alter how a round plays out or what it scores.
 public enum AITurnPace: String, Codable, Equatable, Sendable, CaseIterable {
     case brisk
     case steady
@@ -24,10 +27,10 @@ public enum AITurnPace: String, Codable, Equatable, Sendable, CaseIterable {
 
     public var delayMultiplier: Double {
         switch self {
-        case .brisk:   return 0.55
+        case .brisk:   return 0.5
         case .steady:  return 1.0
-        case .relaxed: return 1.7
-        case .slow:    return 2.6
+        case .relaxed: return 1.5
+        case .slow:    return 2.0
         }
     }
 }
@@ -75,7 +78,7 @@ public struct UserSettings: Codable, Equatable, Sendable {
         animationSpeed: AnimationSpeed = .normal,
         confirmEndGame: Bool = true,
         tableBackgroundStyle: TableBackgroundStyle = .felt,
-        aiTurnPace: AITurnPace = .relaxed,
+        aiTurnPace: AITurnPace = .steady,
         hapticsEnabled: Bool = true,
         soundEnabled: Bool = true,
         reducedVisualEffects: Bool = false,
@@ -124,7 +127,7 @@ public struct UserSettings: Codable, Equatable, Sendable {
         animationSpeed = try c.decodeIfPresent(AnimationSpeed.self, forKey: .animationSpeed) ?? .normal
         confirmEndGame = try c.decodeIfPresent(Bool.self, forKey: .confirmEndGame) ?? true
         tableBackgroundStyle = try c.decodeIfPresent(TableBackgroundStyle.self, forKey: .tableBackgroundStyle) ?? .felt
-        aiTurnPace = try c.decodeIfPresent(AITurnPace.self, forKey: .aiTurnPace) ?? .relaxed
+        aiTurnPace = try c.decodeIfPresent(AITurnPace.self, forKey: .aiTurnPace) ?? .steady
         hapticsEnabled = try c.decodeIfPresent(Bool.self, forKey: .hapticsEnabled) ?? true
         soundEnabled = try c.decodeIfPresent(Bool.self, forKey: .soundEnabled) ?? true
         reducedVisualEffects = try c.decodeIfPresent(Bool.self, forKey: .reducedVisualEffects) ?? false

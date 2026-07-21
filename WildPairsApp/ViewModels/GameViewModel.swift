@@ -400,10 +400,16 @@ final class GameViewModel: ObservableObject {
             guard let self else { return }
             while !Task.isCancelled, self.presenter.nextAutomaticAction() != nil {
                 self.thinkingPlayerID = self.presenter.state.currentPlayer?.id
-                let delay = self.thinkDelay()
+                let fair = self.fairAITurnSeconds()
+                let delay = self.thinkDelay(fair: fair)
                 if delay > 0 {
                     try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 }
+                // The AI is a player at the table, so its turn costs round time like anyone
+                // else's — but it costs the *fair* amount, never the amount the viewer chose to
+                // watch. Refund or charge the difference so the pace setting cannot influence
+                // how a round plays out or what it scores.
+                self.chargeRoundClockForAITurn(watched: delay, fair: fair)
                 self.thinkingPlayerID = nil
                 if Task.isCancelled { return }
                 guard let effects = self.presenter.advanceAutomatic() else { break }
@@ -530,15 +536,29 @@ final class GameViewModel: ObservableObject {
         }
     }
 
-    /// AI turn length is governed by `aiTurnPace` alone — `animationSpeed` covers card
-    /// animation, not how long a move is held for the human to read.
-    private func thinkDelay() -> TimeInterval {
+    /// Round time an AI turn costs — the same order as a human's, and independent of the
+    /// viewing pace. See `RuleProfile.aiFairTurnSeconds`.
+    private func fairAITurnSeconds() -> TimeInterval {
+        presenter.state.ruleProfile.aiFairTurnSeconds(
+            roundRemaining: roundDeadline?.timeIntervalSinceNow
+        )
+    }
+
+    /// How long the turn is *shown* for. `animationSpeed` covers card animation, not how long a
+    /// move is held for the human to read — that is `aiTurnPace`.
+    private func thinkDelay(fair: TimeInterval) -> TimeInterval {
         // Keeps AI turns cycling quickly under UI test so a draw-driven test reaches the human's
         // turn inside its budget, independent of production pacing.
         if fastTimers { return 0.05 }
-        let difficulty = presenter.state.currentPlayer?.difficulty ?? .easy
-        return AIPlayer.thinkDelay(for: difficulty)
-            * settings.userSettings.aiTurnPace.delayMultiplier
+        return fair * settings.userSettings.aiTurnPace.delayMultiplier
+    }
+
+    /// Makes the round clock advance by exactly `fair` for this AI turn, whatever the viewer
+    /// actually waited. Watching slowly must not shorten the round; watching quickly must not
+    /// buy extra turns.
+    private func chargeRoundClockForAITurn(watched: TimeInterval, fair: TimeInterval) {
+        guard let deadline = roundDeadline else { return }
+        roundDeadline = deadline.addingTimeInterval(watched - fair)
     }
 
     private func checkRoundEnd() {

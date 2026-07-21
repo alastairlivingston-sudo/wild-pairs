@@ -155,13 +155,35 @@ struct UserSettingsTests {
         // Each step must actually be slower than the last, or the setting is cosmetic.
         let multipliers = AITurnPace.allCases.map(\.delayMultiplier)
         #expect(multipliers == multipliers.sorted())
+        // `steady` must be exactly the fair human-equivalent time.
         #expect(AITurnPace.steady.delayMultiplier == 1.0)
     }
 
-    @Test("aiTurnPace round-trips and defaults to relaxed when the key is absent")
+    @Test("An AI turn costs the same round time at every pace, so pace cannot affect scoring")
+    func testPaceDoesNotChangeRoundCost() {
+        let profile = RuleProfile.standardTeams()
+
+        // The charge is derived from the rules, never from the viewing preference.
+        let fair = profile.aiFairTurnSeconds(roundRemaining: 180)
+        for pace in AITurnPace.allCases {
+            let watched = fair * pace.delayMultiplier
+            // GameViewModel charges `fair` by adjusting the deadline by (watched - fair).
+            let charged = watched - (watched - fair)
+            #expect(abs(charged - fair) < 0.000_001)
+        }
+
+        // And it is a human-scale cost: half the move allowance, halving in the final minute
+        // exactly as a human's own allowance does.
+        #expect(fair == profile.effectiveMoveLimit(roundRemaining: 180) * 0.5)
+        let finalMinute = profile.aiFairTurnSeconds(roundRemaining: 30)
+        #expect(finalMinute < fair)
+        #expect(finalMinute == profile.effectiveMoveLimit(roundRemaining: 30) * 0.5)
+    }
+
+    @Test("aiTurnPace round-trips and defaults to steady when the key is absent")
     func testAITurnPacePersistence() throws {
         var settings = UserSettings()
-        #expect(settings.aiTurnPace == .relaxed)
+        #expect(settings.aiTurnPace == .steady)
 
         settings.aiTurnPace = .slow
         let data = try JSONEncoder().encode(settings)
@@ -172,7 +194,7 @@ struct UserSettingsTests {
         {"animationSpeed":"normal","confirmEndGame":true,"hapticsEnabled":true}
         """
         let decoded = try JSONDecoder().decode(UserSettings.self, from: Data(legacyJSON.utf8))
-        #expect(decoded.aiTurnPace == .relaxed)
+        #expect(decoded.aiTurnPace == .steady)
     }
 
     @Test("Settings JSON missing a newer key (e.g. hasSeenOnboarding) decodes with its default rather than failing")

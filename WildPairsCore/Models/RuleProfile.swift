@@ -72,6 +72,17 @@ public struct RuleProfile: Codable, Equatable, Sendable {
         return Swift.min(moveTimeLimitSeconds, RuleProfile.finalMinuteMoveLimitSeconds)
     }
 
+    /// The round time an AI turn costs — deliberately the same order as a human's, since an AI
+    /// is a player at the table and its thinking should consume the round like anyone else's.
+    /// Half the move allowance, because a human rarely burns their full budget.
+    ///
+    /// This is what the round clock is charged, independent of how fast the player has chosen
+    /// to *watch* AI turns: the display pace must never change how much round time a turn costs,
+    /// or the setting becomes a way to influence the result.
+    public func aiFairTurnSeconds(roundRemaining: Double?) -> Double {
+        effectiveMoveLimit(roundRemaining: roundRemaining) * 0.5
+    }
+
     // MARK: Validation
 
     public func validate() throws {

@@ -359,13 +359,13 @@ extension AITurnPace {
         }
     }
 
-    /// Range across Easy…Master, so the pace reads as real time rather than a vague label.
+    /// Stated against a 10-second move allowance, so the pace reads as real time.
     var detail: String {
         switch self {
-        case .brisk: return "About 0.6–1.1 seconds per AI turn."
-        case .steady: return "About 1.1–2.0 seconds per AI turn."
-        case .relaxed: return "About 1.9–3.4 seconds per AI turn."
-        case .slow: return "About 2.9–5.2 seconds per AI turn — most time to read each card."
+        case .brisk: return "About 2.5 seconds per AI turn."
+        case .steady: return "About 5 seconds per AI turn — the same as a human takes."
+        case .relaxed: return "About 7.5 seconds per AI turn."
+        case .slow: return "About 10 seconds per AI turn — a full move allowance."
         }
     }
 }

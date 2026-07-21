@@ -107,16 +107,9 @@ public enum AIPlayer {
         return Double.random(in: 0..<1, using: &rng) < probability
     }
 
-    public static func thinkDelay(for difficulty: Difficulty) -> TimeInterval {
-        switch difficulty {
-        // Paced so a human can read each played card before the next AI moves.
-        case .easy:   return 1.1
-        case .medium: return 1.3
-        case .hard:   return 1.5
-        case .expert: return 1.8
-        case .master: return 2.0
-        }
-    }
+    // Turn length is no longer a property of difficulty: an AI takes the same fair,
+    // human-equivalent time whoever it is — see `RuleProfile.aiFairTurnSeconds`. A
+    // difficulty-varying delay also leaked the opponent's strength before it played.
 
     // MARK: Internal helpers
 
