@@ -300,6 +300,16 @@ During play, a low-opacity elliptical trace moves clockwise or counter-clockwise
 table according to the presenter-owned `turnDirection`. It supplements, but never replaces,
 the persistent direction arrow and full text in the HUD. System Reduced Motion, the in-app
 Reduced visual effects setting, and Animation speed Off freeze the trace into a static mark.
+
+Distinct from that subordinate ambient trace, the **table centre** carries a deliberately
+prominent direction indicator (`DirectionPlayRing` in `TableCenterView`): a ring of bright
+white arrowheads circling the draw/discard piles, with a comet-bright head that flows around
+the ring in the play direction. Direction is read from arrow **geometry**, never colour, so it
+survives colour-blind and grayscale modes; a Reverse mirrors the arrowheads with a 3D-flip
+impact and the `REVERSED` confirmation. It is `accessibilityHidden` (the HUD is the semantic
+source) and uses `TimelineView(.periodic)` — not `.animation` — so the app still reports idle
+to XCUITest. Under Reduced Motion the flow freezes to a still frame that stays clearly
+directional.
 The game table view (and all menu screens) lock `.preferredColorScheme(.dark)` so text/icon
 contrast tokens stay deterministic regardless of the device's system appearance setting —
 this is a deliberate "dark-first" choice, not a light-mode regression.

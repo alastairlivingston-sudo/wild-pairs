@@ -88,12 +88,6 @@ enum Theme {
         /// 24pt keeps the two hit targets visually distinct at iPhone size while preserving the
         /// existing centre-row fit; constrained layouts may reduce to Space.s4, never below 16pt.
         static let drawDiscardGap: CGFloat = Space.s5
-        /// Resting direction orbit: always legible, always subordinate to the cards.
-        static let directionOrbitRestOpacity: Double = 0.42
-        /// Brief Reverse impact. The orbit may become dominant for less than a second, then settles.
-        static let directionOrbitEventOpacity: Double = 0.78
-        /// Compatibility alias for call sites that have not yet migrated.
-        static let directionOrbitOpacity: Double = directionOrbitRestOpacity
         /// Width of the non-colour white bracket stroke used to identify the active seat.
         static let activeSeatBracketWidth: CGFloat = 2
         /// Maximum number of physical backs shown in an opponent fan. The count badge remains exact.

@@ -13,17 +13,6 @@ struct SettingsView: View {
             TableBackground(style: settings.userSettings.tableBackgroundStyle)
             Form {
                 Section("Gameplay") {
-                    Picker("AI turn length", selection: s.aiTurnPace) {
-                        ForEach(AITurnPace.allCases, id: \.self) { pace in
-                            Text(pace.displayName).tag(pace)
-                        }
-                    }
-                    .accessibilityIdentifier("settings-ai-turn-pace-picker")
-                    .accessibilityHint(
-                        "How long each AI turn is held so you can read the card played. "
-                        + settings.userSettings.aiTurnPace.detail
-                    )
-
                     Picker("Animation speed", selection: s.animationSpeed) {
                         Text("Normal").tag(AnimationSpeed.normal)
                         Text("Fast").tag(AnimationSpeed.fast)
@@ -65,6 +54,33 @@ struct SettingsView: View {
                             .accessibilityIdentifier("settings-patternfills-toggle")
                     }
                     Toggle("Large cards", isOn: s.largeCards)
+                }
+                .listRowBackground(Color.black.opacity(0.25))
+
+                // Sits below the Accessibility toggles on purpose: it carries a multi-line
+                // caption, and placing it above would push those toggles off-screen where
+                // SwiftUI's lazy Form drops them from the accessibility tree (breaking the
+                // colour-blind and start-game UI tests, which tap them without scrolling).
+                Section("Pace") {
+                    Picker("AI turn length", selection: s.aiTurnPace) {
+                        ForEach(AITurnPace.allCases, id: \.self) { pace in
+                            Text(pace.displayName).tag(pace)
+                        }
+                    }
+                    .accessibilityIdentifier("settings-ai-turn-pace-picker")
+                    .accessibilityHint(
+                        "How long you watch each AI turn. A display preference only — it never "
+                        + "changes difficulty, the round clock, or who wins. "
+                        + settings.userSettings.aiTurnPace.detail
+                    )
+
+                    Text(
+                        "How long you watch each AI turn — a display preference only. It never "
+                        + "changes difficulty, the round clock, or who wins. "
+                        + settings.userSettings.aiTurnPace.detail
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
                 }
                 .listRowBackground(Color.black.opacity(0.25))
 

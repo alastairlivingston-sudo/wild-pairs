@@ -92,35 +92,13 @@ struct TableCenterView: View {
     }
 
     private var directionOrbit: some View {
-        let opacity = showReversed
-            ? Theme.Table.directionOrbitEventOpacity
-            : Theme.Table.directionOrbitRestOpacity
-
-        return Image("solo_table_direction_ring_clockwise")
-            .renderingMode(.template)
-            .resizable()
-            .interpolation(.high)
-            .scaledToFit()
-            .foregroundStyle(currentColour.highlightColor(scheme).opacity(opacity))
-            .frame(width: orbitSize, height: orbitSize)
-            // A 3D mirror changes the arrow direction itself. The brief scale/glow is the impact;
-            // the ring does not also spin, which previously read as decorative motion.
-            .rotation3DEffect(
-                .degrees(turnDirection == .clockwise ? 0 : 180),
-                axis: (x: 0, y: 1, z: 0),
-                perspective: 0.35
-            )
-            .scaleEffect(showReversed ? 1.08 : 1)
-            .shadow(
-                color: showReversed
-                    ? currentColour.highlightColor(scheme).opacity(0.62)
-                    : .clear,
-                radius: showReversed ? 14 : 0
-            )
-            .animation(reducedMotion ? nil : Theme.Motion.reverseImpact, value: turnDirection)
-            .animation(reducedMotion ? nil : Theme.Motion.reverseImpact, value: showReversed)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
+        DirectionPlayRing(
+            colour: currentColour,
+            clockwise: turnDirection == .clockwise,
+            emphasised: showReversed,
+            reducedMotion: reducedMotion,
+            diameter: orbitSize
+        )
     }
 
     private var drawPile: some View {
@@ -368,6 +346,98 @@ struct TableCenterView: View {
     }
 }
 
+
+/// The always-visible direction-of-play indicator: a prominent ring of arrowheads circling the
+/// table centre, flowing the way play travels. Direction is carried by arrow *geometry* (never
+/// colour alone), so it stays legible in colour-blind and grayscale modes; the HUD holds the
+/// spoken direction, so this ring is `accessibilityHidden`. A Reverse flips the arrowheads with a
+/// 3D-mirror impact. Under Reduced Motion the flow freezes to a still frame that is still clearly
+/// directional. Uses `.periodic` rather than `.animation` so the app still reports idle to
+/// XCUITest between frames.
+private struct DirectionPlayRing: View {
+    let colour: CardColour
+    let clockwise: Bool
+    let emphasised: Bool
+    let reducedMotion: Bool
+    let diameter: CGFloat
+
+    @Environment(\.colorScheme) private var scheme
+
+    private let chevronCount = 12
+    private var radius: CGFloat { diameter / 2 }
+    private var chevronSize: CGFloat { max(12, diameter * 0.12) }
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(colour.highlightColor(scheme).opacity(0.18),
+                        lineWidth: max(1.5, diameter * 0.014))
+                .frame(width: diameter * 0.9, height: diameter * 0.9)
+
+            if reducedMotion {
+                arrowRing(phase: 0)
+            } else {
+                TimelineView(.periodic(from: .now, by: 1.0 / 12.0)) { context in
+                    let t = context.date.timeIntervalSinceReferenceDate
+                    // The bright head laps the ring every ~2.4s, in the play direction.
+                    let phase = (t / 2.4).truncatingRemainder(dividingBy: 1)
+                    arrowRing(phase: phase)
+                }
+            }
+        }
+        .frame(width: diameter, height: diameter)
+        // The 3D Y-mirror flips the arrowheads themselves for counter-clockwise, and gives a
+        // Reverse its physical "flip" impact rather than a decorative spin.
+        .rotation3DEffect(
+            .degrees(clockwise ? 0 : 180),
+            axis: (x: 0, y: 1, z: 0),
+            perspective: 0.35
+        )
+        .scaleEffect(emphasised ? 1.06 : 1)
+        .shadow(color: emphasised ? colour.highlightColor(scheme).opacity(0.55) : .clear,
+                radius: emphasised ? 16 : 0)
+        .animation(reducedMotion ? nil : Theme.Motion.reverseImpact, value: clockwise)
+        .animation(reducedMotion ? nil : Theme.Motion.reverseImpact, value: emphasised)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private func arrowRing(phase: Double) -> some View {
+        ZStack {
+            ForEach(0..<chevronCount, id: \.self) { i in
+                let frac = Double(i) / Double(chevronCount)
+                let lead = reducedMotion ? staticLead(frac) : travellingLead(frac, phase: phase)
+                chevron(lead: lead)
+                    .offset(y: -radius * 0.86)
+                    .rotationEffect(.degrees(frac * 360))
+            }
+        }
+    }
+
+    /// Brightness as a comet chasing the head around the ring in the play direction.
+    private func travellingLead(_ frac: Double, phase: Double) -> Double {
+        let behind = (frac - phase + 1).truncatingRemainder(dividingBy: 1)
+        return pow(1 - behind, 2.2)
+    }
+
+    /// Reduced Motion: no travelling head, but a fixed bright leading arc so the arrowheads still
+    /// read as flowing one way.
+    private func staticLead(_ frac: Double) -> Double {
+        let d = min(frac, 1 - frac)          // 0 at the top … 0.5 opposite
+        return 0.5 + 0.5 * pow(1 - d * 2, 2)
+    }
+
+    private func chevron(lead: Double) -> some View {
+        // Base points right = the clockwise tangent at the top of the ring; rotating each copy
+        // around the centre keeps every arrowhead tangential.
+        Image(systemName: "chevron.right")
+            .font(.system(size: chevronSize, weight: .black))
+            .foregroundStyle(.white)
+            .opacity(0.28 + 0.72 * lead)
+            .shadow(color: colour.highlightColor(scheme).opacity(0.45 + 0.45 * lead),
+                    radius: 2 + 5 * lead)
+    }
+}
 
 /// Confirms the result of a wild colour decision with symbol + name + checkmark. It appears only
 /// after the pending choice resolves, providing the causal closure that a background tint alone
