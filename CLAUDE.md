@@ -255,6 +255,29 @@ xcodebuild test \
   -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest'
 ```
 
+## Visual Verification (iOS Simulator) — default every session
+
+For any change that renders on screen (layout, colour, typography, animation, HUD,
+table, cards, Settings), **build and run the app in the iOS Simulator and look at the
+actual rendered screen before reporting it done.** Tests and the XCUITest accessibility
+tree are necessary but not sufficient — they do not catch cramped spacing, wrong
+contrast, clipped text, an invisible ring, or a layout that stacks to the top of an iPad.
+Reference: https://code.claude.com/docs/en/desktop-ios-simulator
+
+- In **Claude Code Desktop (local session)** the iOS Simulator pane opens on its own when
+  the app is built, run, or checked in a simulator — no command or setting. Phrase the
+  work around running/verifying the app, then read the screen to confirm the change.
+- From the **CLI**, reach the simulator through computer use (drive Simulator.app), or
+  fall back to an attachment-based XCUITest that exports screenshots via
+  `xcrun xcresulttool export attachments` — the pattern already used in this repo.
+- **Not available** in cloud or SSH sessions (no simulator on the remote host); there,
+  verify by tests and say the visual check is pending a local run — do not claim it.
+- Cover the surfaces the change touches: **iPhone portrait and iPad landscape** whenever
+  layout differs, plus the relevant variant (Reduce Motion, Colour-blind mode, large
+  Dynamic Type) when the change affects motion, colour, or text size.
+- This augments — never replaces — `swift test` and the XCUITest suite. Do not sign off a
+  visible change on green tests alone.
+
 ## Legal and Brand Safety
 - Do NOT use: UNO, Mattel, official card artwork, copyrighted/trademarked assets
 - All terminology is original: colour names, action names, game name, one-card-left call
