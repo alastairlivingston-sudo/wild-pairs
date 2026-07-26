@@ -33,10 +33,27 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1,2"   # iPhone + iPad (Universal)
         SWIFT_VERSION: "5.9"
-        ENABLE_USER_SCRIPT_SANDBOXING: YES
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
     dependencies:
       - package: WildPairsCore
         product: WildPairsCore
+    postBuildScripts:
+      - name: "Embed build identifier (git commit + timestamp)"
+        basedOnDependencyAnalysis: false
+        script: |
+          PLIST="${TARGET_BUILD_DIR}/${INFOPLIST_PATH}"
+          export GIT_DIR="${SRCROOT}/.git"
+          export GIT_WORK_TREE="${SRCROOT}"
+          GIT_HASH=$(git rev-parse --short HEAD 2>/dev/null)
+          if [ -z "${GIT_HASH}" ]; then GIT_HASH="unknown"; fi
+          if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
+            GIT_HASH="${GIT_HASH}-dirty"
+          fi
+          BUILD_DATE=$(date "+%d %b, %H:%M")
+          /usr/libexec/PlistBuddy -c "Add :GitCommitHash string ${GIT_HASH}" "${PLIST}" 2>/dev/null \
+            || /usr/libexec/PlistBuddy -c "Set :GitCommitHash ${GIT_HASH}" "${PLIST}"
+          /usr/libexec/PlistBuddy -c "Add :BuildTimestamp string ${BUILD_DATE}" "${PLIST}" 2>/dev/null \
+            || /usr/libexec/PlistBuddy -c "Set :BuildTimestamp ${BUILD_DATE}" "${PLIST}"
 
   WildPairsUITests:
     type: bundle.ui-testing

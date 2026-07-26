@@ -8,6 +8,20 @@ struct SettingsView: View {
 
     private var s: Binding<UserSettings> { $settings.userSettings }
 
+    private var appVersion: String {
+        let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"
+        return "\(short) (\(build))"
+    }
+
+    private var buildIdentifier: String {
+        guard let hash = Bundle.main.infoDictionary?["GitCommitHash"] as? String else {
+            return "unknown — regenerate the Xcode project"
+        }
+        guard let date = Bundle.main.infoDictionary?["BuildTimestamp"] as? String else { return hash }
+        return "\(hash) · \(date)"
+    }
+
     var body: some View {
         ZStack {
             TableBackground(style: settings.userSettings.tableBackgroundStyle)
@@ -91,6 +105,26 @@ struct SettingsView: View {
                     Text("Data")
                 } footer: {
                     Text("All data is stored only on this device. Nothing is sent anywhere.")
+                }
+                .listRowBackground(Color.black.opacity(0.25))
+
+                Section {
+                    HStack {
+                        Text("Version")
+                        Spacer()
+                        Text(appVersion).foregroundStyle(.secondary).monospacedDigit()
+                    }
+                    HStack {
+                        Text("Build")
+                        Spacer()
+                        Text(buildIdentifier).foregroundStyle(.secondary).monospacedDigit()
+                    }
+                    .accessibilityIdentifier("settings-build-row")
+                    .accessibilityLabel("Build \(buildIdentifier)")
+                } header: {
+                    Text("About")
+                } footer: {
+                    Text("Compare the build shown here with what you just deployed to confirm it's the latest.")
                 }
                 .listRowBackground(Color.black.opacity(0.25))
             }
