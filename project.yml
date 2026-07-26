@@ -46,7 +46,7 @@ targets:
           export GIT_WORK_TREE="${SRCROOT}"
           GIT_HASH=$(git rev-parse --short HEAD 2>/dev/null)
           if [ -z "${GIT_HASH}" ]; then GIT_HASH="unknown"; fi
-          if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
+          if [ -n "$(git status --porcelain --untracked-files=no 2>/dev/null)" ]; then
             GIT_HASH="${GIT_HASH}-dirty"
           fi
           BUILD_DATE=$(date "+%d %b, %H:%M")
